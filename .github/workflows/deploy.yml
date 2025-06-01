@@ -20,10 +20,23 @@ jobs:
     - name: Deploy to EC2
       run: |
         ssh -o StrictHostKeyChecking=no ubuntu@52.78.212.96 << 'EOF'
-          cd /home/ubuntu/blackcows-server
+          cd ~/blackcows-server
           git pull
+      
+          # 가상환경 없으면 생성
+          [ ! -d "venv" ] && python3 -m venv venv
+      
+          # 가상환경 활성화
           source venv/bin/activate
-          pkill -f "uvicorn main:app" || true
-          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > server.log 2>&1 &
+      
+          # 패키지 설치
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          # 서버 실행 전 기존 프로세스 종료
+          fuser -k 8000/tcp || true
+
+          # 서버 실행 (출력/입력 분리)
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > /dev/null 2>&1 < /dev/null &
 
         EOF
