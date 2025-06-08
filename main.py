@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI
 from routers import cow, test, record
-from routers import auth_firebase
+from routers import auth_firebase, test
 from fastapi.middleware.cors import CORSMiddleware
 
 # JWT 시크릿 키 검증
@@ -41,5 +41,5 @@ def health_check():
     }
 
 @app.get("/health")
-async def health():
-    return {"status": "ok"}
+def health_status():
+    return {"status": "healthy"}
