@@ -48,23 +48,86 @@ jobs:
           
           # 서버 실행 전 기존 프로세스 종료
           fuser -k 8000/tcp || true
+          pkill -f uvicorn || true
+          
+          # Python 구문 테스트
+          echo "=== Python 구문 검사 ==="
+          python3 -m py_compile main.py
+          if [ $? -eq 0 ]; then
+            echo "✅ main.py 구문 검사 통과"
+          else
+            echo "❌ main.py 구문 오류 발견"
+            exit 1
+          fi
+           
+          # main.py 내용 확인
+          echo "=== main.py 엔드포인트 확인 ==="
+          if grep -q "/health" main.py; then
+            echo "✅ /health 엔드포인트 발견"
+          else
+            echo "❌ /health 엔드포인트 없음 - 추가 필요"
+          fi
+
+          # Firebase 연결 테스트
+          echo "=== Firebase 연결 테스트 ==="
+          python3 -c "
+          import os
+          from dotenv import load_dotenv
+          load_dotenv()
+          try:
+              from config.firebase_config import initialize_firebase
+              initialize_firebase()
+              print('✅ Firebase 초기화 성공')
+          except Exception as e:
+              print(f'❌ Firebase 초기화 실패: {e}')
+          " || echo "❌ Firebase 테스트 실패"
 
           # 환경변수 테스트
-          echo "Testing environment variables..."
-          python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET'); print('✅ FIREBASE_PROJECT_ID:', os.getenv('FIREBASE_PROJECT_ID', '❌ NOT SET')); print('✅ FIREBASE_PRIVATE_KEY_ID:', os.getenv('FIREBASE_PRIVATE_KEY_ID', '❌ NOT SET')); print('✅ FIREBASE_CLIENT_EMAIL:', os.getenv('FIREBASE_CLIENT_EMAIL', '❌ NOT SET')); print('✅ FIREBASE_CLIENT_ID:', os.getenv('FIREBASE_CLIENT_ID', '❌ NOT SET')); print('✅ FIREBASE_PRIVATE_KEY:', os.getenv('FIREBASE_PRIVATE_KEY', '❌ NOT SET')); print('✅ ACCESS_TOKEN_EXPIRE_MINUTES:', os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', '❌ NOT SET')); print('✅ REFRESH_TOKEN_EXPIRE_DAYS:', os.getenv('REFRESH_TOKEN_EXPIRE_DAYS', '❌ NOT SET')); print('✅ All environment variables loaded successfully!')"     
+          echo "=== 환경변수 확인 ==="
+          python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET'); print('✅ FIREBASE_PROJECT_ID:', os.getenv('FIREBASE_PROJECT_ID', '❌ NOT SET')); print('✅ All environment variables loaded successfully!')"
 
-          
-          # 서버 실행 (출력/입력 분리)
-          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > /dev/null 2>&1 < /dev/null &
+          # 서버 실행
+          echo "=== 서버 시작 ==="
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > server.log 2>&1 < /dev/null &
+          SERVER_PID=$!
+          echo "서버 PID: $SERVER_PID"
 
-          # 서버 시작 확인
-          sleep 3
-          if curl -f http://localhost:8000/health > /dev/null 2>&1; then
-            echo "✅ 서버가 정상적으로 시작되었습니다!"
+          # 서버 시작 대기
+          sleep 8
+
+          # 프로세스 상태 확인
+          echo "=== 프로세스 상태 확인 ==="
+          if ps -p $SERVER_PID > /dev/null; then
+            echo "✅ 서버 프로세스 실행 중 (PID: $SERVER_PID)"
           else
-            echo "❌ 서버 시작에 실패했습니다."
-            # 로그 확인
-            tail -20 nohup.out || echo "로그 파일이 없습니다."
+            echo "❌ 서버 프로세스가 종료됨"
+            echo "=== 서버 로그 확인 ==="
+            cat server.log
+            exit 1
+          fi
+
+          # 포트 확인
+          echo "=== 포트 상태 확인 ==="
+          if netstat -tlnp | grep 8000; then
+            echo "✅ 포트 8000이 열려있음"
+          else
+            echo "❌ 포트 8000이 열려있지 않음"
+            cat server.log
+            exit 1
+          fi
+
+          # 헬스체크
+          echo "=== 헬스체크 ==="
+          if curl -f http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ 헬스체크 성공 - 서버가 정상적으로 시작되었습니다!"
+          elif curl -f http://localhost:8000/ > /dev/null 2>&1; then
+            echo "✅ 루트 경로 응답 확인 - 서버가 시작되었습니다!"
+          else
+            echo "❌ 헬스체크 실패 - 서버 로그를 확인합니다"
+            echo "=== 최근 서버 로그 ==="
+            tail -20 server.log
+            echo "=== 전체 서버 로그 ==="
+            cat server.log
           fi
 
         EOF
