@@ -23,7 +23,7 @@ jobs:
           cd ~/blackcows-server
           git pull
 
-          # 환경변수 파일 생성 (새로 추가된 부분!)
+          # 환경변수 파일 생성
           echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" > .env
           echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
           echo "REFRESH_TOKEN_EXPIRE_DAYS=7" >> .env
@@ -33,7 +33,7 @@ jobs:
           echo "FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}" >> .env
           echo 'FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"' >> .env
 
-          # .env 파일 권한 설정 (보안)
+          # .env 파일 권한 설정
           chmod 600 .env
 
           # 가상환경 없으면 생성
@@ -49,24 +49,11 @@ jobs:
           # 서버 실행 전 기존 프로세스 종료
           fuser -k 8000/tcp || true
 
-          # 🧪 환경변수 테스트 (선택사항)
+          # 환경변수 테스트
           echo "Testing environment variables..."
-          python3 -c "
-          import os
-          from dotenv import load_dotenv
-          load_dotenv()
-          print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET')
-          print('✅ FIREBASE_PROJECT_ID:', os.getenv('FIREBASE_PROJECT_ID', '❌ NOT SET'))
-          print('✅ FIREBASE_PRIVATE_KEY_ID:', os.getenv('FIREBASE_PRIVATE_KEY_ID', '❌ NOT SET'))
-          print('✅ FIREBASE_CLIENT_EMAIL:', os.getenv('FIREBASE_CLIENT_EMAIL', '❌ NOT SET'))
-          print('✅ FIREBASE_CLIENT_ID:', os.getenv('FIREBASE_CLIENT_ID', '❌ NOT SET'))
-          print('✅ FIREBASE_PRIVATE_KEY:', os.getenv('FIREBASE_PRIVATE_KEY', '❌ NOT SET'))
-          print('✅ ACCESS_TOKEN_EXPIRE_MINUTES:', os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', '❌ NOT SET'))
-          print('✅ REFRESH_TOKEN_EXPIRE_DAYS:', os.getenv('REFRESH_TOKEN_EXPIRE_DAYS', '❌ NOT SET'))
-          print('✅ 환경 변수 확인 완료!')
-          "
+          python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET'); print('✅ FIREBASE_PROJECT_ID:', os.getenv('FIREBASE_PROJECT_ID', '❌ NOT SET')); print('✅ FIREBASE_PRIVATE_KEY_ID:', os.getenv('FIREBASE_PRIVATE_KEY_ID', '❌ NOT SET')); print('✅ FIREBASE_CLIENT_EMAIL:', os.getenv('FIREBASE_CLIENT_EMAIL', '❌ NOT SET')); print('✅ FIREBASE_CLIENT_ID:', os.getenv('FIREBASE_CLIENT_ID', '❌ NOT SET')); print('✅ FIREBASE_PRIVATE_KEY:', os.getenv('FIREBASE_PRIVATE_KEY', '❌ NOT SET')); print('✅ ACCESS_TOKEN_EXPIRE_MINUTES:', os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', '❌ NOT SET')); print('✅ REFRESH_TOKEN_EXPIRE_DAYS:', os.getenv('REFRESH_TOKEN_EXPIRE_DAYS', '❌ NOT SET')); print('✅ All environment variables loaded successfully!')"     
 
-
+          
           # 서버 실행 (출력/입력 분리)
           nohup uvicorn main:app --host 0.0.0.0 --port 8000 > /dev/null 2>&1 < /dev/null &
 
