@@ -68,13 +68,22 @@ jobs:
             echo "❌ /health 엔드포인트 없음 - 추가 필요"
           fi
 
-          # Firebase 연결 테스트 
+          # import os 확인
+          echo "=== import os 확인 ==="
+          if grep -q "import os" main.py; then
+            echo "✅ import os 발견"
+          else
+            echo "❌ import os 누락 - main.py 첫 줄에 추가 필요"
+            exit 1
+          fi
+
+          # Firebase 연결 테스트
           echo "=== Firebase 연결 테스트 ==="
           python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); from config.firebase_config import initialize_firebase; initialize_firebase(); print('✅ Firebase 초기화 성공')" 2>/dev/null || echo "❌ Firebase 테스트 건너뜀"
 
           # 환경변수 테스트
           echo "=== 환경변수 확인 ==="
-          python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET'); print('✅ FIREBASE_PROJECT_ID:', os.getenv('FIREBASE_PROJECT_ID', '❌ NOT SET')); print('✅ All environment variables loaded successfully!')"
+          python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET'); print('✅ All environment variables loaded successfully!')"
 
           # 서버 실행
           echo "=== 서버 시작 ==="
@@ -83,7 +92,7 @@ jobs:
           echo "서버 PID: $SERVER_PID"
 
           # 서버 시작 대기
-          sleep 10
+          sleep 12
 
           # 프로세스 상태 확인
           echo "=== 프로세스 상태 확인 ==="
@@ -98,26 +107,32 @@ jobs:
 
           # 포트 확인
           echo "=== 포트 상태 확인 ==="
-          if netstat -tlnp | grep 8000; then
-            echo "✅ 포트 8000이 열려있음"
+          if ss -tlnp | grep 8000; then
+            echo "✅ 포트 8000이 열려있음 (ss 명령어 사용)"
+          elif lsof -i:8000 2>/dev/null; then
+            echo "✅ 포트 8000이 열려있음 (lsof 명령어 사용)"
+          elif curl -f http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ 포트 8000 확인됨 (헬스체크 성공)"
           else
-            echo "❌ 포트 8000이 열려있지 않음"
+            echo "❌ 포트 8000 확인 실패"
+            echo "=== 서버 로그 ==="
             cat server.log
             exit 1
           fi
 
-          # 헬스체크
-          echo "=== 헬스체크 ==="
+          # 최종 헬스체크
+          echo "=== 최종 헬스체크 ==="
           if curl -f http://localhost:8000/health > /dev/null 2>&1; then
             echo "✅ 헬스체크 성공 - 서버가 정상적으로 시작되었습니다!"
+            echo "🎯 서버 접속: http://52.78.212.96:8000"
+            echo "📚 API 문서: http://52.78.212.96:8000/docs"
           elif curl -f http://localhost:8000/ > /dev/null 2>&1; then
             echo "✅ 루트 경로 응답 확인 - 서버가 시작되었습니다!"
+            echo "🎯 서버 접속: http://52.78.212.96:8000"
           else
-            echo "❌ 헬스체크 실패 - 서버 로그를 확인합니다"
-            echo "=== 최근 서버 로그 ==="
-            tail -20 server.log
-            echo "=== 전체 서버 로그 ==="
-            cat server.log
+            echo "❌ 헬스체크 실패"
+            echo "=== 서버 로그 확인 ==="
+            tail -30 server.log
           fi
 
         EOF
