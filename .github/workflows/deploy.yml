@@ -1,0 +1,148 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.7.0
+      with:
+        ssh-private-key: ${{ secrets.EC2_KEY }}
+
+    - name: Deploy to EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no ubuntu@52.78.212.96 << 'EOF'
+          cd ~/blackcows-server
+          git pull
+
+          # 환경변수 파일 생성
+          echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" > .env
+          echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
+          echo "REFRESH_TOKEN_EXPIRE_DAYS=7" >> .env
+          echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}" >> .env
+          echo "FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }}" >> .env
+          echo "FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}" >> .env
+          echo "FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}" >> .env
+          echo 'FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}"' >> .env
+
+          # .env 파일 권한 설정
+          chmod 600 .env
+
+          # 가상환경 없으면 생성
+          [ ! -d "venv" ] && python3 -m venv venv
+      
+          # 가상환경 활성화
+          source venv/bin/activate
+      
+          # 패키지 설치
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          # 서버 실행 전 기존 프로세스 종료
+          fuser -k 8000/tcp || true
+          pkill -f uvicorn || true
+          
+          # Python 구문 테스트
+          echo "=== Python 구문 검사 ==="
+          python3 -m py_compile main.py
+          if [ $? -eq 0 ]; then
+            echo "✅ main.py 구문 검사 통과"
+          else
+            echo "❌ main.py 구문 오류 발견"
+            exit 1
+          fi
+           
+          # main.py 내용 확인
+          echo "=== main.py 엔드포인트 확인 ==="
+          if grep -q "/health" main.py; then
+            echo "✅ /health 엔드포인트 발견"
+          else
+            echo "❌ /health 엔드포인트 없음 - 추가 필요"
+          fi
+
+          # import os 확인
+          echo "=== import os 확인 ==="
+          if grep -q "import os" main.py; then
+            echo "✅ import os 발견"
+          else
+            echo "❌ import os 누락 - main.py 첫 줄에 추가 필요"
+            exit 1
+          fi
+
+          # Firebase 연결 테스트
+          echo "=== Firebase 연결 테스트 ==="
+          python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); from config.firebase_config import initialize_firebase; initialize_firebase(); print('✅ Firebase 초기화 성공')" 2>/dev/null || echo "❌ Firebase 테스트 건너뜀"
+
+          # 환경변수 테스트
+          echo "=== 환경변수 확인 ==="
+          python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET'); print('✅ All environment variables loaded successfully!')"
+
+          # 서버 실행
+          echo "=== 서버 시작 ==="
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > server.log 2>&1 < /dev/null &
+          SERVER_PID=$!
+          echo "서버 PID: $SERVER_PID"
+
+          # 서버 시작 대기
+          sleep 12
+
+          # 프로세스 상태 확인
+          echo "=== 프로세스 상태 확인 ==="
+          if ps -p $SERVER_PID > /dev/null; then
+            echo "✅ 서버 프로세스 실행 중 (PID: $SERVER_PID)"
+          else
+            echo "❌ 서버 프로세스가 종료됨"
+            echo "=== 서버 로그 확인 ==="
+            cat server.log
+            exit 1
+          fi
+
+          # 포트 확인
+          echo "=== 포트 상태 확인 ==="
+          if ss -tlnp | grep 8000; then
+            echo "✅ 포트 8000이 열려있음 (ss 명령어 사용)"
+          elif lsof -i:8000 2>/dev/null; then
+            echo "✅ 포트 8000이 열려있음 (lsof 명령어 사용)"
+          elif curl -f http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ 포트 8000 확인됨 (헬스체크 성공)"
+          else
+            echo "❌ 포트 8000 확인 실패"
+            echo "=== 서버 로그 ==="
+            cat server.log
+            exit 1
+          fi
+
+          # 최종 헬스체크
+          echo "=== 최종 헬스체크 ==="
+          if curl -f http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ 헬스체크 성공 - 서버가 정상적으로 시작되었습니다!"
+            echo "🎯 서버 접속: http://52.78.212.96:8000"
+            echo "📚 API 문서: http://52.78.212.96:8000/docs"
+          elif curl -f http://localhost:8000/ > /dev/null 2>&1; then
+            echo "✅ 루트 경로 응답 확인 - 서버가 시작되었습니다!"
+            echo "🎯 서버 접속: http://52.78.212.96:8000"
+          else
+            echo "❌ 헬스체크 실패"
+            echo "=== 서버 로그 확인 ==="
+            tail -30 server.log
+          fi
+
+          # 서버 시작 확인
+          sleep 3
+          if curl -f http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ 서버가 정상적으로 시작되었습니다!"
+          else
+            echo "❌ 서버 시작에 실패했습니다."
+            # 로그 확인
+            tail -20 nohup.out || echo "로그 파일이 없습니다."
+          fi
+
+        EOF
