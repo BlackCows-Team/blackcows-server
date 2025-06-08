@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from routers import cow, test
 from routers import auth_firebase
