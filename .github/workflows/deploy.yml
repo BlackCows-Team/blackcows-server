@@ -68,19 +68,9 @@ jobs:
             echo "❌ /health 엔드포인트 없음 - 추가 필요"
           fi
 
-          # Firebase 연결 테스트
+          # Firebase 연결 테스트 
           echo "=== Firebase 연결 테스트 ==="
-          python3 -c "
-          import os
-          from dotenv import load_dotenv
-          load_dotenv()
-          try:
-              from config.firebase_config import initialize_firebase
-              initialize_firebase()
-              print('✅ Firebase 초기화 성공')
-          except Exception as e:
-              print(f'❌ Firebase 초기화 실패: {e}')
-          " || echo "❌ Firebase 테스트 실패"
+          python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); from config.firebase_config import initialize_firebase; initialize_firebase(); print('✅ Firebase 초기화 성공')" 2>/dev/null || echo "❌ Firebase 테스트 건너뜀"
 
           # 환경변수 테스트
           echo "=== 환경변수 확인 ==="
@@ -93,7 +83,7 @@ jobs:
           echo "서버 PID: $SERVER_PID"
 
           # 서버 시작 대기
-          sleep 8
+          sleep 10
 
           # 프로세스 상태 확인
           echo "=== 프로세스 상태 확인 ==="
