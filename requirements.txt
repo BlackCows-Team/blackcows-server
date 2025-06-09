@@ -39,3 +39,4 @@ typing_extensions==4.14.0
 uritemplate==4.2.0
 urllib3==2.4.0
 uvicorn==0.34.2
+email-validator==2.1.1
