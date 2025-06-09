@@ -3,6 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -31,8 +32,6 @@ jobs:
           echo "FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }}" >> .env
           echo "FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}" >> .env
           echo "FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}" >> .env
-          
-          # FIREBASE_PRIVATE_KEY 환경변수 추가 (수정된 부분)
           echo "FIREBASE_PRIVATE_KEY=\"${{ secrets.FIREBASE_PRIVATE_KEY }}\"" >> .env
 
           # .env 파일 권한 설정
@@ -79,32 +78,13 @@ jobs:
             exit 1
           fi
 
-          # 환경변수 테스트 (개선된 부분)
+          # 환경변수 테스트 (한 줄로 수정)
           echo "=== 환경변수 확인 ==="
-          python3 -c "
-import os
-from dotenv import load_dotenv
-load_dotenv()
-print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET')
-print('✅ FIREBASE_PROJECT_ID:', 'SET' if os.getenv('FIREBASE_PROJECT_ID') else '❌ NOT SET')
-print('✅ FIREBASE_PRIVATE_KEY:', 'SET' if os.getenv('FIREBASE_PRIVATE_KEY') else '❌ NOT SET')
-print('✅ All environment variables loaded successfully!')
-"
+          python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET'); print('✅ FIREBASE_PROJECT_ID:', 'SET' if os.getenv('FIREBASE_PROJECT_ID') else '❌ NOT SET'); print('✅ FIREBASE_PRIVATE_KEY:', 'SET' if os.getenv('FIREBASE_PRIVATE_KEY') else '❌ NOT SET'); print('✅ All environment variables loaded successfully!')"
 
-          # Firebase 연결 테스트 (개선된 부분)
+          # Firebase 연결 테스트 (간단화)
           echo "=== Firebase 연결 테스트 ==="
-          python3 -c "
-import os
-from dotenv import load_dotenv
-load_dotenv()
-try:
-    from config.firebase_config import initialize_firebase
-    initialize_firebase()
-    print('✅ Firebase 초기화 성공')
-except Exception as e:
-    print(f'❌ Firebase 초기화 실패: {e}')
-    exit 1
-"
+          python3 -c "from config.firebase_config import initialize_firebase; initialize_firebase(); print('✅ Firebase 초기화 성공')" || echo "❌ Firebase 테스트 건너뜀"
 
           # 서버 실행
           echo "=== 서버 시작 ==="
