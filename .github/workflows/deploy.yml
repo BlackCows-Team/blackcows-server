@@ -91,6 +91,19 @@ jobs:
             echo "✅ routes.livestock_trace import 없음"
           fi
           
+          # livestock_router 사용 부분도 제거
+          if grep -q "livestock_router" main.py; then
+            echo "❌ livestock_router 사용 발견 - 자동 제거 중..."
+            sed -i '/livestock_router/d' main.py
+            echo "✅ livestock_router 사용 제거 완료"
+          else
+            echo "✅ livestock_router 사용 없음"
+          fi
+          
+          # 수정된 main.py 확인
+          echo "=== 수정된 main.py 확인 ==="
+          head -10 main.py
+          
           # import os 확인
           echo "=== import os 확인 ==="
           if grep -q "import os" main.py; then
