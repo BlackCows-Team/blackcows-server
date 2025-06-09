@@ -23,6 +23,10 @@ jobs:
         ssh -o StrictHostKeyChecking=no ubuntu@52.78.212.96 << 'EOF'
           cd ~/blackcows-server
           git pull
+          
+          # Python 캐시 파일 삭제
+          find . -type f -name "*.pyc" -delete
+          find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
           # 환경변수 파일 생성
           echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" > .env
@@ -37,8 +41,9 @@ jobs:
           # .env 파일 권한 설정
           chmod 600 .env
 
-          # 가상환경 없으면 생성
-          [ ! -d "venv" ] && python3 -m venv venv
+          # 기존 가상환경 삭제 후 새로 생성
+          rm -rf venv
+          python3 -m venv venv
       
           # 가상환경 활성화
           source venv/bin/activate
@@ -62,6 +67,8 @@ jobs:
           fi
            
           # main.py 내용 확인
+          echo "=== main.py 내용 확인 ==="
+          head -20 main.py
           echo "=== main.py 엔드포인트 확인 ==="
           if grep -q "/health" main.py; then
             echo "✅ /health 엔드포인트 발견"
@@ -69,6 +76,16 @@ jobs:
             echo "❌ /health 엔드포인트 없음 - 추가 필요"
           fi
 
+          # import 문제 확인
+          echo "=== import 문제 확인 ==="
+          if grep -q "routes.livestock_trace" main.py; then
+            echo "❌ 문제가 되는 routes.livestock_trace import 발견"
+            echo "해당 라인을 제거해야 합니다:"
+            grep -n "routes.livestock_trace" main.py
+          else
+            echo "✅ routes.livestock_trace import 없음"
+          fi
+          
           # import os 확인
           echo "=== import os 확인 ==="
           if grep -q "import os" main.py; then
@@ -78,11 +95,11 @@ jobs:
             exit 1
           fi
 
-          # 환경변수 테스트 (한 줄로 수정)
+          # 환경변수 테스트 
           echo "=== 환경변수 확인 ==="
           python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET'); print('✅ FIREBASE_PROJECT_ID:', 'SET' if os.getenv('FIREBASE_PROJECT_ID') else '❌ NOT SET'); print('✅ FIREBASE_PRIVATE_KEY:', 'SET' if os.getenv('FIREBASE_PRIVATE_KEY') else '❌ NOT SET'); print('✅ All environment variables loaded successfully!')"
 
-          # Firebase 연결 테스트 (간단화)
+          # Firebase 연결 테스트
           echo "=== Firebase 연결 테스트 ==="
           python3 -c "from config.firebase_config import initialize_firebase; initialize_firebase(); print('✅ Firebase 초기화 성공')" || echo "❌ Firebase 테스트 건너뜀"
 
