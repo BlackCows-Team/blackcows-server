@@ -102,7 +102,7 @@ class CowFirebaseService:
             cows_query = db.collection('cows')\
                 .where('farm_id', '==', farm_id)\
                 .where('is_active', '==', is_active)\
-                .order_by('created_at', direction='desc')\
+                .order_by('created_at', direction='DESCENDING')\
                 .get()
             
             cows = []
@@ -328,7 +328,7 @@ class CowFirebaseService:
                 .where('farm_id', '==', farm_id)\
                 .where('is_favorite', '==', True)\
                 .where('is_active', '==', True)\
-                .order_by('updated_at', direction='desc')\
+                .order_by('updated_at', direction='DESCENDING')\
                 .get()
             
             cows = []

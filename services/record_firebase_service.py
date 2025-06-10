@@ -297,7 +297,7 @@ class RecordFirebaseService:
                 query = query.where('record_type', '==', record_type.value)
             
             # 날짜 순으로 정렬 (최신순)
-            records_query = query.order_by('record_date', direction='desc').get()
+            records_query = query.order_by('record_date', direction='DESCENDING').get()
             
             records = []
             for record_doc in records_query:
@@ -388,7 +388,7 @@ class RecordFirebaseService:
                 query = query.where('record_type', '==', record_type.value)
             
             # 날짜 순으로 정렬하고 제한
-            records_query = query.order_by('record_date', direction='desc').limit(limit).get()
+            records_query = query.order_by('record_date', direction='DESCENDING').limit(limit).get()
             
             records = []
             for record_doc in records_query:
