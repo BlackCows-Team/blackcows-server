@@ -79,34 +79,7 @@ class CowCreate(BaseModel):
                 raise ValueError('출생일은 YYYY-MM-DD 형식으로 입력해주세요 (예: 2022-03-15)')
         return v
     
-    @validator('birthdate')
-    def validate_birthdate_update(cls, v):
-        if v is not None:
-            if len(v.strip()) == 0:
-                return None  # 빈 문자열은 None으로 처리
-            
-            try:
-                from datetime import datetime
-                # YYYY-MM-DD 형식 검증
-                birth_date = datetime.strptime(v.strip(), '%Y-%m-%d')
-                
-                # 미래 날짜 검증
-                today = datetime.now()
-                if birth_date > today:
-                    raise ValueError('출생일은 미래 날짜일 수 없습니다')
-                
-                # 너무 오래된 날짜 검증
-                from datetime import timedelta
-                fifty_years_ago = today - timedelta(days=365*20)
-                if birth_date < fifty_years_ago:
-                    raise ValueError('출생일이 너무 오래되었습니다 (20년 이내)')
-                
-                return v.strip()
-            except ValueError as e:
-                if '출생일' in str(e):
-                    raise e
-                raise ValueError('출생일은 YYYY-MM-DD 형식으로 입력해주세요 (예: 2022-03-15)')
-        return v
+    @validator('sensor_number')
     def validate_sensor_number(cls, v):
         if v is not None:
             if len(v.strip()) == 0:
@@ -155,6 +128,35 @@ class CowUpdate(BaseModel):
             if len(v) > 50:
                 raise ValueError('젖소 이름은 50자 이하여야 합니다')
             return v.strip()
+        return v
+    
+    @validator('birthdate')
+    def validate_birthdate_update(cls, v):
+        if v is not None:
+            if len(v.strip()) == 0:
+                return None  # 빈 문자열은 None으로 처리
+            
+            try:
+                from datetime import datetime
+                # YYYY-MM-DD 형식 검증
+                birth_date = datetime.strptime(v.strip(), '%Y-%m-%d')
+                
+                # 미래 날짜 검증
+                today = datetime.now()
+                if birth_date > today:
+                    raise ValueError('출생일은 미래 날짜일 수 없습니다')
+                
+                # 너무 오래된 날짜 검증
+                from datetime import timedelta
+                fifty_years_ago = today - timedelta(days=365*20)
+                if birth_date < fifty_years_ago:
+                    raise ValueError('출생일이 너무 오래되었습니다 (20년 이내)')
+                
+                return v.strip()
+            except ValueError as e:
+                if '출생일' in str(e):
+                    raise e
+                raise ValueError('출생일은 YYYY-MM-DD 형식으로 입력해주세요 (예: 2022-03-15)')
         return v
     
     @validator('sensor_number')
