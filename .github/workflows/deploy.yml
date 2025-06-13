@@ -133,8 +133,9 @@ jobs:
           SERVER_PID=$!
           echo "서버 PID: $SERVER_PID"
 
-          # 서버 시작 대기
-          sleep 5
+          # 서버 시작 대기 (더 오래 기다리기)
+          echo "=== 서버 시작 대기 (10초) ==="
+          sleep 10
 
           # 프로세스 상태 확인
           echo "=== 프로세스 상태 확인 ==="
@@ -144,47 +145,65 @@ jobs:
             echo "❌ 서버 프로세스가 종료됨"
             echo "=== 서버 로그 확인 ==="
             cat server.log
+            echo "=== 프로세스 목록 확인 ==="
+            ps aux | grep uvicorn
             exit 1
           fi
 
-          # 포트 확인
+          # 서버 로그 확인 (실시간)
+          echo "=== 최근 서버 로그 (마지막 10줄) ==="
+          tail -10 server.log
+
+          # 포트 확인 (더 자세히)
           echo "=== 포트 상태 확인 ==="
-          if ss -tlnp | grep 8000; then
-            echo "✅ 포트 8000이 열려있음 (ss 명령어 사용)"
-          elif lsof -i:8000 2>/dev/null; then
-            echo "✅ 포트 8000이 열려있음 (lsof 명령어 사용)"
-          elif curl -f http://localhost:8000/health > /dev/null 2>&1; then
-            echo "✅ 포트 8000 확인됨 (헬스체크 성공)"
+          echo "ss 명령어로 포트 확인:"
+          ss -tlnp | grep 8000 || echo "ss로 포트 8000 확인 안됨"
+          
+          echo "lsof 명령어로 포트 확인:"
+          lsof -i:8000 2>/dev/null || echo "lsof로 포트 8000 확인 안됨"
+          
+          echo "netstat 명령어로 포트 확인:"
+          netstat -tlnp | grep 8000 || echo "netstat으로 포트 8000 확인 안됨"
+
+          # 더 오래 기다린 후 헬스체크
+          echo "=== 추가 대기 후 헬스체크 (5초 더) ==="
+          sleep 5
+
+          # 헬스체크 시도 (여러 방법으로)
+          echo "=== 헬스체크 시도 ==="
+          
+          # 방법 1: /health 엔드포인트
+          if curl -f -m 10 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ /health 엔드포인트 응답 성공"
+            HEALTH_CHECK_SUCCESS=true
           else
-            echo "❌ 포트 8000 확인 실패"
-            echo "=== 서버 로그 ==="
-            cat server.log
-            exit 1
+            echo "❌ /health 엔드포인트 응답 실패"
+            HEALTH_CHECK_SUCCESS=false
+          fi
+          
+          # 방법 2: 루트 경로
+          if curl -f -m 10 http://localhost:8000/ > /dev/null 2>&1; then
+            echo "✅ 루트 경로 응답 성공"
+            ROOT_CHECK_SUCCESS=true
+          else
+            echo "❌ 루트 경로 응답 실패"
+            ROOT_CHECK_SUCCESS=false
           fi
 
-          # 최종 헬스체크
-          echo "=== 최종 헬스체크 ==="
-          if curl -f http://localhost:8000/health > /dev/null 2>&1; then
-            echo "✅ 헬스체크 성공 - 서버가 정상적으로 시작되었습니다!"
+          # 최종 결과 판정
+          if [ "$HEALTH_CHECK_SUCCESS" = true ] || [ "$ROOT_CHECK_SUCCESS" = true ]; then
+            echo "🎉 서버가 정상적으로 시작되었습니다!"
             echo "🎯 서버 접속: http://52.78.212.96:8000"
             echo "📚 API 문서: http://52.78.212.96:8000/docs"
-          elif curl -f http://localhost:8000/ > /dev/null 2>&1; then
-            echo "✅ 루트 경로 응답 확인 - 서버가 시작되었습니다!"
-            echo "🎯 서버 접속: http://52.78.212.96:8000"
           else
-            echo "❌ 헬스체크 실패"
-            echo "=== 서버 로그 확인 ==="
-            tail -30 server.log
-          fi
-
-          # 서버 시작 확인
-          sleep 3
-          if curl -f http://localhost:8000/health > /dev/null 2>&1; then
-            echo "✅ 서버가 정상적으로 시작되었습니다!"
-          else
-            echo "❌ 서버 시작에 실패했습니다."
-            # 로그 확인
-            tail -20 nohup.out || echo "로그 파일이 없습니다."
+            echo "❌ 서버 시작 실패 - 상세 로그 확인"
+            echo "=== 전체 서버 로그 ==="
+            cat server.log
+            echo "=== Python 프로세스 확인 ==="
+            ps aux | grep python
+            echo "=== 포트 사용 현황 ==="
+            sudo netstat -tlnp | grep 8000 || echo "포트 8000 사용 없음"
+            exit 1
           fi
 
         EOF
