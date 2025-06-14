@@ -31,6 +31,12 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.pyc
+routers/__pycache__/
+schemas/__pycache__/
+services/__pycache__/
+config/__pycache__/
+
 
 # Virtual environments
 venv/
@@ -49,12 +55,40 @@ serviceAccountKey.json
 .idea/
 *.swp
 *.swo
+# VS Code 디버깅
+.vscode/launch.json
+.vscode/settings.json
 
-# Logs
+# 로그 파일
+*.log
+logs/
+debug.log
+server.log
 *.log
 logs/
 nohup.out
 
+# 임시 백업 파일
+*.bak
+*.backup
+*~
+
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ===== 로컬 테스트 및 개발 파일 =====
+# 테스트용 파일들
+test_main.py
+raw_response_debug.py
+
+# 개발 중인 파일 (아직 미완성)
+routers/livestock_trace.py
+
+# 임시 파일들
+*.tmp
+*.temp
+debug_*.py
+test_*.py
+mock_*.py

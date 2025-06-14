@@ -3,6 +3,7 @@ from typing import List
 from schemas.cow import CowCreate, CowResponse, CowUpdate
 from services.cow_firebase_service import CowFirebaseService
 from routers.auth_firebase import get_current_user
+from schemas.cow import CowDetailUpdate, CowDetailResponse
 
 router = APIRouter()
 
@@ -169,3 +170,47 @@ def get_favorite_cows(current_user: dict = Depends(get_current_user)):
     """즐겨찾기된 젖소 목록 조회"""
     farm_id = current_user.get("farm_id")
     return CowFirebaseService.get_favorite_cows(farm_id)
+
+# 젖소 상세 정보 업데이트 (수정하기에서 사용)
+@router.put("/{cow_id}/details", response_model=CowDetailResponse)
+def update_cow_details(
+    cow_id: str,
+    cow_detail_update: CowDetailUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """젖소 상세 정보 업데이트 (수정하기 화면에서 사용)"""
+    return CowFirebaseService.update_cow_details(cow_id, cow_detail_update, current_user)
+
+# 젖소 상세 정보 조회
+@router.get("/{cow_id}/details", response_model=CowDetailResponse)
+def get_cow_details(
+    cow_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """젖소 상세 정보 포함 조회"""
+    farm_id = current_user.get("farm_id")
+    cow = CowFirebaseService.get_cow_details_by_id(cow_id, farm_id)
+    
+    if not cow:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="젖소를 찾을 수 없습니다"
+        )
+    
+    return cow
+
+# 젖소 상세 정보 여부 확인
+@router.get("/{cow_id}/has-details")
+def check_cow_has_details(
+    cow_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """젖소가 상세 정보를 가지고 있는지 확인"""
+    farm_id = current_user.get("farm_id")
+    has_details = CowFirebaseService.check_has_detailed_info(cow_id, farm_id)
+    
+    return {
+        "cow_id": cow_id,
+        "has_detailed_info": has_details,
+        "message": "상세 정보가 있습니다" if has_details else "상세 정보가 없습니다"
+    }

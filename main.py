@@ -1,8 +1,10 @@
 import os
 from fastapi import FastAPI
-from routers import cow, test, record
+from routers import cow, test, record, detailed_record
 from routers import auth_firebase, test
 from fastapi.middleware.cors import CORSMiddleware
+
+# from routes.livestock_trace import router as livestock_trace_router
 
 # JWT 시크릿 키 검증
 if not os.getenv("JWT_SECRET_KEY"):
@@ -10,8 +12,8 @@ if not os.getenv("JWT_SECRET_KEY"):
 
 app = FastAPI(
     title="낙농 관리 서버 API",
-    version="1.0.0",
-    description="AWS 클라우드 환경에서 실행되는 JWT 인증과 Firebase DB 활용한 낙농 관리 시스템"
+    version="2.0.0",
+    description="낙농 관리 시스템"
     )
 
 # CORS 설정 (Flutter 연결을 위해)
@@ -31,15 +33,24 @@ app.include_router(auth_firebase.router, prefix="/auth", tags=["인증"])
 app.include_router(cow.router, prefix="/cows", tags=["소 관리"])
 app.include_router(record.router, prefix="/records", tags=["기록 관리"])
 app.include_router(test.router, prefix="/test", tags=["테스트"])
+app.include_router(detailed_record.router, prefix="/detailed-records", tags=["상세 기록 관리"])
+
+# app.include_router(livestock_trace_router, prefix="/api/livestock-trace", tags=["축산물이력조회"])
 
 @app.get("/")
 def health_check():
     return {
         "status": "success",
         "message": "낙농 관리 서버가 정상 작동 중입니다!!!",
-        "version": "1.0.0"
+        "version": "2.0.0",
+        "features": [
+            "젖소 기본 관리",
+            "기록 관리",
+            "상세 기록 관리 (착유, 발정, 인공수정, 임신감정, 분만, 사료급여, 건강검진, 백신접종, 체중측정, 치료)",
+            "통계 및 분석"
+        ]
     }
 
 @app.get("/health")
 def health_status():
-    return {"status": "healthy"}
+    return {"status": "healthy", "version": "2.0.0"}
