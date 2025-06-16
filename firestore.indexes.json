@@ -1,0 +1,426 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "cows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "is_favorite", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "created_at", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "updated_at", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "ear_tag_number", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "sensor_number", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "health_status", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "breeding_status", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "has_detailed_info", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "has_detailed_info", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "detail_updated_at", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "is_favorite", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "updated_at", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "created_at", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "record_date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "cow_id", "order": "ASCENDING"},
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "record_date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "cow_id", "order": "ASCENDING"},
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "record_type", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "record_date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "record_type", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "record_date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "created_at", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "record_date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "cow_id", "order": "ASCENDING"},
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "record_date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "cow_id", "order": "ASCENDING"},
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "record_type", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "record_date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "record_type", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "record_date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "cow_id", "order": "ASCENDING"},
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "record_type", "order": "ASCENDING"},
+        {"fieldPath": "record_date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "cow_id", "order": "ASCENDING"},
+        {"fieldPath": "farm_id", "order": "ASCENDING"},
+        {"fieldPath": "record_type", "order": "ASCENDING"},
+        {"fieldPath": "record_date", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "username", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "email", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "farms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "owner_id", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "refresh_tokens",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "user_id", "order": "ASCENDING"},
+        {"fieldPath": "is_active", "order": "ASCENDING"},
+        {"fieldPath": "created_at", "order": "DESCENDING"}
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "cows",
+      "fieldPath": "farm_id",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"},
+        {"arrayConfig": "CONTAINS", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "fieldPath": "is_active",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"},
+        {"order": "DESCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "fieldPath": "is_favorite",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"},
+        {"order": "DESCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "fieldPath": "has_detailed_info",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"},
+        {"order": "DESCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "fieldPath": "ear_tag_number",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "fieldPath": "sensor_number",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "fieldPath": "health_status",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "fieldPath": "breeding_status",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "fieldPath": "created_at",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"},
+        {"order": "DESCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "fieldPath": "updated_at",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"},
+        {"order": "DESCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cows",
+      "fieldPath": "detail_updated_at",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"},
+        {"order": "DESCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_records",
+      "fieldPath": "farm_id",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_records",
+      "fieldPath": "cow_id",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_records",
+      "fieldPath": "record_type",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_records",
+      "fieldPath": "record_date",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"},
+        {"order": "DESCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_records",
+      "fieldPath": "is_active",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "fieldPath": "farm_id",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "fieldPath": "cow_id",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "fieldPath": "record_type",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "fieldPath": "record_date",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"},
+        {"order": "DESCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "fieldPath": "is_active",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "fieldPath": "username",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "fieldPath": "email",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "fieldPath": "is_active",
+      "indexes": [
+        {"order": "ASCENDING", "queryScope": "COLLECTION"}
+      ]
+    }
+  ]
+}

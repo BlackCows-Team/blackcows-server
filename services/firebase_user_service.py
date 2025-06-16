@@ -34,15 +34,15 @@ class FirebaseUserService:
         return pwd_context.hash(password)
     
     @staticmethod
-    def create_user(username: str, email: str, password: str, farm_name: str = None) -> Dict:
-        """Firestore에 새 사용자 생성"""
+    def create_user(username: str, user_id: str, email: str, password: str, farm_nickname: str = None) -> Dict:
+        """Firestore에 새 사용자 생성 - 목장 별명으로 변경"""
         try:
-            # 사용자명 중복 확인
-            username_query = db.collection('users').where('username', '==', username).get()
-            if username_query:
+            # 아이디 중복 확인
+            user_id_query = db.collection('users').where('user_id', '==', user_id).get()
+            if user_id_query:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="이미 존재하는 사용자명입니다"
+                    detail="이미 존재하는 아이디입니다"
                 )
             
             # 이메일 중복 확인
@@ -54,31 +54,33 @@ class FirebaseUserService:
                 )
             
             # 새 사용자 데이터 생성
-            user_id = str(uuid.uuid4())
-            farm_id = f"farm_{user_id[:8]}"
+            user_uuid = str(uuid.uuid4())
+            farm_id = f"farm_{user_uuid[:8]}"
             hashed_password = FirebaseUserService.get_password_hash(password)
             
             user_data = {
-                "id": user_id,
-                "username": username,
-                "email": email,
-                "hashed_password": hashed_password,
-                "farm_name": farm_name or f"{username}의 목장",
-                "farm_id": farm_id,
-                "is_active": True,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "id": user_uuid,                                        # UUID
+                "username": username,                                   # 사용자 이름/실명
+                "user_id": user_id,                                    # 로그인용 아이디
+                "email": email,                                        # 이메일
+                "hashed_password": hashed_password,                    # 해시된 비밀번호
+                "farm_nickname": farm_nickname or f"{username}님의 목장", # 목장 별명 (이름 기반 기본값)
+                "farm_id": farm_id,                                    # 농장 ID
+                "is_active": True,                                     # 활성 상태
+                "created_at": datetime.utcnow(),                       # 가입일
+                "updated_at": datetime.utcnow()                        # 수정일
             }
             
             # Firestore에 사용자 저장
-            db.collection('users').document(user_id).set(user_data)
+            db.collection('users').document(user_uuid).set(user_data)
             
             # 목장 정보도 별도 컬렉션에 저장
             farm_data = {
                 "farm_id": farm_id,
-                "farm_name": farm_name or f"{username}의 목장",
-                "owner_id": user_id,
-                "owner_username": username,
+                "farm_nickname": farm_nickname or f"{username}님의 목장", # 목장 별명
+                "owner_id": user_uuid,
+                "owner_name": username,                                # 농장주 이름
+                "owner_user_id": user_id,                              # 농장주 아이디
                 "created_at": datetime.utcnow(),
                 "is_active": True
             }
@@ -97,12 +99,12 @@ class FirebaseUserService:
             )
     
     @staticmethod
-    def authenticate_user(username: str, password: str) -> Optional[Dict]:
-        """사용자 인증"""
+    def authenticate_user(user_id: str, password: str) -> Optional[Dict]:
+        """사용자 인증 - user_id로 로그인"""
         try:
-            # Firestore에서 사용자 검색
+            # Firestore에서 사용자 검색 (user_id로 검색)
             users_ref = db.collection('users')
-            query = users_ref.where('username', '==', username).limit(1).get()
+            query = users_ref.where('user_id', '==', user_id).limit(1).get()
             
             if not query:
                 return None
@@ -137,23 +139,68 @@ class FirebaseUserService:
             return None
     
     @staticmethod
-    def get_user_by_username(username: str) -> Optional[Dict]:
-        """사용자명으로 사용자 조회"""
+    def get_user_by_user_id(user_id: str) -> Optional[Dict]:
+        """user_id로 사용자 조회"""
         try:
             users_ref = db.collection('users')
-            query = users_ref.where('username', '==', username).limit(1).get()
+            query = users_ref.where('user_id', '==', user_id).limit(1).get()
             
             if query:
                 return query[0].to_dict()
             return None
         except Exception as e:
-            print(f"Get user by username error: {str(e)}")
+            print(f"Get user by user_id error: {str(e)}")
             return None
     
-    # 로그인 시 토큰 생성
+    @staticmethod
+    def find_user_id_by_name_and_email(username: str, email: str) -> Optional[Dict]:
+        """이름과 이메일로 사용자 찾기 (아이디 찾기용)"""
+        try:
+            users_ref = db.collection('users')
+            
+            # 이름과 이메일이 모두 일치하는 사용자 검색
+            query = users_ref\
+                .where('username', '==', username)\
+                .where('email', '==', email)\
+                .where('is_active', '==', True)\
+                .limit(1)\
+                .get()
+            
+            if query:
+                return query[0].to_dict()
+            
+            return None
+        except Exception as e:
+            print(f"Find user by name and email error: {str(e)}")
+            return None
+    
+    @staticmethod
+    def verify_user_for_password_reset(username: str, user_id: str, email: str) -> Optional[Dict]:
+        """비밀번호 재설정을 위한 사용자 확인 - 이름, 아이디, 이메일 모두 확인"""
+        try:
+            users_ref = db.collection('users')
+            
+            # 이름, user_id, 이메일이 모두 일치하는 사용자 검색
+            query = users_ref\
+                .where('username', '==', username)\
+                .where('user_id', '==', user_id)\
+                .where('email', '==', email)\
+                .where('is_active', '==', True)\
+                .limit(1)\
+                .get()
+            
+            if query:
+                return query[0].to_dict()
+            
+            return None
+        except Exception as e:
+            print(f"Verify user for password reset error: {str(e)}")
+            return None
+    
+    # JWT 토큰 관련 메서드들 (기존과 동일)
     @staticmethod
     def create_access_token(data: Dict, expires_delta: Optional[timedelta] = None) -> str:
-        """서버에서 JWT액세스 토큰 생성"""
+        """액세스 토큰 생성"""
         to_encode = data.copy()
         
         if expires_delta:
@@ -199,18 +246,18 @@ class FirebaseUserService:
         """액세스 토큰 검증"""
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            username = payload.get("sub")
+            user_id = payload.get("sub")  # user_id를 sub에 저장
             token_type = payload.get("type")
             
-            if username is None or token_type != "access":
+            if user_id is None or token_type != "access":
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="유효하지 않은 토큰입니다",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
             
-            # Firestore에서 사용자 정보 조회
-            user = FirebaseUserService.get_user_by_username(username)
+            # Firestore에서 사용자 정보 조회 (user_id로 검색)
+            user = FirebaseUserService.get_user_by_user_id(user_id)
             if user is None:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -227,10 +274,9 @@ class FirebaseUserService:
                 headers={"WWW-Authenticate": "Bearer"},
             )
     
-    # 토큰 갱신 요청 처리
     @staticmethod
     def refresh_access_token(refresh_token: str) -> Dict:
-        """서버에서 리프레시 토큰으로 새 액세스 토큰 발급"""
+        """리프레시 토큰으로 새 액세스 토큰 발급"""
         try:
             payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
             token_id = payload.get("token_id")
@@ -259,10 +305,10 @@ class FirebaseUserService:
                     detail="사용자를 찾을 수 없습니다"
                 )
             
-            # 새 액세스 토큰 생성
+            # 새 액세스 토큰 생성 (user_id를 sub에 저장)
             access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
             access_token = FirebaseUserService.create_access_token(
-                data={"sub": user["username"], "user_id": user["id"]},
+                data={"sub": user["user_id"], "user_uuid": user["id"]},
                 expires_delta=access_token_expires
             )
             

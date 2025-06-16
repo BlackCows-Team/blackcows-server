@@ -92,3 +92,15 @@ routers/livestock_trace.py
 debug_*.py
 test_*.py
 mock_*.py
+
+# Firebase 로컬 설정
+.firebaserc
+current_indexes.json
+
+# Firebase 배포 관련
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+# 환경별 Firebase 설정
+firebase.*.json
