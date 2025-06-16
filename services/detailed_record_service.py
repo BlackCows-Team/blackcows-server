@@ -11,7 +11,7 @@ class DetailedRecordService:
     
     @staticmethod
     def create_milking_record(record_data: MilkingRecordCreate, user: Dict) -> DetailedRecordResponse:
-        """착유 기록 생성"""
+        """착유 기록 생성 (필수 필드: cow_id, record_date, milk_yield)"""
         try:
             db = get_firestore_client()
             farm_id = user.get("farm_id")
@@ -19,13 +19,30 @@ class DetailedRecordService:
             # 젖소 존재 확인
             cow_info = DetailedRecordService._get_cow_info(record_data.cow_id, farm_id)
             
+            # 필수 필드 재검증 (Pydantic에서 이미 검증하지만 추가 보안)
+            if not record_data.record_date or len(record_data.record_date.strip()) == 0:
+                raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="착유 날짜는 필수입니다"
+                )
+        
+            if not record_data.milk_yield or record_data.milk_yield <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="착유량은 필수이며 0보다 커야 합니다"
+                )
+            
             record_id = str(uuid.uuid4())
             current_time = datetime.utcnow()
             
             milking_data = {
+                # 필수 필드
+                "record_date": record_data.record_date,
+                "milk_yield": record_data.milk_yield,
+
+                # 선택 필드
                 "milking_start_time": record_data.milking_start_time,
                 "milking_end_time": record_data.milking_end_time,
-                "milk_yield": record_data.milk_yield,
                 "milking_session": record_data.milking_session,
                 "conductivity": record_data.conductivity,
                 "somatic_cell_count": record_data.somatic_cell_count,
@@ -44,18 +61,40 @@ class DetailedRecordService:
             
             # 제목 자동 생성
             title = f"착유 기록"
+            title_parts = []
+        
             if record_data.milk_yield:
-                title += f" ({record_data.milk_yield}L)"
+                title_parts.append(f"{record_data.milk_yield}L")
+        
             if record_data.milking_session:
-                title += f" - {record_data.milking_session}회차"
+                title_parts.append(f"{record_data.milking_session}회차")
+        
+            if record_data.milking_start_time:
+                title_parts.append(f"{record_data.milking_start_time}")
+        
+            if title_parts:
+                title += f" ({', '.join(title_parts)})"
             
+            # 설명 자동 생성
+            description_parts = []
+            if record_data.fat_percentage:
+                description_parts.append(f"유지방 {record_data.fat_percentage}%")
+            if record_data.protein_percentage:
+                description_parts.append(f"유단백 {record_data.protein_percentage}%")
+            if record_data.somatic_cell_count:
+                description_parts.append(f"체세포수 {record_data.somatic_cell_count:,}")
+        
+            auto_description = ", ".join(description_parts) if description_parts else None
+            final_description = record_data.notes or auto_description
+        
+
             record_document = {
                 "id": record_id,
                 "cow_id": record_data.cow_id,
                 "record_type": DetailedRecordType.MILKING.value,
                 "record_date": record_data.record_date,
                 "title": title,
-                "description": record_data.notes,
+                "description": final_description,
                 "record_data": milking_data,
                 "farm_id": farm_id,
                 "owner_id": user.get("id"),
@@ -64,6 +103,7 @@ class DetailedRecordService:
                 "is_active": True
             }
             
+            # Firestore에 저장
             db.collection('cow_detailed_records').document(record_id).set(record_document)
             
             return DetailedRecordResponse(
@@ -74,7 +114,7 @@ class DetailedRecordService:
                 record_type=DetailedRecordType.MILKING,
                 record_date=record_data.record_date,
                 title=title,
-                description=record_data.notes,
+                description=final_description,
                 record_data=milking_data,
                 farm_id=farm_id,
                 owner_id=user.get("id"),
