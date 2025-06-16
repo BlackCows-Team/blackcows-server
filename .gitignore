@@ -96,6 +96,9 @@ mock_*.py
 # Firebase 로컬 설정
 .firebaserc
 current_indexes.json
+**/service-account-key.json
+*.json
+config/service-account-key.json
 
 # Firebase 배포 관련
 .firebase/

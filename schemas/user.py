@@ -7,7 +7,7 @@ class UserCreate(BaseModel):
     user_id: str                             # 로그인용 아이디  
     email: EmailStr                          # 이메일
     password: str                            # 비밀번호
-    password_confirm: str                    # 비밀번호 확인
+    password_confirm: str                  # 비밀번호 확인
     farm_name: Optional[str] = None          # 목장별명 (선택)
     
     @validator('username')
