@@ -1,3 +1,5 @@
+# schemas/user.py
+
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
 from datetime import datetime
@@ -7,8 +9,8 @@ class UserCreate(BaseModel):
     user_id: str                             # 로그인용 아이디  
     email: EmailStr                          # 이메일
     password: str                            # 비밀번호
-    password_confirm: str                  # 비밀번호 확인
-    farm_name: Optional[str] = None          # 목장별명 (선택)
+    password_confirm: str                    # 비밀번호 확인
+    farm_nickname: Optional[str] = None      # 목장 별명 (선택)
     
     @validator('username')
     def username_validation(cls, v):
@@ -18,7 +20,7 @@ class UserCreate(BaseModel):
             raise ValueError('이름은 2자 이상이어야 합니다')
         if len(v.strip()) > 20:
             raise ValueError('이름은 20자 이하여야 합니다')
-        # 한글, 영문, 숫자, 공백만 허용
+        # 한글, 영문, 공백만 허용 (숫자 제외)
         import re
         if not re.match(r'^[가-힣a-zA-Z\s]+$', v.strip()):
             raise ValueError('이름은 한글, 영문만 입력 가능합니다')
@@ -51,13 +53,13 @@ class UserCreate(BaseModel):
         if 'password' in values and v != values['password']:
             raise ValueError('비밀번호가 일치하지 않습니다')
         return v
-
+    
     @validator('farm_nickname')
     def farm_nickname_validation(cls, v):
         if v is not None:
             if len(v.strip()) == 0:
                 return None  # 빈 문자열은 None으로 처리
-            if len(v.strip()) > 15:
+            if len(v.strip()) > 50:
                 raise ValueError('목장 별명은 15자 이하여야 합니다')
             # 특수문자 제한 (기본적인 특수문자만 허용)
             import re
@@ -65,7 +67,7 @@ class UserCreate(BaseModel):
                 raise ValueError('목장 별명에는 특수문자를 사용할 수 없습니다 (-, _, () 제외)')
             return v.strip()
         return v
-    
+
 class UserLogin(BaseModel):
     user_id: str                             # 로그인용 아이디
     password: str
@@ -89,7 +91,7 @@ class TokenResponse(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
-    
+
 # 아이디/비밀번호 찾기용 스키마
 class FindUserIdRequest(BaseModel):
     username: str                            # 사용자 이름/실명
