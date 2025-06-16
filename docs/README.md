@@ -15,7 +15,7 @@ BlackCows는 낙농업체를 위한 종합 관리 시스템으로, 젖소 정보
 - ✅ **검색 및 통계** - 이표번호 검색, 농장별 통계 제공
 
 #### 📊 상세 기록 관리 (10가지 유형)
-- 🥛 **착유 기록** - 착유량, 유지방, 유단백, 체세포수 등
+- 🥛 **착유 기록** - 착유량, 유지방, 유단백, 체세포수 등 **[필수: 착유날짜, 착유량]**
 - 💕 **발정 기록** - 발정 강도, 지속시간, 행동 징후 등
 - 🎯 **인공수정 기록** - 종축 정보, 정액 품질, 성공 확률 등
 - 🤱 **임신감정 기록** - 감정 방법, 결과, 분만예정일 등
@@ -83,14 +83,27 @@ AWS EC2 (Production)
   "id": "uuid",
   "cow_id": "cow_uuid",
   "record_type": "milking",
-  "record_date": "2025-06-15",
-  "title": "착유 기록 (25.5L)",
-  "description": "정상 착유",
+  "record_date": "2025-06-16",
+  "title": "착유 기록 (25.5L, 1회차)",
+  "description": "유지방 3.8%, 유단백 3.2%, 체세포수 150,000",
   "record_data": {
     "milk_yield": 25.5,
+    "milking_session": 1,
+    "milking_start_time": "06:00:00",
+    "milking_end_time": "06:20:00",
     "fat_percentage": 3.8,
     "protein_percentage": 3.2,
-    "somatic_cell_count": 150000
+    "somatic_cell_count": 150000,
+    "temperature": 37.5,
+    "conductivity": 5.2,
+    "blood_flow_detected": false,
+    "color_value": "정상",
+    "air_flow_value": 2.1,
+    "lactation_number": 3,
+    "rumination_time": 480,
+    "collection_code": "AUTO",
+    "collection_count": 1,
+    "notes": null
   },
   "farm_id": "farm_uuid",
   "owner_id": "user_uuid",
@@ -188,9 +201,17 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 | `GET` | `/cows/{cow_id}/has-details` | 상세정보 보유 여부 |
 
 ### 📝 상세 기록 관리 API
+
+#### 🥛 착유 기록 API (업데이트됨)
 | Method | Endpoint | 설명 |
 |--------|----------|------|
-| `POST` | `/detailed-records/milking` | 착유 기록 생성 |
+| `POST` | `/detailed-records/milking` | 착유 기록 생성 **[필수: 착유날짜, 착유량]** |
+| `GET` | `/detailed-records/cow/{cow_id}/milking` | 젖소별 착유 기록 조회 |
+| `GET` | `/detailed-records/milking/recent` | 최근 착유 기록 조회 |
+
+#### 기타 상세 기록 API
+| Method | Endpoint | 설명 |
+|--------|----------|------|
 | `POST` | `/detailed-records/estrus` | 발정 기록 생성 |
 | `POST` | `/detailed-records/insemination` | 인공수정 기록 생성 |
 | `POST` | `/detailed-records/pregnancy-check` | 임신감정 기록 생성 |
@@ -259,9 +280,10 @@ Future<Map<String, dynamic>> updateCowDetails(String cowId) async {
 }
 ```
 
-### 착유 기록 생성
+### 🥛 착유 기록 생성 (업데이트됨)
 ```dart
-Future<Map<String, dynamic>> createMilkingRecord(String cowId) async {
+// 필수 필드만 입력하는 경우
+Future<Map<String, dynamic>> createBasicMilkingRecord(String cowId) async {
   final response = await http.post(
     Uri.parse('$baseUrl/detailed-records/milking'),
     headers: {
@@ -269,20 +291,93 @@ Future<Map<String, dynamic>> createMilkingRecord(String cowId) async {
       'Authorization': 'Bearer $accessToken',
     },
     body: json.encode({
+      // 필수 필드
       'cow_id': cowId,
-      'record_date': '2025-06-15',
-      'milk_yield': 25.5,
-      'fat_percentage': 3.8,
-      'protein_percentage': 3.2,
-      'somatic_cell_count': 150000,
-      'milking_session': 1,
+      'record_date': '2025-06-16',  // 필수: 착유 날짜
+      'milk_yield': 25.5,           // 필수: 착유량 (리터)
     }),
   );
   return json.decode(response.body);
 }
+
+// 상세 필드까지 모두 입력하는 경우
+Future<Map<String, dynamic>> createDetailedMilkingRecord(String cowId) async {
+  final response = await http.post(
+    Uri.parse('$baseUrl/detailed-records/milking'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $accessToken',
+    },
+    body: json.encode({
+      // 필수 필드
+      'cow_id': cowId,
+      'record_date': '2025-06-16',
+      'milk_yield': 25.5,
+      
+      // 선택적 필드 (프론트엔드 화면의 모든 필드들)
+      'milking_start_time': '06:00:00',
+      'milking_end_time': '06:20:00',
+      'milking_session': 1,
+      'fat_percentage': 3.8,
+      'protein_percentage': 3.2,
+      'somatic_cell_count': 150000,
+      'temperature': 37.5,
+      'conductivity': 5.2,
+      'blood_flow_detected': false,
+      'color_value': '정상',
+      'air_flow_value': 2.1,
+      'lactation_number': 3,
+      'rumination_time': 480,
+      'collection_code': 'AUTO',
+      'collection_count': 1,
+      'notes': '정상 착유, 컨디션 양호',
+    }),
+  );
+  return json.decode(response.body);
+}
+
+// 착유 기록 조회
+Future<List<Map<String, dynamic>>> getCowMilkingRecords(String cowId) async {
+  final response = await http.get(
+    Uri.parse('$baseUrl/detailed-records/cow/$cowId/milking'),
+    headers: {
+      'Authorization': 'Bearer $accessToken',
+    },
+  );
+  return List<Map<String, dynamic>>.from(json.decode(response.body));
+}
 ```
 
 ## 🧪 테스트
+
+### 착유 기록 API 테스트 예시
+```bash
+# 필수 필드만으로 착유 기록 생성 테스트
+curl -X POST "http://localhost:8000/detailed-records/milking" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-access-token" \
+  -d '{
+    "cow_id": "your-cow-id",
+    "record_date": "2025-06-16",
+    "milk_yield": 25.5
+  }'
+
+# 상세 정보 포함 착유 기록 생성 테스트
+curl -X POST "http://localhost:8000/detailed-records/milking" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-access-token" \
+  -d '{
+    "cow_id": "your-cow-id",
+    "record_date": "2025-06-16",
+    "milk_yield": 25.5,
+    "milking_start_time": "06:00:00",
+    "milking_end_time": "06:20:00",
+    "milking_session": 1,
+    "fat_percentage": 3.8,
+    "protein_percentage": 3.2,
+    "somatic_cell_count": 150000
+  }'
+```
 
 ### API 테스트 실행
 ```bash
@@ -304,8 +399,8 @@ python -m pytest tests/test_cow_api.py
    POST /auth/login → access_token 저장
    POST /cows/ → cow_id 저장
    PUT /cows/{{cow_id}}/details
-   POST /detailed-records/milking
-   GET /detailed-records/cow/{{cow_id}}
+   POST /detailed-records/milking → 착유 기록 생성
+   GET /detailed-records/cow/{{cow_id}}/milking → 착유 기록 조회
    ```
 
 ## 🚀 배포
@@ -348,11 +443,14 @@ Firebase Console에서 다음 복합 인덱스들을 설정해야 합니다:
 2. **즐겨찾기 조회용**:
    - `farm_id` (오름차순) + `is_favorite` (오름차순) + `is_active` (오름차순)
 
-3. **상세 기록 조회용**:
+3. **상세 기록 조회용** (착유 기록 포함):
    - `cow_id` (오름차순) + `farm_id` (오름차순) + `record_type` (오름차순) + `record_date` (내림차순)
 
 4. **날짜별 기록 조회용**:
    - `farm_id` (오름차순) + `is_active` (오름차순) + `record_date` (내림차순)
+
+5. **착유 기록 전용 인덱스** (새로 추가):
+   - `farm_id` (오름차순) + `record_type` (오름차순) + `record_date` (내림차순) + `created_at` (내림차순)
 
 ## 📱 Flutter 앱 화면 구성
 
@@ -371,6 +469,40 @@ Firebase Console에서 다음 복합 인덱스들을 설정해야 합니다:
 - ✅ 10가지 상세 기록 유형별 입력 폼
 - ✅ 날짜 선택기 및 유효성 검사
 - ✅ 기록 목록 및 통계 화면
+- 🆕 **착유 기록 입력 폼** (필수 필드: 착유 날짜, 착유량)
+
+### 4. 착유 기록 상세 페이지 (새로 추가)
+- ✅ 기본 정보 (젖소명, 이표번호)
+- ✅ 착유 정보 (착유량, 시간, 횟수)
+- ✅ 품질 정보 (유지방, 유단백, 체세포수)
+- ✅ 센서 데이터 (온도, 전도율, 공기흐름 등)
+- ✅ 과거 기록 조회 및 통계
+
+## 🆕 최근 업데이트 (2025-06-16)
+
+### 착유 기록 API 개선사항
+
+#### 1. **필수 필드 적용**
+- **착유 날짜** (`record_date`): YYYY-MM-DD 형식, 필수 입력
+- **착유량** (`milk_yield`): 리터 단위, 0보다 큰 값, 필수 입력
+
+#### 2. **유효성 검사 강화**
+- 날짜 형식 검증 (YYYY-MM-DD)
+- 착유량 범위 검증 (0-100L)
+- 시간 형식 검증 (HH:MM:SS 또는 HH:MM)
+- 비율 필드 검증 (0-10%)
+
+#### 3. **자동 제목/설명 생성**
+- 제목: "착유 기록 (25.5L, 1회차, 06:00:00)"
+- 설명: "유지방 3.8%, 유단백 3.2%, 체세포수 150,000" (사용자 notes 우선)
+
+#### 4. **새로운 엔드포인트 추가**
+- `GET /detailed-records/cow/{cow_id}/milking`: 젖소별 착유 기록 조회
+- `GET /detailed-records/milking/recent`: 최근 착유 기록 조회
+
+#### 5. **에러 처리 개선**
+- 명확한 에러 메시지
+- 필드별 상세 검증 오류 안내
 
 ## 🛠️ 기술 스택
 
@@ -379,6 +511,7 @@ Firebase Console에서 다음 복합 인덱스들을 설정해야 합니다:
 - **Authentication**: JWT (JSON Web Tokens)
 - **Deployment**: AWS EC2, GitHub Actions
 - **Documentation**: Swagger UI, ReDoc
+- **Validation**: Pydantic 2.11+ (필드 검증 강화)
 
 ## 📄 라이선스
 
@@ -393,3 +526,4 @@ Firebase Console에서 다음 복합 인덱스들을 설정해야 합니다:
 5. Open a Pull Request
 
 - **개발자**: SeulGi
+- **최근 업데이트**: 2025-06-16 (착유 기록 API 필수 필드 적용)

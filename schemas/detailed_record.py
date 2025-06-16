@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, Field
 from typing import Optional, Dict, Any, List
 from datetime import datetime, time
 from enum import Enum
@@ -28,25 +28,101 @@ class DetailedRecordType(str, Enum):
 
 # 착유 기록 스키마
 class MilkingRecordCreate(BaseModel):
-    cow_id: str
-    record_date: str                           # YYYY-MM-DD
-    milking_start_time: Optional[str] = None   # HH:MM:SS
-    milking_end_time: Optional[str] = None     # HH:MM:SS
-    milk_yield: Optional[float] = None         # 착유량(L)
-    milking_session: Optional[int] = None      # 착유횟차 (1,2,3...)
-    conductivity: Optional[float] = None       # 전도율
-    somatic_cell_count: Optional[int] = None   # 체세포수
-    blood_flow_detected: Optional[bool] = None # 혈액흐름여부
-    color_value: Optional[str] = None          # 색상값
-    temperature: Optional[float] = None        # 온도(°C)
-    fat_percentage: Optional[float] = None     # 유지방비율(%)
-    protein_percentage: Optional[float] = None # 유단백비율(%)
-    air_flow_value: Optional[float] = None     # 공기흐름값
-    lactation_number: Optional[int] = None     # 산차수
-    rumination_time: Optional[int] = None      # 반추시간(분)
-    collection_code: Optional[str] = None      # 수집구분코드
-    collection_count: Optional[int] = None     # 수집건수
-    notes: Optional[str] = None                # 비고
+    cow_id: str = Field(..., description="젖소 ID(필수)")
+    record_date: str = Field(..., description="착유 날짜 (필수)")  # YYYY-MM-DD
+    milk_yield: float = Field(..., description="착유량 (필수) - 리터(L) 단위", gt=0)
+    
+    milking_start_time: Optional[str] = Field(None, description="착유 시작 시간 - HH:MM:SS 형식")
+    milking_end_time: Optional[str] = Field(None, description="착유 종료 시간 - HH:MM:SS 형식")
+    milking_session: Optional[int] = Field(None, description="착유 횟수 (1회차, 2회차 등)")
+    conductivity: Optional[float] = Field(None, description="전도율") # 전도율
+    somatic_cell_count: Optional[int] = Field(None, description="체세포수")
+    blood_flow_detected: Optional[bool] = Field(None, description="혈액 흐름 감지 여부")
+    color_value: Optional[str] = Field(None, description="색상값")
+    temperature: Optional[float] = Field(None, description="온도(°C)")
+    fat_percentage: Optional[float] = Field(None, description="유지방 비율(%)")
+    protein_percentage: Optional[float] = Field(None, description="유단백 비율(%)")
+    air_flow_value: Optional[float] = Field(None, description="공기 흐름값")
+    lactation_number: Optional[int] = Field(None, description="산차수")
+    rumination_time: Optional[int] = Field(None, description="반추 시간(분)")
+    collection_code: Optional[str] = Field(None, description="수집 구분 코드")
+    collection_count: Optional[int] = Field(None, description="수집 건수")
+    notes: Optional[str] = Field(None, description="비고")
+
+    # 유효성 검사
+    @validator('record_date')
+    def validate_record_date(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('착유 날짜는 필수입니다')
+        
+        try:
+            from datetime import datetime
+            # YYYY-MM-DD 형식 검증
+            record_datetime = datetime.strptime(v.strip(), '%Y-%m-%d')
+            
+            # 미래 날짜는 허용하지만 너무 먼 미래는 제한 (1년 후까지)
+            today = datetime.now()
+            from datetime import timedelta
+            one_year_later = today + timedelta(days=365)
+            if record_datetime > one_year_later:
+                raise ValueError('착유 날짜는 1년 이후까지만 입력 가능합니다')
+            
+            # 너무 오래된 날짜 제한 (5년 전까지)
+            five_years_ago = today - timedelta(days=365*5)
+            if record_datetime < five_years_ago:
+                raise ValueError('착유 날짜는 5년 이전까지만 입력 가능합니다')
+            
+            return v.strip()
+        except ValueError as e:
+            if '착유 날짜' in str(e):
+                raise e
+            raise ValueError('착유 날짜는 YYYY-MM-DD 형식으로 입력해주세요 (예: 2025-06-16)')
+    
+    @validator('milk_yield')
+    def validate_milk_yield(cls, v):
+        if v is None:
+            raise ValueError('착유량은 필수입니다')
+        if v <= 0:
+            raise ValueError('착유량은 0보다 커야 합니다')
+        return v
+    
+    @validator('milking_start_time', 'milking_end_time')
+    def validate_time_format(cls, v):
+        if v is not None and len(v.strip()) > 0:
+            try:
+                from datetime import datetime
+                datetime.strptime(v.strip(), '%H:%M:%S')
+                return v.strip()
+            except ValueError:
+                try:
+                    # HH:MM 형식도 허용
+                    datetime.strptime(v.strip(), '%H:%M')
+                    return v.strip() + ':00'
+                except ValueError:
+                    raise ValueError('시간은 HH:MM:SS 또는 HH:MM 형식으로 입력해주세요')
+        return v
+    
+    @validator('milking_session')
+    def validate_milking_session(cls, v):
+        if v is not None:
+            if v < 1:  
+                raise ValueError('착유 횟수는 1회 이상 입력해야 합니다')
+        return v
+    
+    @validator('fat_percentage', 'protein_percentage')
+    def validate_percentage(cls, v):
+        if v is not None:
+            if v < 0:
+                raise ValueError('비율은 0% 이상 입력해야 합니다')
+        return v
+    
+    @validator('somatic_cell_count')
+    def validate_somatic_cell_count(cls, v):
+        if v is not None:
+            if v < 0 or v > 10000000:  # 체세포수 범위
+                raise ValueError('체세포수는 0-10,000,000 사이여야 합니다')
+        return v
+    
 
 # 발정 기록 스키마
 class EstrusRecordCreate(BaseModel):

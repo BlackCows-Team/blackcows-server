@@ -9,14 +9,145 @@ from routers.auth_firebase import get_current_user
 router = APIRouter()
 
 # ===== 착유 기록 =====
-@router.post("/milking", response_model=DetailedRecordResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/milking", 
+             response_model=DetailedRecordResponse, status_code=status.HTTP_201_CREATED,
+             summary="착유 기록 생성",
+             description="""
+             착유 기록을 생성합니다.
+             
+             **필수 필드:**
+             - cow_id: 젖소 ID
+             - record_date: 착유 날짜 (YYYY-MM-DD 형식)
+             - milk_yield: 착유량 (리터 단위, 0보다 큰 값)
+             
+             **선택적 필드:**
+             - milking_start_time: 착유 시작 시간
+             - milking_end_time: 착유 종료 시간
+             - milking_session: 착유 횟수 (1회차, 2회차 등)
+             - fat_percentage: 유지방 비율
+             - protein_percentage: 유단백 비율
+             - somatic_cell_count: 체세포수
+             - temperature: 온도
+             - conductivity: 전도율
+             - 기타 모든 측정 필드들...
+             """,
+             responses={
+                 201: {"description": "착유 기록 생성 성공"},
+                 400: {"description": "잘못된 요청 (필수 필드 누락 또는 유효성 검사 실패)"},
+                 404: {"description": "젖소를 찾을 수 없음"},
+                 500: {"description": "서버 내부 오류"}
+             })
+
+
 def create_milking_record(
     record_data: MilkingRecordCreate,
     current_user: dict = Depends(get_current_user)
 ):
-    """착유 기록 생성"""
-    return DetailedRecordService.create_milking_record(record_data, current_user)
+    """
+    착유 기록 생성
+    
+    - **필수**: 착유 날짜, 착유량
+    - **선택**: 나머지 모든 필드
+    """
+    try:
+        return DetailedRecordService.create_milking_record(record_data, current_user)
+    except ValueError as e:
+        # Pydantic 유효성 검사 오류
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"입력 데이터 오류: {str(e)}"
+        )
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"착유 기록 생성 중 예상치 못한 오류가 발생했습니다: {str(e)}"
+        )
+# 착유 기록 조회 (젖소별)
+@router.get("/cow/{cow_id}/milking", 
+           response_model=List[DetailedRecordSummary],
+           summary="젖소별 착유 기록 조회",
+           description="특정 젖소의 착유 기록만 필터링하여 조회")
+def get_cow_milking_records(
+    cow_id: str,
+    limit: int = Query(50, description="조회할 기록 수 제한", ge=1, le=100),
+    current_user: dict = Depends(get_current_user)
+):
+    """특정 젖소의 착유 기록 목록 조회"""
+    farm_id = current_user.get("farm_id")
+    return DetailedRecordService.get_detailed_records_by_cow(
+        cow_id, 
+        farm_id, 
+        DetailedRecordType.MILKING
+    )
 
+# 최근 착유 기록 조회 (농장 전체)
+@router.get("/milking/recent", 
+           response_model=List[DetailedRecordSummary],
+           summary="최근 착유 기록 조회",
+           description="농장 전체의 최근 착유 기록을 조회")
+def get_recent_milking_records(
+    limit: int = Query(20, description="조회할 기록 수", ge=1, le=100),
+    current_user: dict = Depends(get_current_user)
+):
+    """농장 전체의 최근 착유 기록 조회"""
+    try:
+        from config.firebase_config import get_firestore_client
+        
+        db = get_firestore_client()
+        farm_id = current_user.get("farm_id")
+        
+        # 최근 착유 기록만 조회
+        records_query = db.collection('cow_detailed_records')\
+            .where('farm_id', '==', farm_id)\
+            .where('record_type', '==', DetailedRecordType.MILKING.value)\
+            .where('is_active', '==', True)\
+            .order_by('record_date', direction='DESCENDING')\
+            .order_by('created_at', direction='DESCENDING')\
+            .limit(limit)\
+            .get()
+        
+        records = []
+        for record_doc in records_query:
+            record_data = record_doc.to_dict()
+            
+            # 젖소 정보 조회
+            try:
+                cow_info = DetailedRecordService._get_cow_info(record_data["cow_id"], farm_id)
+                
+                # 착유량 정보 추출
+                key_values = {}
+                if record_data.get("record_data", {}).get("milk_yield"):
+                    key_values["milk_yield"] = f"{record_data['record_data']['milk_yield']}L"
+                if record_data.get("record_data", {}).get("milking_session"):
+                    key_values["session"] = f"{record_data['record_data']['milking_session']}회차"
+                if record_data.get("record_data", {}).get("fat_percentage"):
+                    key_values["fat"] = f"{record_data['record_data']['fat_percentage']}%"
+                
+                records.append(DetailedRecordSummary(
+                    id=record_data["id"],
+                    cow_id=record_data["cow_id"],
+                    cow_name=cow_info["name"],
+                    cow_ear_tag_number=cow_info["ear_tag_number"],
+                    record_type=DetailedRecordType.MILKING,
+                    record_date=record_data["record_date"],
+                    title=record_data["title"],
+                    key_values=key_values,
+                    created_at=record_data["created_at"]
+                ))
+            except:
+                # 젖소가 삭제된 경우 등 예외 처리
+                continue
+        
+        return records
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"최근 착유 기록 조회 중 오류가 발생했습니다: {str(e)}"
+        )
+    
 # ===== 발정 기록 =====
 @router.post("/estrus", response_model=DetailedRecordResponse, status_code=status.HTTP_201_CREATED)
 def create_estrus_record(
