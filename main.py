@@ -12,7 +12,7 @@ if not os.getenv("JWT_SECRET_KEY"):
 
 app = FastAPI(
     title="낙농 관리 서버 API",
-    version="2.0.0",
+    version="2.1.0",
     description="낙농 관리 시스템"
     )
 
