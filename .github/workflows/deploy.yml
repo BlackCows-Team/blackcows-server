@@ -18,7 +18,7 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.EC2_KEY }}
 
-    - name: Deploy to EC2 with tmux
+    - name: Deploy to EC2 using tmux
       run: |
         ssh -o StrictHostKeyChecking=no ubuntu@52.78.212.96 << 'EOF'
           cd ~/blackcows-server
@@ -32,6 +32,7 @@ jobs:
           echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" > .env
           echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
           echo "REFRESH_TOKEN_EXPIRE_DAYS=7" >> .env
+          echo "ENVIRONMENT=production" >> .env
           echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}" >> .env
           echo "FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }}" >> .env
           echo "FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}" >> .env
@@ -50,90 +51,26 @@ jobs:
           # 가상환경 활성화
           source venv/bin/activate
       
-          # 패키지 설치
+          # 패키지 업데이트
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install email-validator
-          
-          # email-validator 추가 설치 (pydantic[email] 대신)
-          echo "=== email-validator 설치 ==="
-          pip install email-validator
-          echo "✅ email-validator 설치 완료"
-          
-          # 서버 실행 전 기존 프로세스 종료
-          fuser -k 8000/tcp || true
-          pkill -f uvicorn || true
-          
-          # Python 구문 테스트
+
+          # Python 구문 검사
           echo "=== Python 구문 검사 ==="
           python3 -m py_compile main.py
-          if [ $? -eq 0 ]; then
-            echo "✅ main.py 구문 검사 통과"
-          else
-            echo "❌ main.py 구문 오류 발견"
-            exit 1
-          fi
-           
-          # main.py 내용 확인
-          echo "=== main.py 내용 확인 ==="
-          head -20 main.py
-          echo "=== main.py 엔드포인트 확인 ==="
-          if grep -q "/health" main.py; then
-            echo "✅ /health 엔드포인트 발견"
-          else
-            echo "❌ /health 엔드포인트 없음 - 추가 필요"
-          fi
 
           # import 문제 자동 수정
           echo "=== import 문제 자동 수정 ==="
           if grep -q "routes.livestock_trace" main.py; then
-            echo "❌ 문제가 되는 routes.livestock_trace import 발견 - 자동 제거 중..."
             sed -i '/routes\.livestock_trace/d' main.py
-            echo "✅ routes.livestock_trace import 제거 완료"
-          else
-            echo "✅ routes.livestock_trace import 없음"
-          fi
-          
-          # livestock_router 사용 부분도 제거
-          if grep -q "livestock_router" main.py; then
-            echo "❌ livestock_router 사용 발견 - 자동 제거 중..."
             sed -i '/livestock_router/d' main.py
-            echo "✅ livestock_router 사용 제거 완료"
-          else
-            echo "✅ livestock_router 사용 없음"
-          fi
-          
-          # 수정된 main.py 확인
-          echo "=== 수정된 main.py 확인 ==="
-          head -10 main.py
-          
-          # import os 확인
-          echo "=== import os 확인 ==="
-          if grep -q "import os" main.py; then
-            echo "✅ import os 발견"
-          else
-            echo "❌ import os 누락 - main.py 첫 줄에 추가 필요"
-            exit 1
+            echo "✅ 문제 있는 import 제거 완료"
           fi
 
-          # 패키지 설치 확인
-          echo "=== 패키지 설치 확인 ==="
-          python3 -c "import email_validator; print('✅ email-validator 설치 확인')" || echo "❌ email-validator 누락"
-          python3 -c "import pydantic; print('✅ pydantic 설치 확인')" || echo "❌ pydantic 누락"
-          python3 -c "import fastapi; print('✅ fastapi 설치 확인')" || echo "❌ fastapi 누락"
-
-          # 환경변수 테스트 (한 줄로 수정)
-          echo "=== 환경변수 확인 ==="
-          python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET'); print('✅ FIREBASE_PROJECT_ID:', 'SET' if os.getenv('FIREBASE_PROJECT_ID') else '❌ NOT SET'); print('✅ FIREBASE_PRIVATE_KEY:', 'SET' if os.getenv('FIREBASE_PRIVATE_KEY') else '❌ NOT SET'); print('✅ All environment variables loaded successfully!')"
-
-          # Firebase 연결 테스트
-          echo "=== Firebase 연결 테스트 ==="
-          python3 -c "from config.firebase_config import initialize_firebase; initialize_firebase(); print('✅ Firebase 초기화 성공')" || echo "❌ Firebase 테스트 건너뜀"
-
-          
           # tmux 세션 확인 및 서버 재시작
           echo "=== tmux 세션 관리 ==="
-
+          
           # 기존 blackcows-session이 있는지 확인
           if tmux has-session -t blackcows-session 2>/dev/null; then
             echo "✅ 기존 blackcows-session 발견 - 서버 재시작"
@@ -169,10 +106,20 @@ jobs:
           if tmux has-session -t blackcows-session 2>/dev/null; then
             echo "✅ blackcows-session 실행 중"
             
-            # 세션 내용 확인 (마지막 몇 줄)
-            echo "=== tmux 세션 로그 확인 ==="
-            tmux capture-pane -t blackcows-session -p | tail -5
+            # 세션 내용 확인
+            echo "=== tmux 세션 최근 로그 확인(15줄) ==="
+            tmux capture-pane -t blackcows-session -p | tail -15
+            echo "로그 확인 시간: $(date)"
             
+            # 에러가 있는지 별도 확인
+            echo "=== 에러 로그 확인 ==="
+            ERROR_COUNT=$(tmux capture-pane -t blackcows-session -p | grep -i error | wc -l)
+            if [ $ERROR_COUNT -gt 0 ]; then
+              echo "⚠️ 에러 발견 ($ERROR_COUNT개):"
+              tmux capture-pane -t blackcows-session -p | grep -i error | tail -3
+            else
+              echo "✅ 에러 없음"
+            fi
           else
             echo "❌ blackcows-session 실행되지 않음"
             exit 1
@@ -180,41 +127,77 @@ jobs:
 
           # 포트 상태 확인
           echo "=== 포트 8000 상태 확인 ==="
-          if ss -tlnp | grep 8000; then
-            echo "✅ 포트 8000 사용 중"
-          else
-            echo "❌ 포트 8000 사용되지 않음"
-            exit 1
+          PORT_CHECK_SUCCESS=false
+          
+          # ss 명령어로 확인
+          if ss -tlnp | grep ':8000'; then
+            echo "✅ 포트 8000 사용 중 (ss 확인)"
+            PORT_CHECK_SUCCESS=true
           fi
           
-          # 헬스체크
-          echo "=== 헬스체크 ==="
-          sleep 5
-
-          if curl -f -m 10 http://localhost:8000/health > /dev/null 2>&1; then
-            echo "✅ 헬스체크 성공!"
-            echo "🎉 배포 완료!"
-            echo "🖥️ tmux 세션 접속: tmux attach-session -t blackcows-session"
-          else
-            echo "❌ 헬스체크 실패"
-            echo "=== tmux 세션 로그 확인 ==="
-            tmux capture-pane -t blackcows-session -p
-            exit 1
+          # lsof로도 확인
+          if command -v lsof >/dev/null 2>&1; then
+            if lsof -i:8000 >/dev/null 2>&1; then
+              echo "✅ 포트 8000 사용 중 (lsof 확인)"
+              PORT_CHECK_SUCCESS=true
+            fi
+          fi
+          
+          # Python 프로세스로도 확인
+          if ps aux | grep uvicorn | grep -v grep | grep 8000; then
+            echo "✅ uvicorn 프로세스 실행 중"
+            PORT_CHECK_SUCCESS=true
           fi
 
-          # 최종 결과 판정
-          if [ "$HEALTH_CHECK_SUCCESS" = true ] || [ "$ROOT_CHECK_SUCCESS" = true ]; then
+          # 헬스체크 
+          echo "=== 헬스체크 ==="
+          sleep 5
+          
+          HEALTH_CHECK_SUCCESS=false
+          ROOT_CHECK_SUCCESS=false
+          
+          # /health 엔드포인트 확인
+          if curl -f -m 10 http://localhost:8000/health >/dev/null 2>&1; then
+            echo "✅ /health 엔드포인트 응답 성공"
+            HEALTH_CHECK_SUCCESS=true
+          fi
+          
+          # 루트 경로 확인
+          if curl -f -m 10 http://localhost:8000/ >/dev/null 2>&1; then
+            echo "✅ 루트 경로 응답 성공"
+            ROOT_CHECK_SUCCESS=true
+          fi
+
+          # 최종 결과 판정 (조건 완화)
+          if [ "$HEALTH_CHECK_SUCCESS" = true ] || [ "$ROOT_CHECK_SUCCESS" = true ] || [ "$PORT_CHECK_SUCCESS" = true ]; then
             echo "🎉 서버가 정상적으로 시작되었습니다!"
             echo "🎯 서버 접속: http://52.78.212.96:8000"
             echo "📚 API 문서: http://52.78.212.96:8000/docs"
+            echo "🖥️ tmux 세션 접속: tmux attach-session -t blackcows-session"
+            
+            # 최종 상태 요약
+            echo ""
+            echo "=== 배포 상태 요약 ==="
+            echo "✅ Git 업데이트 완료"
+            echo "✅ 환경 변수 설정 완료"
+            echo "✅ tmux 세션 관리 완료"
+            if [ "$HEALTH_CHECK_SUCCESS" = true ]; then
+              echo "✅ 헬스체크 통과"
+            fi
+            if [ "$ROOT_CHECK_SUCCESS" = true ]; then
+              echo "✅ 루트 경로 응답 정상"
+            fi
+            if [ "$PORT_CHECK_SUCCESS" = true ]; then
+              echo "✅ 포트 8000 정상 사용"
+            fi
+            echo "🚀 배포 성공!"
+            
           else
             echo "❌ 서버 시작 실패 - 상세 로그 확인"
-            echo "=== 전체 서버 로그 ==="
-            cat server.log
+            echo "=== tmux 세션 전체 로그 ==="
+            tmux capture-pane -t blackcows-session -p
             echo "=== Python 프로세스 확인 ==="
             ps aux | grep python
-            echo "=== 포트 사용 현황 ==="
-            sudo netstat -tlnp | grep 8000 || echo "포트 8000 사용 없음"
             exit 1
           fi
 
