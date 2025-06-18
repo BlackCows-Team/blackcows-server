@@ -8,13 +8,13 @@ from jinja2 import Template
 class EmailConfig:
     def __init__(self):
         self.conf = ConnectionConfig(
-            MAIL_USERNAME=os.getenv("MAIL_USERNAME"),  # 발송자 이메일
-            MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),  # 앱 비밀번호 (Gmail의 경우)
+            MAIL_USERNAME=os.getenv("MAIL_USERNAME"),  # AWS SES Access Key 
+            MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),  # AWS SES Secret Key
             MAIL_FROM=os.getenv("MAIL_FROM"),          # 발송자 이메일
-            MAIL_PORT=587,                             # Gmail SMTP 포트
-            MAIL_SERVER="smtp.gmail.com",              # Gmail SMTP 서버
-            MAIL_STARTTLS=True,                        # TLS 사용
-            MAIL_SSL_TLS=False,                        # SSL/TLS 사용 안함
+            MAIL_PORT=int(os.getenv("MAIL_PORT", 587)), # SMTP 포트 (기본값: 587)
+            MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),  # SMTP 서버 (AWS SES 또는 Gmail)
+            MAIL_STARTTLS=os.getenv("MAIL_TLS", "True").lower() == "true",  # TLS 사용
+            MAIL_SSL_TLS=os.getenv("MAIL_SSL", "False").lower() == "true",  # SSL/TLS 사용
             USE_CREDENTIALS=True,                      # 인증 사용
             VALIDATE_CERTS=True                        # 인증서 검증
         )

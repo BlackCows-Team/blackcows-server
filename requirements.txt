@@ -58,3 +58,4 @@ uritemplate==4.2.0
 urllib3==2.4.0
 uvicorn==0.34.2
 watchdog==6.0.0
+email-validator==2.1.1

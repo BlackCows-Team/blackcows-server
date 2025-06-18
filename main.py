@@ -12,7 +12,7 @@ if not os.getenv("JWT_SECRET_KEY"):
 
 app = FastAPI(
     title="낙농 관리 서버 API",
-    version="2.1.2",
+    version="2.3.0",
     description="낙농 관리 시스템"
     )
 
@@ -32,7 +32,6 @@ app.add_middleware(
 app.include_router(auth_firebase.router, prefix="/auth", tags=["인증"])
 app.include_router(cow.router, prefix="/cows", tags=["소 관리"])
 app.include_router(record.router, prefix="/records", tags=["기록 관리"])
-app.include_router(test.router, prefix="/test", tags=["테스트"])
 app.include_router(detailed_record.router, prefix="/detailed-records", tags=["상세 기록 관리"])
 
 # app.include_router(livestock_trace_router, prefix="/api/livestock-trace", tags=["축산물이력조회"])
@@ -42,7 +41,7 @@ def health_check():
     return {
         "status": "success",
         "message": "낙농 관리 서버가 정상 작동 중입니다!!!",
-        "version": "2.1.2",
+        "version": "2.3.0",
         "features": [
             "젖소 기본 관리",
             "기록 관리",
@@ -53,4 +52,4 @@ def health_check():
 
 @app.get("/health")
 def health_status():
-    return {"status": "healthy", "version": "2.1.2"}
+    return {"status": "healthy", "version": "2.3.0"}

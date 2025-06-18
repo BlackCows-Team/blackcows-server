@@ -1,6 +1,6 @@
 # schemas/user.py
 
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr, validator, Field
 from typing import Optional
 from datetime import datetime
 
@@ -192,3 +192,7 @@ class ChangePasswordRequest(BaseModel):
         if 'new_password' in values and v != values['new_password']:
             raise ValueError('비밀번호가 일치하지 않습니다')
         return v
+
+class DeleteAccountRequest(BaseModel):
+    password: str = Field(..., description="계정 삭제 확인용 현재 비밀번호")
+    confirmation: str = Field(..., description="삭제 확인 문구 ('DELETE' 입력)")
