@@ -1,3 +1,17 @@
+annotated-types==0.7.0
+anyio==4.9.0
+bcrypt==4.3.0
+CacheControl==0.14.3
+cachetools==5.5.2
+certifi==2025.4.26
+cffi==1.17.1
+charset-normalizer==3.4.2
+click==8.2.1
+colorama==0.4.6
+cryptography==45.0.3
+dnspython==2.7.0
+ecdsa==0.19.1
+email_validator==2.1.1
 fastapi==0.115.12
 firebase-admin==6.4.0
 google-api-core==2.25.0
@@ -13,7 +27,9 @@ googleapis-common-protos==1.70.0
 grpcio==1.72.1
 grpcio-status==1.72.1
 h11==0.16.0
+httpcore==1.0.9
 httplib2==0.22.0
+httpx==0.28.1
 idna==3.10
 msgpack==1.1.0
 passlib==1.7.4
@@ -39,5 +55,4 @@ typing_extensions==4.14.0
 uritemplate==4.2.0
 urllib3==2.4.0
 uvicorn==0.34.2
-email-validator==2.1.1
-python-dotenv==1.0.0
+watchdog==6.0.0

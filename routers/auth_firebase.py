@@ -1,6 +1,6 @@
 # routers/auth_firebase.py
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from schemas.user import (
     UserCreate, UserLogin, TokenResponse, RefreshTokenRequest, UserResponse,
@@ -39,6 +39,9 @@ def register_user(user_data: UserCreate):
 @router.post("/login", response_model=TokenResponse)
 def login_user(user_data: UserLogin):
     """로그인 - user_id로 로그인"""
+    # 디버깅을 위한 로그 추가
+    print(f"[DEBUG] 로그인 요청 데이터: {user_data.dict()}")
+    
     user = FirebaseUserService.authenticate_user(user_data.user_id, user_data.password)
     
     if not user:
@@ -276,3 +279,67 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     """인증된 사용자 정보 반환"""
     token = credentials.credentials
     return FirebaseUserService.verify_access_token(token)
+
+# 추가: 디버그용 로그인 엔드포인트
+@router.post("/login-debug")
+async def login_debug(request: Request):
+    """디버그용 로그인 - 어떤 데이터가 오는지 확인"""
+    body = await request.json()
+    print(f"[DEBUG] 받은 원본 데이터: {body}")
+    
+    # 필요한 필드 확인
+    user_id = body.get("user_id") or body.get("userId") or body.get("id") or body.get("login_id")
+    password = body.get("password") or body.get("pwd")
+    
+    if not user_id or not password:
+        return {
+            "error": "필수 필드 누락",
+            "received_data": body,
+            "expected_fields": ["user_id", "password"]
+        }
+    
+    try:
+        # 로그인 시도
+        user = FirebaseUserService.authenticate_user(user_id, password)
+        
+        if not user:
+            return {
+                "error": "로그인 실패",
+                "user_id": user_id,
+                "message": "아이디 또는 비밀번호가 틀렸습니다"
+            }
+        
+        # 토큰 생성
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = FirebaseUserService.create_access_token(
+            data={"sub": user["user_id"], "user_uuid": user["id"]},
+            expires_delta=access_token_expires
+        )
+        
+        refresh_token = FirebaseUserService.create_refresh_token(user["id"])
+        
+        user_response = UserResponse(
+            id=user["id"],
+            username=user["username"],
+            user_id=user["user_id"],
+            email=user["email"],
+            farm_nickname=user["farm_nickname"],
+            farm_id=user["farm_id"],
+            created_at=user["created_at"],
+            is_active=user["is_active"]
+        )
+        
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=user_response
+        )
+        
+    except Exception as e:
+        return {
+            "error": "서버 오류",
+            "message": str(e),
+            "user_id": user_id
+        }
