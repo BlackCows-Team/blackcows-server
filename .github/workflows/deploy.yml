@@ -77,6 +77,14 @@ jobs:
           echo "FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}" >> .env
           echo "FIREBASE_PRIVATE_KEY=\"${{ secrets.FIREBASE_PRIVATE_KEY }}\"" >> .env
           echo "GOOGLE_APPLICATION_CREDENTIALS=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" >> .env
+          echo "MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
+          echo "MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
+          echo "MAIL_FROM=${{ secrets.MAIL_FROM }}" >> .env
+          echo "MAIL_SERVER=email-smtp.ap-northeast-2.amazonaws.com" >> .env
+          echo "MAIL_PORT=587" >> .env
+          echo "MAIL_TLS=True" >> .env
+          echo "MAIL_SSL=False" >> .env
+
 
           # .env 파일 권한 설정
           chmod 600 .env
