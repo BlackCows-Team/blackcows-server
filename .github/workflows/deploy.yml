@@ -21,14 +21,41 @@ jobs:
     - name: Deploy to EC2 using tmux
       run: |
         ssh -o StrictHostKeyChecking=no ubuntu@52.78.212.96 << 'EOF'
-          cd ~/blackcows-server
-          git pull
+          echo "=== 기존 tmux 세션 확인 ==="
           
-          # Python 캐시 파일 삭제
-          find . -type f -name "*.pyc" -delete
-          find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+          # tmux session 0이 있는지 확인하고 연결
+          if tmux has-session -t 0 2>/dev/null; then
+            echo "✅ tmux session 0 발견 - 기존 프로세스 종료"
+            # 기존 실행 중인 프로세스 종료 (Ctrl+C)
+            tmux send-keys -t 0 C-c
+            sleep 3
+            
+            # 추가로 uvicorn 프로세스가 남아있다면 강제 종료
+            pkill -f uvicorn || true
+            sleep 2
+            
+          else
+            echo "⚠️ tmux session 0 없음 - 새로 생성"
+            tmux new-session -d -s 0
+          fi
 
+          echo "=== 프로젝트 폴더로 이동 및 Git 업데이트 ==="
+          # blackcows-server 폴더로 이동
+          tmux send-keys -t 0 "cd ~/blackcows-server" Enter
+          sleep 1
+          
+          # Git pull 실행
+          tmux send-keys -t 0 "git pull origin main" Enter
+          sleep 3
+          
+          echo "=== Python 캐시 파일 삭제 ==="
+          # Python 캐시 파일 삭제
+          find ~/blackcows-server -type f -name "*.pyc" -delete 2>/dev/null || true
+          find ~/blackcows-server -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+
+          echo "=== 환경변수 파일 생성 ==="
           # 환경변수 파일 생성
+          cd ~/blackcows-server
           echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" > .env
           echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
           echo "REFRESH_TOKEN_EXPIRE_DAYS=7" >> .env
@@ -42,91 +69,68 @@ jobs:
           # .env 파일 권한 설정
           chmod 600 .env
 
-          # 가상환경 업데이트
+          echo "=== 가상환경 설정 ==="
+          # 가상환경 생성 (없을 경우에만)
           if [ ! -d "venv" ]; then
-            echo "=== 가상환경 생성 ==="
+            echo "가상환경 생성 중..."
             python3 -m venv venv
           fi
       
-          # 가상환경 활성화
-          source venv/bin/activate
+          # tmux 세션에서 가상환경 활성화
+          tmux send-keys -t 0 "source venv/bin/activate" Enter
+          sleep 2
       
-          # 패키지 업데이트
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install email-validator
+          echo "=== 패키지 업데이트 ==="
+          # tmux 세션에서 패키지 업데이트
+          tmux send-keys -t 0 "pip install --upgrade pip" Enter
+          sleep 3
+          tmux send-keys -t 0 "pip install -r requirements.txt" Enter
+          sleep 5
+          tmux send-keys -t 0 "pip install email-validator" Enter
+          sleep 3
 
-          # Python 구문 검사
           echo "=== Python 구문 검사 ==="
           python3 -m py_compile main.py
 
-          # import 문제 자동 수정
           echo "=== import 문제 자동 수정 ==="
+          # import 문제 자동 수정
           if grep -q "routes.livestock_trace" main.py; then
             sed -i '/routes\.livestock_trace/d' main.py
             sed -i '/livestock_router/d' main.py
             echo "✅ 문제 있는 import 제거 완료"
           fi
 
-          # tmux 세션 확인 및 서버 재시작
-          echo "=== tmux 세션 관리 ==="
+          echo "=== 서버 시작 ==="
+          # tmux 세션에서 서버 시작
+          tmux send-keys -t 0 "uvicorn main:app --host 0.0.0.0 --port 8000 --reload" Enter
           
-          # 기존 blackcows-session이 있는지 확인
-          if tmux has-session -t blackcows-session 2>/dev/null; then
-            echo "✅ 기존 blackcows-session 발견 - 서버 재시작"
-            
-            # 기존 세션에서 서버 종료
-            tmux send-keys -t blackcows-session C-c
-            sleep 3
-            
-            # 새 서버 시작 명령 전송
-            tmux send-keys -t blackcows-session "cd ~/blackcows-server" Enter
-            tmux send-keys -t blackcows-session "source venv/bin/activate" Enter
-            tmux send-keys -t blackcows-session "uvicorn main:app --host 0.0.0.0 --port 8000 --reload" Enter
-            
-            echo "✅ 기존 tmux 세션에서 서버 재시작 완료"
-            
-          else
-            echo "⚠️ blackcows-session 없음 - 새로 생성"
-            
-            # 새 tmux 세션 생성 및 서버 시작
-            tmux new-session -d -s blackcows-session -c ~/blackcows-server
-            tmux send-keys -t blackcows-session "source venv/bin/activate" Enter
-            tmux send-keys -t blackcows-session "uvicorn main:app --host 0.0.0.0 --port 8000 --reload" Enter
-            
-            echo "✅ 새 tmux 세션 생성 및 서버 시작 완료"
-          fi
+          echo "=== 서버 시작 대기 (15초) ==="
+          sleep 15
 
-          # 서버 시작 대기
-          echo "=== 서버 시작 대기 (10초) ==="
-          sleep 10
-
-          # tmux 세션 상태 확인
           echo "=== tmux 세션 상태 확인 ==="
-          if tmux has-session -t blackcows-session 2>/dev/null; then
-            echo "✅ blackcows-session 실행 중"
+          if tmux has-session -t 0 2>/dev/null; then
+            echo "✅ tmux session 0 실행 중"
             
             # 세션 내용 확인
-            echo "=== tmux 세션 최근 로그 확인(15줄) ==="
-            tmux capture-pane -t blackcows-session -p | tail -15
+            echo "=== tmux 세션 최근 로그 확인(20줄) ==="
+            tmux capture-pane -t 0 -p | tail -20
             echo "로그 확인 시간: $(date)"
             
             # 에러가 있는지 별도 확인
             echo "=== 에러 로그 확인 ==="
-            ERROR_COUNT=$(tmux capture-pane -t blackcows-session -p | grep -i error | wc -l)
+            ERROR_COUNT=$(tmux capture-pane -t 0 -p | grep -i error | wc -l)
             if [ $ERROR_COUNT -gt 0 ]; then
               echo "⚠️ 에러 발견 ($ERROR_COUNT개):"
-              tmux capture-pane -t blackcows-session -p | grep -i error | tail -3
+              tmux capture-pane -t 0 -p | grep -i error | tail -5
             else
               echo "✅ 에러 없음"
             fi
           else
-            echo "❌ blackcows-session 실행되지 않음"
+            echo "❌ tmux session 0 실행되지 않음"
             exit 1
           fi
 
-          # 포트 상태 확인
-          echo "=== 포트 8000 상태 확인 ==="
+          echo "=== 포트 상태 확인 ==="
           PORT_CHECK_SUCCESS=false
           
           # ss 명령어로 확인
@@ -149,7 +153,6 @@ jobs:
             PORT_CHECK_SUCCESS=true
           fi
 
-          # 헬스체크 
           echo "=== 헬스체크 ==="
           sleep 5
           
@@ -168,19 +171,19 @@ jobs:
             ROOT_CHECK_SUCCESS=true
           fi
 
-          # 최종 결과 판정 (조건 완화)
+          # 최종 결과 판정
           if [ "$HEALTH_CHECK_SUCCESS" = true ] || [ "$ROOT_CHECK_SUCCESS" = true ] || [ "$PORT_CHECK_SUCCESS" = true ]; then
+            echo ""
             echo "🎉 서버가 정상적으로 시작되었습니다!"
             echo "🎯 서버 접속: http://52.78.212.96:8000"
             echo "📚 API 문서: http://52.78.212.96:8000/docs"
-            echo "🖥️ tmux 세션 접속: tmux attach-session -t blackcows-session"
-            
-            # 최종 상태 요약
+            echo "🖥️ tmux 세션 접속: tmux attach-session -t 0"
             echo ""
             echo "=== 배포 상태 요약 ==="
-            echo "✅ Git 업데이트 완료"
+            echo "✅ Git 업데이트 완료 (git pull origin main)"
             echo "✅ 환경 변수 설정 완료"
-            echo "✅ tmux 세션 관리 완료"
+            echo "✅ tmux session 0 에서 서버 실행 중"
+            echo "✅ 패키지 업데이트 완료"
             if [ "$HEALTH_CHECK_SUCCESS" = true ]; then
               echo "✅ 헬스체크 통과"
             fi
@@ -190,12 +193,15 @@ jobs:
             if [ "$PORT_CHECK_SUCCESS" = true ]; then
               echo "✅ 포트 8000 정상 사용"
             fi
+            echo ""
             echo "🚀 배포 성공!"
+            echo "💡 서버 로그 확인: tmux attach-session -t 0"
+            echo "💡 tmux 세션 나가기: Ctrl+B → D"
             
           else
             echo "❌ 서버 시작 실패 - 상세 로그 확인"
             echo "=== tmux 세션 전체 로그 ==="
-            tmux capture-pane -t blackcows-session -p
+            tmux capture-pane -t 0 -p
             echo "=== Python 프로세스 확인 ==="
             ps aux | grep python
             exit 1
