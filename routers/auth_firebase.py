@@ -41,6 +41,8 @@ def login_user(user_data: UserLogin):
     """로그인 - user_id로 로그인"""
     # 디버깅을 위한 로그 추가
     print(f"[DEBUG] 로그인 요청 데이터: {user_data.dict()}")
+    print(f"[DEBUG] user_id: '{user_data.user_id}', password: '{user_data.password}'")
+    print(f"[DEBUG] user_id 타입: {type(user_data.user_id)}, password 타입: {type(user_data.password)}")
     
     user = FirebaseUserService.authenticate_user(user_data.user_id, user_data.password)
     
@@ -283,63 +285,32 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 # 추가: 디버그용 로그인 엔드포인트
 @router.post("/login-debug")
 async def login_debug(request: Request):
-    """디버그용 로그인 - 어떤 데이터가 오는지 확인"""
-    body = await request.json()
-    print(f"[DEBUG] 받은 원본 데이터: {body}")
-    
-    # 필요한 필드 확인
-    user_id = body.get("user_id") or body.get("userId") or body.get("id") or body.get("login_id")
-    password = body.get("password") or body.get("pwd")
-    
-    if not user_id or not password:
-        return {
-            "error": "필수 필드 누락",
-            "received_data": body,
-            "expected_fields": ["user_id", "password"]
-        }
-    
+    """로그인 디버깅용 엔드포인트 - 원시 데이터 확인"""
     try:
-        # 로그인 시도
-        user = FirebaseUserService.authenticate_user(user_id, password)
+        # 원시 바이트 데이터 읽기
+        body = await request.body()
+        print(f"[DEBUG] 원시 요청 바디: {body}")
         
-        if not user:
-            return {
-                "error": "로그인 실패",
-                "user_id": user_id,
-                "message": "아이디 또는 비밀번호가 틀렸습니다"
-            }
-        
-        # 토큰 생성
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = FirebaseUserService.create_access_token(
-            data={"sub": user["user_id"], "user_uuid": user["id"]},
-            expires_delta=access_token_expires
-        )
-        
-        refresh_token = FirebaseUserService.create_refresh_token(user["id"])
-        
-        user_response = UserResponse(
-            id=user["id"],
-            username=user["username"],
-            user_id=user["user_id"],
-            email=user["email"],
-            farm_nickname=user["farm_nickname"],
-            farm_id=user["farm_id"],
-            created_at=user["created_at"],
-            is_active=user["is_active"]
-        )
-        
-        return TokenResponse(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="bearer",
-            expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            user=user_response
-        )
-        
+        # JSON 파싱 시도
+        import json
+        try:
+            json_data = json.loads(body)
+            print(f"[DEBUG] 파싱된 JSON: {json_data}")
+            print(f"[DEBUG] JSON 키들: {list(json_data.keys()) if isinstance(json_data, dict) else 'dict가 아님'}")
+            
+            # UserLogin 스키마 검증 시도
+            try:
+                user_login = UserLogin(**json_data)
+                print(f"[DEBUG] UserLogin 스키마 검증 성공: {user_login.dict()}")
+                return {"status": "success", "message": "로그인 데이터 검증 성공", "data": user_login.dict()}
+            except Exception as schema_error:
+                print(f"[DEBUG] UserLogin 스키마 검증 실패: {schema_error}")
+                return {"status": "schema_error", "error": str(schema_error), "data": json_data}
+                
+        except json.JSONDecodeError as json_error:
+            print(f"[DEBUG] JSON 파싱 실패: {json_error}")
+            return {"status": "json_error", "error": str(json_error), "raw_body": body.decode('utf-8', errors='ignore')}
+            
     except Exception as e:
-        return {
-            "error": "서버 오류",
-            "message": str(e),
-            "user_id": user_id
-        }
+        print(f"[DEBUG] 전체 요청 처리 실패: {e}")
+        return {"status": "error", "error": str(e)}

@@ -12,7 +12,7 @@ if not os.getenv("JWT_SECRET_KEY"):
 
 app = FastAPI(
     title="낙농 관리 서버 API",
-    version="2.1.1",
+    version="2.1.2",
     description="낙농 관리 시스템"
     )
 
@@ -42,7 +42,7 @@ def health_check():
     return {
         "status": "success",
         "message": "낙농 관리 서버가 정상 작동 중입니다!!!",
-        "version": "2.1.1",
+        "version": "2.1.2",
         "features": [
             "젖소 기본 관리",
             "기록 관리",
@@ -53,4 +53,4 @@ def health_check():
 
 @app.get("/health")
 def health_status():
-    return {"status": "healthy", "version": "2.0.0"}
+    return {"status": "healthy", "version": "2.1.2"}
