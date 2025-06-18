@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy to EC2 with tmux
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.EC2_KEY }}
 
-    - name: Deploy to EC2
+    - name: Deploy to EC2 with tmux
       run: |
         ssh -o StrictHostKeyChecking=no ubuntu@52.78.212.96 << 'EOF'
           cd ~/blackcows-server
@@ -41,9 +41,11 @@ jobs:
           # .env 파일 권한 설정
           chmod 600 .env
 
-          # 기존 가상환경 삭제 후 새로 생성
-          rm -rf venv
-          python3 -m venv venv
+          # 가상환경 업데이트
+          if [ ! -d "venv" ]; then
+            echo "=== 가상환경 생성 ==="
+            python3 -m venv venv
+          fi
       
           # 가상환경 활성화
           source venv/bin/activate
@@ -51,6 +53,7 @@ jobs:
           # 패키지 설치
           pip install --upgrade pip
           pip install -r requirements.txt
+          pip install email-validator
           
           # email-validator 추가 설치 (pydantic[email] 대신)
           echo "=== email-validator 설치 ==="
@@ -123,71 +126,80 @@ jobs:
           echo "=== 환경변수 확인 ==="
           python3 -c "import os; from dotenv import load_dotenv; load_dotenv(); print('✅ JWT_SECRET_KEY:', 'SET' if os.getenv('JWT_SECRET_KEY') else '❌ NOT SET'); print('✅ FIREBASE_PROJECT_ID:', 'SET' if os.getenv('FIREBASE_PROJECT_ID') else '❌ NOT SET'); print('✅ FIREBASE_PRIVATE_KEY:', 'SET' if os.getenv('FIREBASE_PRIVATE_KEY') else '❌ NOT SET'); print('✅ All environment variables loaded successfully!')"
 
-          # Firebase 연결 테스트 (간단화)
+          # Firebase 연결 테스트
           echo "=== Firebase 연결 테스트 ==="
           python3 -c "from config.firebase_config import initialize_firebase; initialize_firebase(); print('✅ Firebase 초기화 성공')" || echo "❌ Firebase 테스트 건너뜀"
 
-          # 서버 실행
-          echo "=== 서버 시작 ==="
-          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > server.log 2>&1 < /dev/null &
-          SERVER_PID=$!
-          echo "서버 PID: $SERVER_PID"
+          
+          # tmux 세션 확인 및 서버 재시작
+          echo "=== tmux 세션 관리 ==="
 
-          # 서버 시작 대기 (더 오래 기다리기)
+          # 기존 blackcows-session이 있는지 확인
+          if tmux has-session -t blackcows-session 2>/dev/null; then
+            echo "✅ 기존 blackcows-session 발견 - 서버 재시작"
+            
+            # 기존 세션에서 서버 종료
+            tmux send-keys -t blackcows-session C-c
+            sleep 3
+            
+            # 새 서버 시작 명령 전송
+            tmux send-keys -t blackcows-session "cd ~/blackcows-server" Enter
+            tmux send-keys -t blackcows-session "source venv/bin/activate" Enter
+            tmux send-keys -t blackcows-session "uvicorn main:app --host 0.0.0.0 --port 8000 --reload" Enter
+            
+            echo "✅ 기존 tmux 세션에서 서버 재시작 완료"
+            
+          else
+            echo "⚠️ blackcows-session 없음 - 새로 생성"
+            
+            # 새 tmux 세션 생성 및 서버 시작
+            tmux new-session -d -s blackcows-session -c ~/blackcows-server
+            tmux send-keys -t blackcows-session "source venv/bin/activate" Enter
+            tmux send-keys -t blackcows-session "uvicorn main:app --host 0.0.0.0 --port 8000 --reload" Enter
+            
+            echo "✅ 새 tmux 세션 생성 및 서버 시작 완료"
+          fi
+
+          # 서버 시작 대기
           echo "=== 서버 시작 대기 (10초) ==="
           sleep 10
 
-          # 프로세스 상태 확인
-          echo "=== 프로세스 상태 확인 ==="
-          if ps -p $SERVER_PID > /dev/null; then
-            echo "✅ 서버 프로세스 실행 중 (PID: $SERVER_PID)"
+          # tmux 세션 상태 확인
+          echo "=== tmux 세션 상태 확인 ==="
+          if tmux has-session -t blackcows-session 2>/dev/null; then
+            echo "✅ blackcows-session 실행 중"
+            
+            # 세션 내용 확인 (마지막 몇 줄)
+            echo "=== tmux 세션 로그 확인 ==="
+            tmux capture-pane -t blackcows-session -p | tail -5
+            
           else
-            echo "❌ 서버 프로세스가 종료됨"
-            echo "=== 서버 로그 확인 ==="
-            cat server.log
-            echo "=== 프로세스 목록 확인 ==="
-            ps aux | grep uvicorn
+            echo "❌ blackcows-session 실행되지 않음"
             exit 1
           fi
 
-          # 서버 로그 확인 (실시간)
-          echo "=== 최근 서버 로그 (마지막 10줄) ==="
-          tail -10 server.log
-
-          # 포트 확인 (더 자세히)
-          echo "=== 포트 상태 확인 ==="
-          echo "ss 명령어로 포트 확인:"
-          ss -tlnp | grep 8000 || echo "ss로 포트 8000 확인 안됨"
-          
-          echo "lsof 명령어로 포트 확인:"
-          lsof -i:8000 2>/dev/null || echo "lsof로 포트 8000 확인 안됨"
-          
-          echo "netstat 명령어로 포트 확인:"
-          netstat -tlnp | grep 8000 || echo "netstat으로 포트 8000 확인 안됨"
-
-          # 더 오래 기다린 후 헬스체크
-          echo "=== 추가 대기 후 헬스체크 (5초 더) ==="
-          sleep 5
-
-          # 헬스체크 시도 (여러 방법으로)
-          echo "=== 헬스체크 시도 ==="
-          
-          # 방법 1: /health 엔드포인트
-          if curl -f -m 10 http://localhost:8000/health > /dev/null 2>&1; then
-            echo "✅ /health 엔드포인트 응답 성공"
-            HEALTH_CHECK_SUCCESS=true
+          # 포트 상태 확인
+          echo "=== 포트 8000 상태 확인 ==="
+          if ss -tlnp | grep 8000; then
+            echo "✅ 포트 8000 사용 중"
           else
-            echo "❌ /health 엔드포인트 응답 실패"
-            HEALTH_CHECK_SUCCESS=false
+            echo "❌ 포트 8000 사용되지 않음"
+            exit 1
           fi
           
-          # 방법 2: 루트 경로
-          if curl -f -m 10 http://localhost:8000/ > /dev/null 2>&1; then
-            echo "✅ 루트 경로 응답 성공"
-            ROOT_CHECK_SUCCESS=true
+          # 헬스체크
+          echo "=== 헬스체크 ==="
+          sleep 5
+
+          if curl -f -m 10 http://localhost:8000/health > /dev/null 2>&1; then
+            echo "✅ 헬스체크 성공!"
+            echo "🎉 배포 완료!"
+            echo "🖥️ tmux 세션 접속: tmux attach-session -t blackcows-session"
           else
-            echo "❌ 루트 경로 응답 실패"
-            ROOT_CHECK_SUCCESS=false
+            echo "❌ 헬스체크 실패"
+            echo "=== tmux 세션 로그 확인 ==="
+            tmux capture-pane -t blackcows-session -p
+            exit 1
           fi
 
           # 최종 결과 판정
