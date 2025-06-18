@@ -5,7 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from schemas.user import (
     UserCreate, UserLogin, TokenResponse, RefreshTokenRequest, UserResponse,
     FindUserIdRequest, PasswordResetRequest, PasswordResetConfirm,
-    TemporaryTokenLogin, ChangePasswordRequest
+    TemporaryTokenLogin, ChangePasswordRequest, DeleteAccountRequest
 )
 from services.firebase_user_service import FirebaseUserService, ACCESS_TOKEN_EXPIRE_MINUTES
 from config.email_config import email_config
@@ -479,4 +479,35 @@ def change_password(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"비밀번호 변경 중 오류가 발생했습니다: {str(e)}"
+        )
+
+# ============= 회원탈퇴 API =============
+
+@router.delete("/delete-account")
+def delete_account(
+    request: DeleteAccountRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """회원탈퇴 - 모든 관련 데이터 완전 삭제"""
+    try:
+        token = credentials.credentials
+        
+        # 일반 액세스 토큰 검증 (로그인된 사용자)
+        user = FirebaseUserService.verify_access_token(token)
+        
+        # 계정 삭제 실행
+        result = FirebaseUserService.delete_user_account(
+            user, 
+            request.password, 
+            request.confirmation
+        )
+        
+        return result
+            
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"회원탈퇴 처리 중 오류가 발생했습니다: {str(e)}"
         )

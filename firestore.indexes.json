@@ -409,17 +409,7 @@
             "order": "ASCENDING"
           },
           {
-            "fieldPath": "is_active",
-            "order": "ASCENDING"
-          }
-        ]
-      },
-      {
-        "collectionGroup": "users",
-        "queryScope": "COLLECTION",
-        "fields": [
-          {
-            "fieldPath": "user_id",
+            "fieldPath": "email",
             "order": "ASCENDING"
           },
           {
@@ -432,6 +422,14 @@
         "collectionGroup": "users",
         "queryScope": "COLLECTION",
         "fields": [
+          {
+            "fieldPath": "username",
+            "order": "ASCENDING"
+          },
+          {
+            "fieldPath": "user_id",
+            "order": "ASCENDING"
+          },
           {
             "fieldPath": "email",
             "order": "ASCENDING"

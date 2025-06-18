@@ -288,13 +288,13 @@ class RecordFirebaseService:
             
             # 기본 쿼리
             query = db.collection('cow_records')\
-                .where('cow_id', '==', cow_id)\
-                .where('farm_id', '==', farm_id)\
-                .where('is_active', '==', True)
+                .where(filter=('cow_id', '==', cow_id))\
+                .where(filter=('farm_id', '==', farm_id))\
+                .where(filter=('is_active', '==', True))
             
             # 기록 유형 필터링
             if record_type:
-                query = query.where('record_type', '==', record_type.value)
+                query = query.where(filter=('record_type', '==', record_type.value))
             
             # 날짜 순으로 정렬 (최신순)
             records_query = query.order_by('record_date', direction='DESCENDING').get()
@@ -380,12 +380,12 @@ class RecordFirebaseService:
             db = get_firestore_client()
             # 기본 쿼리
             query = db.collection('cow_records')\
-                .where('farm_id', '==', farm_id)\
-                .where('is_active', '==', True)
+                .where(filter=('farm_id', '==', farm_id))\
+                .where(filter=('is_active', '==', True))
             
             # 기록 유형 필터링
             if record_type:
-                query = query.where('record_type', '==', record_type.value)
+                query = query.where(filter=('record_type', '==', record_type.value))
             
             # 날짜 순으로 정렬하고 제한
             records_query = query.order_by('record_date', direction='DESCENDING').limit(limit).get()

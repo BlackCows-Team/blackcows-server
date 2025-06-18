@@ -466,3 +466,70 @@ class FirebaseUserService:
                 detail="토큰 검증에 실패했습니다",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+    @staticmethod
+    def delete_user_account(user: Dict, password: str, confirmation: str) -> Dict:
+        """사용자 계정 완전 삭제 - 모든 관련 데이터 삭제"""
+        try:
+            # 1. 삭제 확인 문구 검증
+            if confirmation != "DELETE":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="삭제 확인 문구가 올바르지 않습니다. 'DELETE'를 정확히 입력해주세요."
+                )
+            
+            # 2. 비밀번호 확인
+            if not FirebaseUserService.verify_password(password, user["hashed_password"]):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="비밀번호가 올바르지 않습니다"
+                )
+            
+            user_uuid = user["id"]
+            farm_id = user["farm_id"]
+            
+            # 3. 관련 데이터 삭제 (순서 중요)
+            
+            # 3-1. 상세기록 삭제
+            detailed_records = db.collection('cow_detailed_records').where('farm_id', '==', farm_id).get()
+            for record in detailed_records:
+                db.collection('cow_detailed_records').document(record.id).delete()
+            
+            # 3-2. 기록 삭제  
+            records = db.collection('cow_records').where('farm_id', '==', farm_id).get()
+            for record in records:
+                db.collection('cow_records').document(record.id).delete()
+            
+            # 3-3. 소 정보 삭제
+            cows = db.collection('cows').where('farm_id', '==', farm_id).get()
+            for cow in cows:
+                db.collection('cows').document(cow.id).delete()
+            
+            # 3-4. 리프레시 토큰 삭제
+            refresh_tokens = db.collection('refresh_tokens').where('user_id', '==', user_uuid).get()
+            for token in refresh_tokens:
+                db.collection('refresh_tokens').document(token.id).delete()
+            
+            # 3-5. 농장 정보 삭제
+            db.collection('farms').document(farm_id).delete()
+            
+            # 3-6. 사용자 정보 삭제 (마지막)
+            db.collection('users').document(user_uuid).delete()
+            
+            return {
+                "success": True,
+                "message": f"{user['username']}님의 계정이 완전히 삭제되었습니다",
+                "deleted_data": {
+                    "user": user['username'],
+                    "farm_id": farm_id,
+                    "deleted_at": datetime.utcnow().isoformat()
+                }
+            }
+            
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"계정 삭제 중 오류가 발생했습니다: {str(e)}"
+            )

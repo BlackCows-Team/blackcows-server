@@ -333,3 +333,10 @@ class DetailedRecordSummary(BaseModel):
     title: str
     key_values: Dict[str, Any]  # 주요 수치 정보 (착유량, 체중 등)
     created_at: datetime
+
+# 상세 기록 업데이트 스키마
+class DetailedRecordUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    record_date: Optional[str] = None
+    record_data: Optional[Dict[str, Any]] = None

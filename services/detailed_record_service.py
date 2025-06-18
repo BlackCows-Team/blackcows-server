@@ -805,12 +805,12 @@ class DetailedRecordService:
             cow_info = DetailedRecordService._get_cow_info(cow_id, farm_id)
             
             query = db.collection('cow_detailed_records')\
-                .where('cow_id', '==', cow_id)\
-                .where('farm_id', '==', farm_id)\
-                .where('is_active', '==', True)
+                .where(filter=('cow_id', '==', cow_id))\
+                .where(filter=('farm_id', '==', farm_id))\
+                .where(filter=('is_active', '==', True))
             
             if record_type:
-                query = query.where('record_type', '==', record_type.value)
+                query = query.where(filter=('record_type', '==', record_type.value))
             
             records_query = query.order_by('record_date', direction='DESCENDING').get()
             
