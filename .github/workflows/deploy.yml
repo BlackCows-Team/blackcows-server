@@ -53,9 +53,20 @@ jobs:
           find ~/blackcows-server -type f -name "*.pyc" -delete 2>/dev/null || true
           find ~/blackcows-server -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
+          echo "=== Firebase 서비스 계정 키 파일 확인 ==="
+          cd ~/blackcows-server
+          
+          # Firebase 서비스 계정 키 파일이 존재하는지 확인
+          if [ -f "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" ]; then
+            echo "✅ Firebase 키 파일 존재: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}"
+          else
+            echo "❌ Firebase 키 파일 없음: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}"
+            echo "파일을 확인하거나 올바른 경로를 설정하세요."
+            exit 1
+          fi
+
           echo "=== 환경변수 파일 생성 ==="
           # 환경변수 파일 생성
-          cd ~/blackcows-server
           echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" > .env
           echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
           echo "REFRESH_TOKEN_EXPIRE_DAYS=7" >> .env
@@ -65,6 +76,7 @@ jobs:
           echo "FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}" >> .env
           echo "FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}" >> .env
           echo "FIREBASE_PRIVATE_KEY=\"${{ secrets.FIREBASE_PRIVATE_KEY }}\"" >> .env
+          echo "GOOGLE_APPLICATION_CREDENTIALS=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" >> .env
 
           # .env 파일 권한 설정
           chmod 600 .env
@@ -101,7 +113,9 @@ jobs:
           fi
 
           echo "=== 서버 시작 ==="
-          # tmux 세션에서 서버 시작
+          # tmux 세션에서 환경변수 설정 후 서버 시작
+          tmux send-keys -t 0 "export GOOGLE_APPLICATION_CREDENTIALS=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" Enter
+          sleep 1
           tmux send-keys -t 0 "uvicorn main:app --host 0.0.0.0 --port 8000 --reload" Enter
           
           echo "=== 서버 시작 대기 (15초) ==="
@@ -182,6 +196,7 @@ jobs:
             echo "=== 배포 상태 요약 ==="
             echo "✅ Git 업데이트 완료 (git pull origin main)"
             echo "✅ 환경 변수 설정 완료"
+            echo "✅ Firebase 설정 완료"
             echo "✅ tmux session 0 에서 서버 실행 중"
             echo "✅ 패키지 업데이트 완료"
             if [ "$HEALTH_CHECK_SUCCESS" = true ]; then
