@@ -13,6 +13,7 @@ dnspython==2.7.0
 ecdsa==0.19.1
 email_validator==2.1.1
 fastapi==0.115.12
+fastapi-mail==1.4.1
 firebase-admin==6.4.0
 google-api-core==2.25.0
 google-api-python-client==2.171.0
@@ -31,6 +32,7 @@ httpcore==1.0.9
 httplib2==0.22.0
 httpx==0.28.1
 idna==3.10
+jinja2==3.1.4
 msgpack==1.1.0
 passlib==1.7.4
 proto-plus==1.26.1

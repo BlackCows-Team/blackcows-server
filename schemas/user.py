@@ -156,3 +156,39 @@ class PasswordResetConfirm(BaseModel):
         if 'new_password' in values and v != values['new_password']:
             raise ValueError('비밀번호가 일치하지 않습니다')
         return v
+
+# 임시 토큰으로 로그인하기 위한 스키마
+class TemporaryTokenLogin(BaseModel):
+    user_id: str                             # 로그인용 아이디
+    reset_token: str                         # 비밀번호 재설정 토큰
+    
+    @validator('user_id')
+    def user_id_validation(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('아이디를 입력해주세요')
+        return v.strip()
+    
+    @validator('reset_token')
+    def token_validation(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('재설정 토큰을 입력해주세요')
+        return v.strip()
+
+# 비밀번호 변경용 스키마 (로그인된 상태에서 사용)
+class ChangePasswordRequest(BaseModel):
+    new_password: str
+    confirm_password: str
+    
+    @validator('new_password')
+    def password_validation(cls, v):
+        if len(v) < 6:
+            raise ValueError('비밀번호는 6자 이상이어야 합니다')
+        if len(v) > 20:
+            raise ValueError('비밀번호는 20자 이하여야 합니다')
+        return v
+    
+    @validator('confirm_password')
+    def passwords_match(cls, v, values):
+        if 'new_password' in values and v != values['new_password']:
+            raise ValueError('비밀번호가 일치하지 않습니다')
+        return v

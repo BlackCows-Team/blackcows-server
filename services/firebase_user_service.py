@@ -323,3 +323,146 @@ class FirebaseUserService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="리프레시 토큰 검증에 실패했습니다"
             )
+    
+    @staticmethod
+    def verify_reset_token_and_user(user_id: str, reset_token: str) -> Optional[Dict]:
+        """임시 토큰과 사용자 ID를 검증하고 사용자 정보 반환"""
+        try:
+            # 간단한 토큰 검증 (실제로는 JWT 토큰 사용)
+            if not reset_token.startswith("reset_token_for_"):
+                return None
+            
+            # 토큰에서 사용자 UUID 추출
+            user_uuid = reset_token.replace("reset_token_for_", "")
+            
+            # 사용자 존재 확인
+            user = FirebaseUserService.get_user_by_id(user_uuid)
+            if not user:
+                return None
+            
+            # 입력받은 user_id와 DB의 user_id가 일치하는지 확인
+            if user.get("user_id") != user_id:
+                return None
+            
+            # 토큰 만료 시간 체크 (실제로는 JWT에서 처리해야 함)
+            # 여기서는 간단히 구현하기 위해 생략하고, 실제로는 토큰 생성 시간을 DB에 저장해서 체크
+            
+            return user
+            
+        except Exception as e:
+            print(f"Reset token verification error: {str(e)}")
+            return None
+    
+    @staticmethod
+    def create_password_reset_token(user_data: Dict) -> str:
+        """JWT 기반 비밀번호 재설정 토큰 생성 (1시간 유효)"""
+        expires_delta = timedelta(hours=1)
+        expire = datetime.utcnow() + expires_delta
+        
+        to_encode = {
+            "sub": user_data["user_id"],
+            "user_uuid": user_data["id"],
+            "exp": expire,
+            "iat": datetime.utcnow(),
+            "type": "password_reset",
+            "purpose": "reset_password"
+        }
+        
+        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        return encoded_jwt
+    
+    @staticmethod
+    def verify_password_reset_token(user_id: str, reset_token: str) -> Optional[Dict]:
+        """JWT 기반 비밀번호 재설정 토큰 검증"""
+        try:
+            # JWT 토큰 검증 (만료 시간 자동 체크)
+            payload = jwt.decode(reset_token, SECRET_KEY, algorithms=[ALGORITHM])
+            
+            token_user_id = payload.get("sub")
+            token_type = payload.get("type")
+            user_uuid = payload.get("user_uuid")
+            purpose = payload.get("purpose")
+            
+            # 토큰 타입 및 용도 확인
+            if token_type != "password_reset" or purpose != "reset_password":
+                return None
+            
+            # 사용자 ID 일치 확인
+            if token_user_id != user_id:
+                return None
+            
+            # 사용자 존재 확인
+            user = FirebaseUserService.get_user_by_id(user_uuid)
+            if not user:
+                return None
+            
+            return user
+            
+        except jwt.ExpiredSignatureError:
+            print("Password reset token expired")
+            return None
+        except JWTError as e:
+            print(f"Password reset token verification error: {str(e)}")
+            return None
+        except Exception as e:
+            print(f"Password reset token verification error: {str(e)}")
+            return None
+    
+    @staticmethod
+    def create_password_reset_access_token(user_data: Dict) -> str:
+        """비밀번호 재설정 전용 임시 액세스 토큰 생성 (30분 유효)"""
+        expires_delta = timedelta(minutes=30)
+        expire = datetime.utcnow() + expires_delta
+        
+        to_encode = {
+            "sub": user_data["user_id"],
+            "user_uuid": user_data["id"],
+            "exp": expire,
+            "iat": datetime.utcnow(),
+            "type": "password_reset_access",  # 특별한 토큰 타입
+            "permissions": ["change_password"]  # 비밀번호 변경 권한만
+        }
+        
+        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+        return encoded_jwt
+    
+    @staticmethod
+    def verify_password_reset_access_token(token: str) -> Dict:
+        """비밀번호 재설정 전용 액세스 토큰 검증"""
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = payload.get("sub")
+            token_type = payload.get("type")
+            user_uuid = payload.get("user_uuid")
+            permissions = payload.get("permissions", [])
+            
+            if user_id is None or token_type != "password_reset_access":
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="유효하지 않은 토큰입니다",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            
+            if "change_password" not in permissions:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="비밀번호 변경 권한이 없습니다"
+                )
+            
+            # 사용자 정보 조회
+            user = FirebaseUserService.get_user_by_user_id(user_id)
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="사용자를 찾을 수 없습니다",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            
+            return user
+            
+        except JWTError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="토큰 검증에 실패했습니다",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
