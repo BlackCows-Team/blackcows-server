@@ -19,9 +19,9 @@ if ENV == "production":
     title="낙농 관리 서버 API",
     version="2.3.0",
     description="낙농 관리 시스템",
-    docs_url=None,          # Swagger UI 비활성화
-    redoc_url=None,
-    openapi_url=None
+    # docs_url=None,          # Swagger UI 비활성화
+    # redoc_url=None,
+    # openapi_url=None
     )
     
 else:
@@ -46,8 +46,8 @@ app.add_middleware(
 # 라우터 연결
 app.include_router(auth_firebase.router, prefix="/auth", tags=["인증"])
 app.include_router(cow.router, prefix="/cows", tags=["소 관리"])
-app.include_router(record.router, prefix="/records", tags=["기록 관리"])
-app.include_router(detailed_record.router, prefix="/detailed-records", tags=["상세 기록 관리"])
+app.include_router(record.router, prefix="/basic-records", tags=["기본 기록 관리"])
+app.include_router(detailed_record.router, prefix="/records", tags=["기록 관리"])
 
 # app.include_router(livestock_trace_router, prefix="/api/livestock-trace", tags=["축산물이력조회"])
 

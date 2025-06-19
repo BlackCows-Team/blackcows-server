@@ -14,7 +14,10 @@ from datetime import timedelta
 router = APIRouter()
 security = HTTPBearer()
 
-@router.post("/register", response_model=dict)
+@router.post("/register", 
+            response_model=dict,
+            summary="회원가입",
+            description="새로운 사용자 계정을 생성합니다. 목장 별명을 포함하여 등록할 수 있습니다.")
 async def register_user(user_data: UserCreate):
     """회원가입 - 목장 별명 포함"""
     user = FirebaseUserService.create_user(
@@ -48,7 +51,10 @@ async def register_user(user_data: UserCreate):
         }
     }
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", 
+            response_model=TokenResponse,
+            summary="로그인",
+            description="사용자 아이디와 비밀번호로 로그인하여 액세스 토큰을 발급받습니다.")
 def login_user(user_data: UserLogin):
     """로그인 - user_id로 로그인"""
     # 디버깅을 위한 로그 추가
@@ -95,12 +101,17 @@ def login_user(user_data: UserLogin):
         user=user_response
     )
 
-@router.post("/refresh")
+@router.post("/refresh",
+            summary="토큰 갱신",
+            description="리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받습니다.")
 def refresh_token(token_data: RefreshTokenRequest):
     """토큰 갱신"""
     return FirebaseUserService.refresh_access_token(token_data.refresh_token)
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me", 
+           response_model=UserResponse,
+           summary="현재 사용자 정보 조회",
+           description="현재 로그인된 사용자의 정보를 조회합니다.")
 def get_current_user_info(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """현재 사용자 정보 조회"""
     token = credentials.credentials
@@ -119,7 +130,9 @@ def get_current_user_info(credentials: HTTPAuthorizationCredentials = Depends(se
 
 # ============= 아이디/비밀번호 찾기 API =============
 
-@router.post("/find-user-id")
+@router.post("/find-user-id",
+            summary="아이디 찾기",
+            description="사용자 이름과 이메일을 통해 아이디를 찾습니다.")
 def find_user_id_by_name_and_email(request: FindUserIdRequest):
     """이름과 이메일로 아이디 찾기 - Flutter 앱에서 바로 표시"""
     try:
@@ -150,7 +163,9 @@ def find_user_id_by_name_and_email(request: FindUserIdRequest):
             detail=f"아이디 찾기 중 오류가 발생했습니다: {str(e)}"
         )
 
-@router.post("/request-password-reset")
+@router.post("/request-password-reset",
+            summary="비밀번호 재설정 요청",
+            description="이름, 아이디, 이메일 확인 후 비밀번호 재설정 토큰을 이메일로 전송합니다.")
 async def request_password_reset(request: PasswordResetRequest):
     """비밀번호 재설정 요청 - 이름, 아이디, 이메일 모두 확인"""
     try:
@@ -204,7 +219,9 @@ async def request_password_reset(request: PasswordResetRequest):
             detail=f"비밀번호 재설정 요청 중 오류가 발생했습니다: {str(e)}"
         )
 
-@router.post("/verify-reset-token")
+@router.post("/verify-reset-token",
+            summary="재설정 토큰 확인",
+            description="비밀번호 재설정 토큰의 유효성을 확인합니다.")
 def verify_reset_token(request: dict):
     """비밀번호 재설정 토큰 확인 (간단 버전)"""
     token = request.get("token")
@@ -266,7 +283,9 @@ def verify_reset_token(request: dict):
             detail="토큰 확인 중 오류가 발생했습니다"
         )
 
-@router.post("/reset-password")
+@router.post("/reset-password",
+            summary="비밀번호 재설정",
+            description="재설정 토큰을 사용하여 새로운 비밀번호로 변경합니다.")
 def reset_password(request: PasswordResetConfirm):
     """비밀번호 재설정 (간단 버전)"""
     try:
@@ -342,7 +361,9 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     return FirebaseUserService.verify_access_token(token)
 
 # 추가: 디버그용 로그인 엔드포인트
-@router.post("/login-debug")
+@router.post("/login-debug",
+            summary="로그인 디버그",
+            description="로그인 요청 데이터를 디버깅하기 위한 엔드포인트입니다.")
 async def login_debug(request: Request):
     """로그인 디버깅용 엔드포인트 - 원시 데이터 확인"""
     try:
@@ -376,7 +397,9 @@ async def login_debug(request: Request):
 
 # ============= 임시 토큰 로그인 API =============
 
-@router.post("/login-with-reset-token")
+@router.post("/login-with-reset-token",
+            summary="임시 토큰 로그인",
+            description="비밀번호 재설정 토큰을 사용하여 임시 로그인하고 비밀번호 변경 권한을 가진 액세스 토큰을 발급받습니다.")
 def login_with_reset_token(request: TemporaryTokenLogin):
     """임시 토큰으로 로그인하여 비밀번호 변경 권한을 가진 특별한 액세스 토큰 발급"""
     try:
@@ -426,7 +449,9 @@ def login_with_reset_token(request: TemporaryTokenLogin):
             detail=f"임시 토큰 로그인 중 오류가 발생했습니다: {str(e)}"
         )
 
-@router.post("/change-password")
+@router.post("/change-password",
+            summary="비밀번호 변경",
+            description="비밀번호 재설정 토큰으로 로그인한 사용자의 비밀번호를 변경합니다.")
 def change_password(
     request: ChangePasswordRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -483,7 +508,9 @@ def change_password(
 
 # ============= 회원탈퇴 API =============
 
-@router.delete("/delete-account")
+@router.delete("/delete-account",
+              summary="회원탈퇴",
+              description="사용자 계정과 모든 관련 데이터를 완전히 삭제합니다.")
 def delete_account(
     request: DeleteAccountRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
