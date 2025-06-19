@@ -107,3 +107,7 @@ firebase-debug.*.log
 
 # 환경별 Firebase 설정
 config/*.json
+*.json
+!firebase.json
+!firestore.indexes.json
+!package.json

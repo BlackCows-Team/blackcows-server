@@ -21,6 +21,14 @@ def list_cows(current_user: dict = Depends(get_current_user)):
     farm_id = current_user.get("farm_id")
     return CowFirebaseService.get_cows_by_farm(farm_id)
 
+@router.patch("/{cow_id}/favorite")
+def toggle_cow_favorite(
+    cow_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """젖소 즐겨찾기 토글"""
+    return CowFirebaseService.toggle_favorite(cow_id, current_user)
+
 @router.get("/{cow_id}", response_model=CowResponse)
 def get_cow_detail(
     cow_id: str,
@@ -126,7 +134,7 @@ def get_farm_statistics(current_user: dict = Depends(get_current_user)):
         
         # 건강상태별 통계
         health_stats = {}
-        for status in ["excellent", "good", "average", "poor", "sick"]:
+        for status in ["normal", "warning", "danger"]:
             count = len(db.collection('cows')\
                        .where(filter=('farm_id', '==', farm_id))\
                        .where(filter=('health_status', '==', status))\
@@ -156,14 +164,6 @@ def get_farm_statistics(current_user: dict = Depends(get_current_user)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"통계 조회 중 오류가 발생했습니다: {str(e)}"
         )
-
-@router.post("/{cow_id}/favorite")
-def toggle_cow_favorite(
-    cow_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    """젖소 즐겨찾기 토글"""
-    return CowFirebaseService.toggle_favorite(cow_id, current_user)
 
 @router.get("/favorites/list", response_model=List[CowResponse])
 def get_favorite_cows(current_user: dict = Depends(get_current_user)):

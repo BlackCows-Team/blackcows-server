@@ -5,11 +5,9 @@ from enum import Enum
 
 # 건강상태 열거형
 class HealthStatus(str, Enum):
-    EXCELLENT = "excellent"  # 우수
-    GOOD = "good"           # 양호
-    AVERAGE = "average"     # 보통
-    POOR = "poor"          # 불량
-    SICK = "sick"          # 질병
+    NORMAL = "normal"      # 정상
+    WARNING = "warning"    # 주의
+    DANGER = "danger"      # 위험
 
 # 번식생태 열거형
 class BreedingStatus(str, Enum):

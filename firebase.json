@@ -1,8 +1,26 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "firestore": {
     "database": "(default)",
     "location": "asia-northeast3",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8081
+    },
+    "ui": {
+      "enabled": true
+    },
+    "singleProjectMode": true,
+    "auth": {
+      "port": 9099
+    },
+    "functions": {
+      "port": 5001
+    }
   }
 }
