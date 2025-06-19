@@ -1,9 +1,9 @@
-# 🐄 BlackCows 젖소 관리 시스템
+# 🐄 BlackCows 젖소 관리 시스템 API
 
-> **Flutter 앱과 연동되는 종합적인 젖소 관리 및 기록 시스템 API**
+> **Flutter 앱과 연동되는 종합적인 젖소 관리 및 기록 시스템 REST API 서버**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com)
+[![FastAPI](https://img.shields.io/badge/FastAPI-2.3.1-green.svg)](https://fastapi.tiangolo.com)
 [![Firebase](https://img.shields.io/badge/Firebase-Firestore-orange.svg)](https://firebase.google.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -38,23 +38,302 @@ BlackCows는 낙농업체를 위한 종합 관리 시스템으로, 젖소 정보
 - ✅ **비밀번호 재설정** - 이메일 기반 토큰 시스템
 - ✅ **회원탈퇴** - 모든 관련 데이터 완전 삭제
 
-## 🏗️ 시스템 아키텍처
+## 🚀 서버 상태 확인
 
+- **프로덕션 서버**: http://52.78.212.96:8000
+- **헬스 체크**: http://52.78.212.96:8000/health
+- **서버 정보**: http://52.78.212.96:8000/
+
+## 📡 전체 API 엔드포인트
+
+### 🔐 인증 관리 API (`/auth`)
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/auth/register` | 회원가입 (목장별명 포함) | `username`, `user_id`, `email`, `password`, `password_confirm` | 사용자 정보 + 농장 정보 |
+| `POST` | `/auth/login` | 로그인 (user_id 기반) | `user_id`, `password` | `access_token`, `refresh_token`, 사용자 정보 |
+| `POST` | `/auth/refresh` | 토큰 갱신 | `refresh_token` | 새로운 `access_token` |
+| `GET` | `/auth/me` | 현재 사용자 정보 조회 | Bearer Token | 현재 사용자 정보 |
+| `POST` | `/auth/find-user-id` | 아이디 찾기 | `username`, `email` | 찾은 `user_id` |
+| `POST` | `/auth/request-password-reset` | 비밀번호 재설정 요청 | `username`, `user_id`, `email` | 이메일 전송 결과 + 임시 토큰 |
+| `POST` | `/auth/verify-reset-token` | 재설정 토큰 검증 | `token` | 토큰 유효성 결과 |
+| `POST` | `/auth/reset-password` | 비밀번호 재설정 | `token`, `new_password`, `confirm_password` | 재설정 성공 메시지 |
+| `POST` | `/auth/login-with-reset-token` | 임시 토큰 로그인 | `user_id`, `reset_token` | 임시 `access_token` (비밀번호 변경 권한) |
+| `POST` | `/auth/change-password` | 비밀번호 변경 | `new_password`, `confirm_password` + Bearer Token | 변경 성공 메시지 |
+| `DELETE` | `/auth/delete-account` | 회원탈퇴 | `password`, `confirmation` + Bearer Token | 삭제 완료 메시지 |
+| `POST` | `/auth/login-debug` | 로그인 디버깅 | 원시 요청 데이터 | 디버그 정보 |
+
+### 🐮 젖소 관리 API (`/cows`)
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/cows/` | 젖소 등록 | `ear_tag_number`, `name` | 등록된 젖소 정보 |
+| `GET` | `/cows/` | 젖소 목록 조회 | Bearer Token | 농장 내 모든 젖소 목록 |
+| `GET` | `/cows/{cow_id}` | 젖소 상세 조회 | `cow_id` + Bearer Token | 특정 젖소 상세 정보 |
+| `PUT` | `/cows/{cow_id}` | 젖소 정보 수정 | `cow_id` + Bearer Token | 수정된 젖소 정보 |
+| `DELETE` | `/cows/{cow_id}` | 젖소 삭제 (소프트 삭제) | `cow_id` + Bearer Token | 삭제 확인 메시지 |
+| `PATCH` | `/cows/{cow_id}/favorite` | 즐겨찾기 토글 | `cow_id` + Bearer Token | 즐겨찾기 상태 변경 결과 |
+| `GET` | `/cows/favorites/list` | 즐겨찾기 젖소 목록 | Bearer Token | 즐겨찾기된 젖소들 |
+| `GET` | `/cows/search/by-tag/{ear_tag_number}` | 이표번호로 젖소 검색 | `ear_tag_number` + Bearer Token | 검색된 젖소 정보 |
+| `GET` | `/cows/statistics/summary` | 농장 통계 조회 | Bearer Token | 전체/건강상태별/번식상태별 통계 |
+
+### 🔧 젖소 상세정보 API (`/cows/{cow_id}`)
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `PUT` | `/cows/{cow_id}/details` | 젖소 상세정보 업데이트 | `cow_id` + Bearer Token | 업데이트된 상세정보 |
+| `GET` | `/cows/{cow_id}/details` | 젖소 상세정보 조회 | `cow_id` + Bearer Token | 전체 상세정보 포함 젖소 데이터 |
+| `GET` | `/cows/{cow_id}/has-details` | 상세정보 보유 여부 확인 | `cow_id` + Bearer Token | `has_detailed_info` boolean |
+
+### 📝 상세 기록 관리 API (`/records`)
+
+#### 🥛 착유 기록 (핵심 기능)
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/records/milking` | 착유 기록 생성 | `cow_id`, `record_date`, `milk_yield` | 생성된 착유 기록 |
+| `GET` | `/records/cow/{cow_id}/milking` | 젖소별 착유 기록 조회 | `cow_id` + Bearer Token | 특정 젖소의 착유 기록 목록 |
+| `GET` | `/records/milking/recent` | 최근 착유 기록 조회 | Bearer Token | 농장 전체 최근 착유 기록 |
+
+#### 💕 발정 기록
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/records/estrus` | 발정 기록 생성 | `cow_id`, `record_date` | 생성된 발정 기록 |
+
+#### 🎯 인공수정 기록
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/records/insemination` | 인공수정 기록 생성 | `cow_id`, `record_date` | 생성된 인공수정 기록 |
+
+#### 🤱 임신감정 기록
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/records/pregnancy-check` | 임신감정 기록 생성 | `cow_id`, `record_date` | 생성된 임신감정 기록 |
+
+#### 👶 분만 기록
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/records/calving` | 분만 기록 생성 | `cow_id`, `record_date` | 생성된 분만 기록 |
+
+#### 🌾 사료급여 기록
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/records/feed` | 사료급여 기록 생성 | `cow_id`, `record_date` | 생성된 사료급여 기록 |
+
+#### 🏥 건강검진 기록
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/records/health-check` | 건강검진 기록 생성 | `cow_id`, `record_date` | 생성된 건강검진 기록 |
+
+#### 💉 백신접종 기록
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/records/vaccination` | 백신접종 기록 생성 | `cow_id`, `record_date` | 생성된 백신접종 기록 |
+
+#### ⚖️ 체중측정 기록
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/records/weight` | 체중측정 기록 생성 | `cow_id`, `record_date` | 생성된 체중측정 기록 |
+
+#### 🩺 치료 기록
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/records/treatment` | 치료 기록 생성 | `cow_id`, `record_date` | 생성된 치료 기록 |
+
+### 📋 기록 조회 및 관리 API
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `GET` | `/records/cow/{cow_id}` | 젖소별 전체 기록 조회 | `cow_id` + Bearer Token | 특정 젖소의 모든 기록 목록 |
+| `GET` | `/records/{record_id}` | 기록 상세 조회 | `record_id` + Bearer Token | 특정 기록의 상세 정보 |
+| `DELETE` | `/records/{record_id}` | 기록 삭제 | `record_id` + Bearer Token | 삭제 확인 메시지 |
+
+### 📊 통계 및 분석 API
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `GET` | `/records/cow/{cow_id}/milking/statistics` | 착유 통계 | `cow_id` + Bearer Token | 일별 착유량, 평균값, 유성분 분석 |
+| `GET` | `/records/cow/{cow_id}/weight/trend` | 체중 변화 추이 | `cow_id` + Bearer Token | 기간별 체중 증감 데이터 |
+| `GET` | `/records/cow/{cow_id}/reproduction/timeline` | 번식 타임라인 | `cow_id` + Bearer Token | 발정, 수정, 임신, 분만 이력 |
+| `GET` | `/records/cow/{cow_id}/summary` | 젖소 기록 요약 | `cow_id` + Bearer Token | 젖소별 기록 현황 요약 |
+
+### 🔍 프론트엔드 전용 조회 API
+
+#### 카테고리별 기록 조회
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `GET` | `/records/cow/{cow_id}/health-records` | 건강 기록 조회 | `cow_id` + Bearer Token | 건강검진, 백신, 치료 기록 |
+| `GET` | `/records/cow/{cow_id}/milking-records` | 착유 기록 조회 | `cow_id` + Bearer Token | 모든 착유 기록 |
+| `GET` | `/records/cow/{cow_id}/breeding-records` | 번식 기록 조회 | `cow_id` + Bearer Token | 발정, 수정, 임신, 분만 기록 |
+| `GET` | `/records/cow/{cow_id}/feed-records` | 사료급여 기록 조회 | `cow_id` + Bearer Token | 모든 사료급여 기록 |
+| `GET` | `/records/cow/{cow_id}/weight-records` | 체중측정 기록 조회 | `cow_id` + Bearer Token | 모든 체중측정 기록 |
+| `GET` | `/records/cow/{cow_id}/all-records` | 전체 기록 조회 | `cow_id` + Bearer Token | 젖소의 모든 상세 기록 |
+
+### 📊 기본 기록 관리 API (`/basic-records`)
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/basic-records/breeding` | 번식기록 생성 | `cow_id`, `record_date`, `title`, `breeding_method`, `breeding_date` | 생성된 번식기록 |
+| `POST` | `/basic-records/disease` | 질병기록 생성 | `cow_id`, `record_date`, `title`, `disease_name` | 생성된 질병기록 |
+| `POST` | `/basic-records/status-change` | 분류변경 기록 생성 | `cow_id`, `record_date`, `title`, `previous_status`, `new_status`, `change_reason`, `change_date` | 생성된 분류변경 기록 |
+| `POST` | `/basic-records/other` | 기타기록 생성 | `cow_id`, `record_date`, `title` | 생성된 기타기록 |
+| `GET` | `/basic-records/cow/{cow_id}` | 젖소별 기본 기록 조회 | `cow_id` + Bearer Token | 특정 젖소의 기본 기록 목록 |
+| `GET` | `/basic-records/` | 농장 전체 기본 기록 조회 | Bearer Token | 농장의 모든 기본 기록 목록 |
+| `GET` | `/basic-records/{record_id}` | 기본 기록 상세 조회 | `record_id` + Bearer Token | 특정 기본 기록의 상세 정보 |
+| `PUT` | `/basic-records/{record_id}` | 기본 기록 업데이트 | `record_id` + Bearer Token | 업데이트된 기본 기록 |
+| `DELETE` | `/basic-records/{record_id}` | 기본 기록 삭제 | `record_id` + Bearer Token | 삭제 확인 메시지 |
+| `GET` | `/basic-records/recent/summary` | 최근 기록 조회 (홈화면용) | Bearer Token | 최근 기본 기록 목록 |
+| `GET` | `/basic-records/statistics/summary` | 기본 기록 통계 | Bearer Token | 기록 유형별 통계 정보 |
+
+### 🔧 시스템 정보 API
+
+| Method | Endpoint | 설명 | 응답 |
+|--------|----------|------|------|
+| `GET` | `/` | 서버 정보 및 상태 | 서버 버전, 환경, 기능 목록 |
+| `GET` | `/health` | 헬스 체크 | 서버 상태, 버전, Swagger UI 정보 |
+
+### 🛠️ 개발 환경 전용 API
+
+**로컬 개발 환경에서만 사용 가능** (`ENVIRONMENT=development`)
+
+| Method | Endpoint | 설명 | 응답 |
+|--------|----------|------|------|
+| `GET` | `/docs` | Swagger UI | 인터랙티브 API 문서 |
+| `GET` | `/redoc` | ReDoc | 대안 API 문서 |
+| `GET` | `/openapi.json` | OpenAPI 스키마 | JSON 형태의 API 스키마 |
+| `GET` | `/openapi-download` | OpenAPI 다운로드 | 다운로드 가능한 JSON 파일 |
+
+## 📚 API 문서 및 개발 도구
+
+### 🔧 로컬 개발환경에서 Swagger UI 사용
+
+로컬 개발 시에는 Swagger UI를 활용하여 API를 쉽게 테스트할 수 있습니다.
+
+```bash
+# 개발 환경으로 서버 실행
+ENVIRONMENT=development uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# 또는 개발 스크립트 사용
+chmod +x dev_server.sh
+./dev_server.sh
 ```
-Flutter App (Client)
-      ↕️ HTTPS/REST API
-FastAPI Server (Backend)
-      ↕️ Firebase Admin SDK
-Firebase Firestore (Database)
-      ↕️ CI/CD Pipeline
-AWS EC2 (Production Server)
-      ↕️ GitHub Actions
-Deployment Automation
+
+**로컬 개발 시 접속 가능한 문서:**
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc  
+- **OpenAPI JSON**: http://localhost:8000/openapi.json
+- **OpenAPI 다운로드**: http://localhost:8000/openapi-download
+
+## 🧪 API 테스트
+
+> **⚠️ 중요**: AWS EC2 사용량 절약을 위해 Swagger UI가 비활성화되어 있습니다. 아래 curl 명령어나 Postman을 사용하여 API를 테스트하세요.
+
+### curl 테스트 예시
+
+```bash
+# 회원가입 테스트
+curl -X POST "http://52.78.212.96:8000/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "홍길동",
+    "user_id": "admin123", 
+    "email": "admin@farm.com",
+    "password": "password123",
+    "password_confirm": "password123",
+    "farm_nickname": "행복농장"
+  }'
+
+# 로그인 테스트
+curl -X POST "http://52.78.212.96:8000/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "admin123",
+    "password": "password123"
+  }'
+
+# 젖소 목록 조회 테스트
+curl -X GET "http://52.78.212.96:8000/cows/" \
+  -H "Authorization: Bearer your-access-token"
+
+# 착유 기록 생성 테스트 (필수 필드만)
+curl -X POST "http://52.78.212.96:8000/records/milking" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-access-token" \
+  -d '{
+    "cow_id": "your-cow-id",
+    "record_date": "2025-06-20",
+    "milk_yield": 25.5
+  }'
+
+# 젖소별 착유 기록 조회
+curl -X GET "http://52.78.212.96:8000/records/cow/your-cow-id/milking" \
+  -H "Authorization: Bearer your-access-token"
+
+# 농장 통계 조회
+curl -X GET "http://52.78.212.96:8000/cows/statistics/summary" \
+  -H "Authorization: Bearer your-access-token"
 ```
 
-### 📊 데이터베이스 구조
+## 🔧 설치 및 실행
 
-#### 🐮 젖소 정보 컬렉션: `cows`
+### 환경 요구사항
+- **Python**: 3.11 이상
+- **Firebase**: Firestore 데이터베이스
+- **Node.js**: 16 이상 (Firebase CLI용)
+
+### 1️⃣ 프로젝트 설정
+
+```bash
+# 레포지토리 클론
+git clone https://github.com/BlackCows-Team/blackcows-server.git
+cd blackcows-server
+
+# 가상환경 생성 및 활성화
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 의존성 설치
+pip install -r requirements.txt
+```
+
+### 2️⃣ 환경변수 설정
+
+`.env` 파일 생성:
+```bash
+# 개발 환경 설정
+ENVIRONMENT=development
+
+# JWT 설정
+JWT_SECRET_KEY=your-super-secret-jwt-key-here
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Firebase 설정
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccountKey.json
+FIREBASE_PROJECT_ID=your-firebase-project-id
+
+# 이메일 설정 (선택사항)
+MAIL_USERNAME=your-smtp-username
+MAIL_PASSWORD=your-smtp-password
+MAIL_FROM=noreply@yourfarm.com
+MAIL_SERVER=email-smtp.ap-northeast-2.amazonaws.com
+MAIL_PORT=587
+MAIL_TLS=True
+MAIL_SSL=False
+```
+
+### 3️⃣ 서버 실행
+
+```bash
+# 개발 서버 실행 (Swagger UI 포함)
+ENVIRONMENT=development uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# 프로덕션 서버 실행 (Swagger UI 비활성화)
+ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
+
+## 📊 데이터베이스 구조
+
+### 🐮 젖소 정보 컬렉션: `cows`
 ```json
 {
   "id": "uuid",
@@ -86,13 +365,13 @@ Deployment Automation
 }
 ```
 
-#### 📝 상세 기록 컬렉션: `cow_detailed_records`
+### 📝 상세 기록 컬렉션: `cow_detailed_records`
 ```json
 {
   "id": "uuid",
   "cow_id": "cow_uuid",
   "record_type": "milking",
-  "record_date": "2025-06-16",
+  "record_date": "2025-06-20",
   "title": "착유 기록 (25.5L, 1회차)",
   "description": "유지방 3.8%, 유단백 3.2%, 체세포수 150,000",
   "record_data": {
@@ -122,7 +401,7 @@ Deployment Automation
 }
 ```
 
-#### 👥 사용자 정보 컬렉션: `users`
+### 👥 사용자 정보 컬렉션: `users`
 ```json
 {
   "id": "uuid",
@@ -138,498 +417,35 @@ Deployment Automation
 }
 ```
 
-## 🚀 설치 및 실행
-
-### 📋 시스템 요구사항
-
-- **Python**: 3.11 이상
-- **Node.js**: 16 이상 (Firebase CLI용)
-- **Firebase 프로젝트**: Firestore 활성화 필요
-- **메모리**: 최소 2GB RAM
-- **저장공간**: 최소 1GB
-
-### 1️⃣ 환경 설정
-
-```bash
-# 레포지토리 클론
-git clone https://github.com/SeulGi0117/blackcows-server.git
-cd blackcows-server
-
-# 가상환경 생성 및 활성화
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 의존성 설치
-pip install -r requirements.txt
-```
-
-### 2️⃣ 환경변수 설정
-
-`.env` 파일 생성:
-```bash
-# JWT 설정
-JWT_SECRET_KEY=your-super-secret-jwt-key-here
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
-
-# 환경 설정
-ENVIRONMENT=development
-
-# Firebase 설정 (방법 1: JSON 파일 경로)
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccountKey.json
-
-# Firebase 설정 (방법 2: 개별 환경변수)
-FIREBASE_PROJECT_ID=your-firebase-project-id
-FIREBASE_PRIVATE_KEY_ID=your-private-key-id
-FIREBASE_CLIENT_EMAIL=your-service-account@project.iam.gserviceaccount.com
-FIREBASE_CLIENT_ID=your-client-id
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
-
-# 이메일 설정 (AWS SES 또는 Gmail)
-MAIL_USERNAME=your-smtp-username
-MAIL_PASSWORD=your-smtp-password
-MAIL_FROM=noreply@yourfarm.com
-MAIL_SERVER=email-smtp.ap-northeast-2.amazonaws.com
-MAIL_PORT=587
-MAIL_TLS=True
-MAIL_SSL=False
-```
-
-### 3️⃣ Firebase 설정
-
-1. [Firebase Console](https://console.firebase.google.com/)에서 프로젝트 생성
-2. Firestore Database 활성화 (위치: `asia-northeast3` 권장)
-3. 서비스 계정 키 생성:
-   ```bash
-   # Firebase CLI 설치
-   npm install -g firebase-tools
-   
-   # Firebase 로그인
-   firebase login
-   
-   # 프로젝트 초기화
-   firebase init firestore
-   ```
-4. 보안 규칙 설정 (30일 임시 규칙이 적용되어 있음)
-
-### 4️⃣ 서버 실행
-
-```bash
-# 개발 서버 실행
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-# 프로덕션 서버 실행
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-```
-
-### 5️⃣ API 문서 확인
-
-서버 실행 후 브라우저에서 접속:
-- **Health Check**: http://localhost:8000/health
-- **Server Info**: http://localhost:8000/
-
-> ⚠️ **참고**: AWS EC2 사용량 절약을 위해 Swagger UI는 비활성화되어 있습니다. API 테스트는 curl 명령어나 Postman을 사용해주세요.
-
-## 📡 API 엔드포인트
-
-### 🔐 인증 API
-| Method | Endpoint | 설명 | 상태 |
-|--------|----------|------|------|
-| `POST` | `/auth/register` | 회원가입 (목장별명 포함) | ✅ |
-| `POST` | `/auth/login` | 로그인 (user_id 기반) | ✅ |
-| `POST` | `/auth/refresh` | 토큰 갱신 | ✅ |
-| `GET` | `/auth/me` | 내 정보 조회 | ✅ |
-| `POST` | `/auth/find-user-id` | 아이디 찾기 | ✅ |
-| `POST` | `/auth/request-password-reset` | 비밀번호 재설정 요청 | ✅ |
-| `POST` | `/auth/reset-password` | 비밀번호 재설정 | ✅ |
-| `DELETE` | `/auth/delete-account` | 회원탈퇴 | ✅ |
-
-### 🐮 젖소 관리 API
-| Method | Endpoint | 설명 | 상태 |
-|--------|----------|------|------|
-| `POST` | `/cows/` | 젖소 등록 | ✅ |
-| `GET` | `/cows/` | 젖소 목록 조회 | ✅ |
-| `GET` | `/cows/{cow_id}` | 젖소 상세 조회 | ✅ |
-| `PUT` | `/cows/{cow_id}` | 젖소 정보 수정 | ✅ |
-| `DELETE` | `/cows/{cow_id}` | 젖소 삭제 | ✅ |
-| `POST` | `/cows/{cow_id}/favorite` | 즐겨찾기 토글 | ✅ |
-| `GET` | `/cows/favorites/list` | 즐겨찾기 목록 | ✅ |
-| `GET` | `/cows/search/by-tag/{ear_tag_number}` | 이표번호 검색 | ✅ |
-| `GET` | `/cows/statistics/summary` | 농장 통계 | ✅ |
-
-### 🐮 젖소 상세정보 API
-| Method | Endpoint | 설명 | 상태 |
-|--------|----------|------|------|
-| `PUT` | `/cows/{cow_id}/details` | 상세정보 업데이트 | ✅ |
-| `GET` | `/cows/{cow_id}/details` | 상세정보 조회 | ✅ |
-| `GET` | `/cows/{cow_id}/has-details` | 상세정보 보유 여부 | ✅ |
-
-### 📝 상세 기록 관리 API
-
-#### 🥛 착유 기록 API (핵심 기능)
-| Method | Endpoint | 설명 | 필수 필드 |
-|--------|----------|------|----------|
-| `POST` | `/records/milking` | 착유 기록 생성 | `cow_id`, `record_date`, `milk_yield` |
-| `GET` | `/records/cow/{cow_id}/milking` | 젖소별 착유 기록 조회 | - |
-| `GET` | `/records/milking/recent` | 최근 착유 기록 조회 | - |
-
-#### 기타 상세 기록 API
-| Method | Endpoint | 설명 | 상태 |
-|--------|----------|------|------|
-| `POST` | `/records/estrus` | 발정 기록 생성 | ✅ |
-| `POST` | `/records/insemination` | 인공수정 기록 생성 | ✅ |
-| `POST` | `/records/pregnancy-check` | 임신감정 기록 생성 | ✅ |
-| `POST` | `/records/calving` | 분만 기록 생성 | ✅ |
-| `POST` | `/records/feed` | 사료급여 기록 생성 | ✅ |
-| `POST` | `/records/health-check` | 건강검진 기록 생성 | ✅ |
-| `POST` | `/records/vaccination` | 백신접종 기록 생성 | ✅ |
-| `POST` | `/records/weight` | 체중측정 기록 생성 | ✅ |
-| `POST` | `/records/treatment` | 치료 기록 생성 | ✅ |
-| `GET` | `/records/cow/{cow_id}` | 젖소별 기록 조회 | ✅ |
-| `GET` | `/records/{record_id}` | 기록 상세 조회 | ✅ |
-| `DELETE` | `/records/{record_id}` | 기록 삭제 | ✅ |
-
-### 📊 통계 및 분석 API
-| Method | Endpoint | 설명 | 상태 |
-|--------|----------|------|------|
-| `GET` | `/records/cow/{cow_id}/milking/statistics` | 착유 통계 | ✅ |
-| `GET` | `/records/cow/{cow_id}/weight/trend` | 체중 변화 추이 | ✅ |
-| `GET` | `/records/cow/{cow_id}/reproduction/timeline` | 번식 타임라인 | ✅ |
-| `GET` | `/records/cow/{cow_id}/summary` | 젖소 기록 요약 | ✅ |
-
-## 💻 Flutter 앱 연동 예시
-
-### 회원가입 및 로그인
-```dart
-// 회원가입
-Future<Map<String, dynamic>> registerUser() async {
-  final response = await http.post(
-    Uri.parse('$baseUrl/auth/register'),
-    headers: {'Content-Type': 'application/json'},
-    body: json.encode({
-      'username': '홍길동',
-      'user_id': 'admin123',
-      'email': 'admin@farm.com',
-      'password': 'password123',
-      'password_confirm': 'password123',
-      'farm_nickname': '행복농장',
-    }),
-  );
-  return json.decode(response.body);
-}
-
-// 로그인
-Future<Map<String, dynamic>> loginUser() async {
-  final response = await http.post(
-    Uri.parse('$baseUrl/auth/login'),
-    headers: {'Content-Type': 'application/json'},
-    body: json.encode({
-      'user_id': 'admin123',
-      'password': 'password123',
-    }),
-  );
-  return json.decode(response.body);
-}
-```
-
-### 젖소 등록
-```dart
-Future<Map<String, dynamic>> registerCow() async {
-  final response = await http.post(
-    Uri.parse('$baseUrl/cows/'),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $accessToken',
-    },
-    body: json.encode({
-      'ear_tag_number': '002123456789',
-      'name': '꽃분이',
-      'birthdate': '2022-03-15',
-      'sensor_number': '1234567890123',
-      'health_status': 'good',
-      'breeding_status': 'lactating',
-      'breed': 'Holstein',
-    }),
-  );
-  return json.decode(response.body);
-}
-```
-
-### 🥛 착유 기록 생성 (핵심 기능)
-```dart
-// 필수 필드만으로 착유 기록 생성
-Future<Map<String, dynamic>> createBasicMilkingRecord(String cowId) async {
-  final response = await http.post(
-    Uri.parse('$baseUrl/records/milking'),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $accessToken',
-    },
-    body: json.encode({
-      // 필수 필드
-      'cow_id': cowId,
-      'record_date': '2025-06-19',  // 필수: 착유 날짜
-      'milk_yield': 25.5,           // 필수: 착유량 (리터)
-    }),
-  );
-  return json.decode(response.body);
-}
-
-// 상세 정보 포함 착유 기록 생성
-Future<Map<String, dynamic>> createDetailedMilkingRecord(String cowId) async {
-  final response = await http.post(
-    Uri.parse('$baseUrl/records/milking'),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $accessToken',
-    },
-    body: json.encode({
-      // 필수 필드
-      'cow_id': cowId,
-      'record_date': '2025-06-19',
-      'milk_yield': 25.5,
-      
-      // 선택적 필드
-      'milking_start_time': '06:00:00',
-      'milking_end_time': '06:20:00',
-      'milking_session': 1,
-      'fat_percentage': 3.8,
-      'protein_percentage': 3.2,
-      'somatic_cell_count': 150000,
-      'temperature': 37.5,
-      'conductivity': 5.2,
-      'blood_flow_detected': false,
-      'color_value': '정상',
-      'air_flow_value': 2.1,
-      'lactation_number': 3,
-      'rumination_time': 480,
-      'collection_code': 'AUTO',
-      'collection_count': 1,
-      'notes': '정상 착유, 컨디션 양호',
-    }),
-  );
-  return json.decode(response.body);
-}
-```
-
-### 상세정보 업데이트
-```dart
-Future<Map<String, dynamic>> updateCowDetails(String cowId) async {
-  final response = await http.put(
-    Uri.parse('$baseUrl/cows/$cowId/details'),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $accessToken',
-    },
-    body: json.encode({
-      'body_weight': 450.5,
-      'lactation_number': 3,
-      'temperament': 'gentle',
-      'barn_section': 'A동',
-      'stall_number': 'A-15',
-      'purchase_price': 2500000,
-    }),
-  );
-  return json.decode(response.body);
-}
-```
-
-## 🧪 API 테스트
-
-> **⚠️ 중요**: AWS EC2 사용량 절약을 위해 Swagger UI를 비활성화했습니다. 아래 curl 명령어나 Postman을 사용하여 API를 테스트하세요.
-
-### curl 테스트 예시
-
-```bash
-# 회원가입 테스트
-curl -X POST "http://localhost:8000/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "홍길동",
-    "user_id": "admin123", 
-    "email": "admin@farm.com",
-    "password": "password123",
-    "password_confirm": "password123",
-    "farm_nickname": "행복농장"
-  }'
-
-# 로그인 테스트
-curl -X POST "http://localhost:8000/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "user_id": "admin123",
-    "password": "password123"
-  }'
-
-# 착유 기록 생성 테스트 (필수 필드만)
-curl -X POST "http://localhost:8000/records/milking" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-access-token" \
-  -d '{
-    "cow_id": "your-cow-id",
-    "record_date": "2025-06-19",
-    "milk_yield": 25.5
-  }'
-
-# 착유 기록 생성 테스트 (상세 정보 포함)
-curl -X POST "http://localhost:8000/records/milking" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-access-token" \
-  -d '{
-    "cow_id": "your-cow-id",
-    "record_date": "2025-06-19",
-    "milk_yield": 25.5,
-    "milking_start_time": "06:00:00",
-    "fat_percentage": 3.8,
-    "protein_percentage": 3.2,
-    "somatic_cell_count": 150000
-  }'
-```
-
-### Postman 테스트 컬렉션
-
-1. **환경변수 설정**:
-   - `base_url`: `http://localhost:8000`
-   - `access_token`: (로그인에서 받은 토큰)
-
-2. **테스트 순서**:
-   ```
-   POST /auth/register → 회원가입
-   POST /auth/login → access_token 저장
-   POST /cows/ → cow_id 저장
-   PUT /cows/{{cow_id}}/details → 상세정보 입력
-   POST /records/milking → 착유 기록 생성
-   GET /records/cow/{{cow_id}}/milking → 착유 기록 조회
-   ```
-
-## 🚀 배포
-
-### AWS EC2 자동 배포
-
-GitHub Actions를 통한 자동 배포가 설정되어 있습니다:
-
-1. **트리거**: `main` 브랜치에 푸시 시 자동 실행
-2. **배포 과정**:
-   - ✅ 코드 업데이트 (`git pull origin main`)
-   - ✅ 의존성 설치 (`pip install -r requirements.txt`)
-   - ✅ 환경변수 자동 설정
-   - ✅ Firebase 서비스 계정 키 검증
-   - ✅ Python 구문 검사
-   - ✅ 서버 재시작 (tmux session 0)
-   - ✅ 헬스체크 확인
-   - ✅ 포트 상태 확인
-
-3. **배포 상태 확인**:
-   - 서버 접속: http://52.78.212.96:8000
-   - 헬스체크: http://52.78.212.96:8000/health
-
-### 수동 배포
-
-```bash
-# EC2 서버 접속
-ssh -i your-key.pem ubuntu@52.78.212.96
-
-# 코드 업데이트
-cd ~/blackcows-server
-git pull origin main
-
-# tmux 세션 접속 (서버 로그 확인)
-tmux attach-session -t 0
-
-# tmux 세션 나가기: Ctrl+B → D
-```
-
-## 🔧 데이터베이스 최적화
-
-### 필수 Firestore 인덱스
-
-Firebase Console에서 다음 복합 인덱스들을 설정해야 합니다:
-
-1. **젖소 목록 조회용**:
-   - `farm_id` (오름차순) + `is_active` (오름차순) + `created_at` (내림차순)
-
-2. **즐겨찾기 조회용**:
-   - `farm_id` (오름차순) + `is_favorite` (오름차순) + `is_active` (오름차순)
-
-3. **상세 기록 조회용** (착유 기록 포함):
-   - `cow_id` (오름차순) + `farm_id` (오름차순) + `record_type` (오름차순) + `record_date` (내림차순)
-
-4. **착유 기록 전용 인덱스**:
-   - `farm_id` (오름차순) + `record_type` (오름차순) + `record_date` (내림차순) + `created_at` (내림차순)
-
-5. **사용자 인증용**:
-   - `user_id` (오름차순) + `is_active` (오름차순)
-   - `email` (오름차순) + `is_active` (오름차순)
-
-### 인덱스 자동 배포
-```bash
-# Firebase CLI로 인덱스 배포
-firebase deploy --only firestore:indexes
-```
-
-## 📱 Flutter 앱 화면 구성
-
-### 1. 홈 화면
-- ✅ 즐겨찾기된 젖소 목록 표시
-- ✅ 최근 기록 요약 표시
-- ✅ 농장 통계 대시보드
-- ✅ 빠른 착유 기록 버튼
-
-### 2. 소 관리 탭
-- ✅ 전체 젖소 목록
-- ✅ 즐겨찾기 별 아이콘
-- ✅ 검색 및 필터링
-- ✅ 젖소 상세 정보 화면
-
-### 3. 기록 관리 탭
-- ✅ 10가지 상세 기록 유형별 입력 폼
-- ✅ 날짜 선택기 및 유효성 검사
-- ✅ 기록 목록 및 통계 화면
-- 🆕 **착유 기록 입력 폼** (필수 필드: 착유 날짜, 착유량)
-
-### 4. 착유 기록 상세 페이지
-- ✅ 기본 정보 (젖소명, 이표번호)
-- ✅ 착유 정보 (착유량, 시간, 횟수)
-- ✅ 품질 정보 (유지방, 유단백, 체세포수)
-- ✅ 센서 데이터 (온도, 전도율, 공기흐름 등)
-- ✅ 과거 기록 조회 및 통계
-
-### 5. 인증 화면
-- ✅ 회원가입 (목장별명 입력)
-- ✅ 로그인 (아이디 기반)
-- ✅ 아이디/비밀번호 찾기
-- ✅ 비밀번호 재설정 (이메일 토큰)
-
-## 🆕 최근 업데이트 (2025-06-20)
-
-### 시스템 최적화
-
-#### 1. **Swagger UI 비활성화**
-- AWS EC2 사용량 절약을 위해 Swagger UI 비활성화
-- API 테스트는 curl 명령어 또는 Postman 사용 권장
-- 개발자 문서를 README 기반으로 제공
-
-#### 2. **착유 기록 API 강화**
-- **필수 필드 명확화**: `cow_id`, `record_date`, `milk_yield`
-- **유효성 검사 강화**: 날짜 형식, 착유량 범위, 시간 형식 검증
-- **자동 제목/설명 생성**: "착유 기록 (25.5L, 1회차, 06:00:00)"
-- **새로운 엔드포인트**: 젖소별 착유 기록, 최근 착유 기록 조회
-
-#### 3. **인증 시스템 개선**
-- JWT 기반 비밀번호 재설정 토큰 (1시간 유효)
-- 이메일 토큰 발송 (AWS SES 지원)
-- 임시 토큰 로그인 시스템
-- 회원탈퇴 시 모든 데이터 완전 삭제
-
-#### 4. **데이터베이스 구조 최적화**
-- Firestore 복합 인덱스 추가
-- 젖소 상세 정보 중첩 구조 지원
+## 🔐 인증 및 보안
+
+### JWT 토큰 시스템
+- **Access Token**: 30분 만료, API 호출에 사용
+- **Refresh Token**: 7일 만료, Access Token 갱신에 사용
+- **Password Reset Token**: 1시간 만료, 비밀번호 재설정 전용
+
+### 비밀번호 재설정 플로우
+1. 사용자가 이름, 아이디, 이메일 입력
+2. 서버에서 사용자 확인 후 JWT 토큰 생성
+3. 이메일로 재설정 링크 발송
+4. 사용자가 임시 토큰으로 로그인
+5. 새 비밀번호로 변경
+
+### 데이터 보안
+- 농장별 데이터 완전 격리
 - 소프트 삭제로 데이터 무결성 유지
+- bcrypt 비밀번호 해싱
+- Firebase Security Rules 적용
 
-#### 5. **에러 처리 및 로깅 개선**
-- 명확한 에러 메시지 제공
-- 필드별 상세 검증 오류 안내
-- HTTP 상태 코드 표준화
+## 📈 주요 업데이트 내역
+
+
+### 새로운 엔드포인트
+- `/auth/login-with-reset-token`: 임시 토큰 로그인
+- `/auth/change-password`: 비밀번호 변경
+- `/auth/delete-account`: 회원탈퇴
+- `/records/milking/recent`: 최근 착유 기록 조회
+- `/records/cow/{cow_id}/milking/statistics`: 착유 통계 분석
 
 ## 🛠️ 기술 스택
 
@@ -648,149 +464,104 @@ firebase deploy --only firestore:indexes
 - **Web Server**: uvicorn (ASGI)
 - **Environment**: Python venv
 
-### Development Tools
-- **Code Quality**: Python Type Hints
-- **Version Control**: Git (GitHub)
-- **Testing**: curl, Postman (Swagger UI 비활성화)
-
 ## 🔍 문제 해결
 
-### 일반적인 문제들
+### API 사용 시 주의사항
 
-#### 1. Firebase 연결 오류
-```bash
-# 환경변수 확인
-echo $GOOGLE_APPLICATION_CREDENTIALS
+#### 1. 인증 토큰 관리
+- Access Token 만료 시간: 30분
+- Refresh Token을 사용하여 갱신 필요
+- 로그아웃 시 토큰 삭제 권장
 
-# 서비스 계정 키 파일 확인
-ls -la config/service-account-key.json
+#### 2. 데이터 검증
+- **날짜 형식**: YYYY-MM-DD
+- **시간 형식**: HH:MM:SS 또는 HH:MM
+- **이표번호**: 12자리 숫자 (002로 시작)
+- **착유량**: 0보다 큰 값 (리터 단위)
 
-# Firebase 프로젝트 ID 확인
-grep FIREBASE_PROJECT_ID .env
+#### 3. 에러 처리
+```typescript
+// 표준 에러 응답 형태
+interface ApiError {
+  detail: string;
+  status_code: number;
+}
+
+// 에러 처리 예시
+try {
+  const response = await fetch('/api/endpoint');
+  if (!response.ok) {
+    const error: ApiError = await response.json();
+    console.error('API Error:', error.detail);
+  }
+} catch (error) {
+  console.error('Network Error:', error);
+}
 ```
 
-#### 2. 포트 충돌
+## 🚀 배포
+
+### GitHub Actions 자동 배포
+1. **트리거**: `main` 브랜치 푸시 시 자동 실행
+2. **배포 과정**:
+   - 코드 업데이트 (`git pull origin main`)
+   - 의존성 설치 (`pip install -r requirements.txt`)
+   - 환경변수 자동 설정
+   - 서버 재시작 (tmux session)
+   - 헬스체크 확인
+
+### 수동 배포
 ```bash
-# 포트 8000 사용 프로세스 확인
-lsof -i:8000
+# EC2 서버 접속
+ssh -i your-key.pem ubuntu@52.78.212.96
 
-# 프로세스 종료
-kill -9 <PID>
-```
+# 코드 업데이트
+cd ~/blackcows-server
+git pull origin main
 
-#### 3. 의존성 설치 오류
-```bash
-# pip 업그레이드
-pip install --upgrade pip
-
-# 캐시 삭제 후 재설치
-pip install --no-cache-dir -r requirements.txt
-```
-
-#### 4. JWT 토큰 오류
-```bash
-# JWT 시크릿 키 확인
-grep JWT_SECRET_KEY .env
-
-# 토큰 만료 시간 확인
-grep TOKEN_EXPIRE .env
-```
-
-### 로그 확인
-
-#### 개발 환경
-```bash
-# 실시간 로그 확인
-uvicorn main:app --reload --log-level debug
-```
-
-#### 프로덕션 환경 (EC2)
-```bash
-# tmux 세션 접속
+# 서버 재시작
 tmux attach-session -t 0
-
-# 최근 로그 확인
-tmux capture-pane -t 0 -p | tail -50
-
-# 에러 로그만 확인
-tmux capture-pane -t 0 -p | grep -i error
 ```
-
-## 📈 성능 최적화
-
-### 데이터베이스 최적화
-- ✅ Firestore 복합 인덱스 활용
-- ✅ 쿼리 제한 (`limit()`) 적용
-- ✅ 필드 선택적 조회
-- ✅ 소프트 삭제로 데이터 무결성 유지
-
-### API 최적화
-- ✅ Pydantic 스키마 검증
-- ✅ HTTP 상태 코드 표준화
-- ✅ CORS 설정으로 Flutter 연동
-- ✅ 에러 응답 구조화
-- ✅ Swagger UI 비활성화로 리소스 절약
-
-### 보안 강화
-- ✅ JWT 토큰 기반 인증
-- ✅ 비밀번호 bcrypt 해싱
-- ✅ 농장별 데이터 격리
-- ✅ API 접근 권한 제어
-- ✅ 환경변수 보안 관리
-
-## 🤝 기여하기
-
-### 개발 환경 설정
-```bash
-# 1. 레포지토리 포크
-# 2. 로컬 클론
-git clone https://github.com/your-username/blackcows-server.git
-cd blackcows-server
-
-# 3. 브랜치 생성
-git checkout -b feature/new-feature
-
-# 4. 개발 및 테스트
-# 5. 커밋 및 푸시
-git add .
-git commit -m "Add: 새로운 기능 추가"
-git push origin feature/new-feature
-
-# 6. Pull Request 생성
-```
-
-### 코딩 컨벤션
-- **Python**: PEP 8 스타일 가이드 준수
-- **API**: RESTful 설계 원칙
-- **Commit**: Conventional Commits 형식
-- **Documentation**: 코드 주석 및 docstring 작성
-
-### 이슈 리포팅
-- **버그 리포트**: [GitHub Issues](https://github.com/SeulGi0117/blackcows-server/issues)
-- **기능 제안**: Feature Request 템플릿 사용
-- **보안 이슈**: 비공개 메시지로 연락
 
 ## 📞 지원 및 연락처
 
 ### 기술 지원
-- **이메일**: team@blackcowsdairy.com
-- **GitHub**: [@SeulGi0117](https://github.com/SeulGi0117)
-- **이슈 트래커**: [GitHub Issues](https://github.com/SeulGi0117/blackcows-server/issues)
+- **GitHub**: [BlackCows-Team/blackcows-server](https://github.com/BlackCows-Team/blackcows-server)
+- **Issues**: [GitHub Issues](https://github.com/BlackCows-Team/blackcows-server/issues)
+- **이메일**: team@blackcows.com
 
-### 문서 및 리소스
-- **서버 상태**: http://52.78.212.96:8000/health
-- **GitHub Repository**: https://github.com/SeulGi0117/blackcows-server
+## 📋 개발 체크리스트
 
-> 📢 **중요 공지**: AWS EC2 사용량 절약을 위해 Swagger UI가 비활성화되어 있습니다. API 테스트 시 본 README의 curl 예시나 Postman을 활용해주세요.
+### 백엔드 개발 시
+- [ ] 새로운 엔드포인트 추가 후 테스트
+- [ ] OpenAPI 문서 업데이트 (`./extract_docs.sh`)
+- [ ] 인증이 필요한 API에 `get_current_user` 의존성 추가
+- [ ] 데이터 검증 및 에러 처리 구현
+- [ ] 농장별 데이터 격리 확인
+
+### 프론트엔드 연동 시
+- [ ] 최신 OpenAPI JSON 파일 확인
+- [ ] 인증 플로우 구현 (로그인 → 토큰 저장 → API 호출)
+- [ ] 토큰 만료 처리 구현
+- [ ] 에러 응답 처리 구현
+- [ ] 필수 필드 검증 구현
+
+## 📊 프로젝트 통계
+
+- **총 API 엔드포인트**: 60개+
+- **지원 기록 유형**: 10가지 (착유, 발정, 인공수정, 임신감정, 분만, 사료급여, 건강검진, 백신접종, 체중측정, 치료)
+- **인증 방식**: JWT (Access/Refresh Token)
+- **데이터베이스**: Firebase Firestore (NoSQL)
+- **배포 환경**: AWS EC2
 
 ## 📄 라이선스
 
-이 프로젝트는 [MIT 라이선스](docs/LICENSE) 하에 배포됩니다.
+이 프로젝트는 [MIT 라이선스](LICENSE) 하에 배포됩니다.
 
 ```
 MIT License
 
-Copyright (c) 2025 SeulGi
+Copyright (c) 2025 BlackCows Team
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -812,5 +583,8 @@ SOFTWARE.
 ```
 
 ---
+최종 업데이트: 2025년 6월 20일
+
+**Q3**: 성능 최적화나 모니터링을 위해 추가로 구현하고 싶은 기능이 있으신가요?
 
 *최종 업데이트: 2025년 6월 20일*
