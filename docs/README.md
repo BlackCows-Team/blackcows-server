@@ -225,10 +225,10 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ### 5️⃣ API 문서 확인
 
 서버 실행 후 브라우저에서 접속:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc  
 - **Health Check**: http://localhost:8000/health
 - **Server Info**: http://localhost:8000/
+
+> ⚠️ **참고**: AWS EC2 사용량 절약을 위해 Swagger UI는 비활성화되어 있습니다. API 테스트는 curl 명령어나 Postman을 사용해주세요.
 
 ## 📡 API 엔드포인트
 
@@ -269,33 +269,33 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 #### 🥛 착유 기록 API (핵심 기능)
 | Method | Endpoint | 설명 | 필수 필드 |
 |--------|----------|------|----------|
-| `POST` | `/detailed-records/milking` | 착유 기록 생성 | `record_date`, `milk_yield` |
-| `GET` | `/detailed-records/cow/{cow_id}/milking` | 젖소별 착유 기록 조회 | - |
-| `GET` | `/detailed-records/milking/recent` | 최근 착유 기록 조회 | - |
+| `POST` | `/records/milking` | 착유 기록 생성 | `cow_id`, `record_date`, `milk_yield` |
+| `GET` | `/records/cow/{cow_id}/milking` | 젖소별 착유 기록 조회 | - |
+| `GET` | `/records/milking/recent` | 최근 착유 기록 조회 | - |
 
 #### 기타 상세 기록 API
 | Method | Endpoint | 설명 | 상태 |
 |--------|----------|------|------|
-| `POST` | `/detailed-records/estrus` | 발정 기록 생성 | ✅ |
-| `POST` | `/detailed-records/insemination` | 인공수정 기록 생성 | ✅ |
-| `POST` | `/detailed-records/pregnancy-check` | 임신감정 기록 생성 | ✅ |
-| `POST` | `/detailed-records/calving` | 분만 기록 생성 | ✅ |
-| `POST` | `/detailed-records/feed` | 사료급여 기록 생성 | ✅ |
-| `POST` | `/detailed-records/health-check` | 건강검진 기록 생성 | ✅ |
-| `POST` | `/detailed-records/vaccination` | 백신접종 기록 생성 | ✅ |
-| `POST` | `/detailed-records/weight` | 체중측정 기록 생성 | ✅ |
-| `POST` | `/detailed-records/treatment` | 치료 기록 생성 | ✅ |
-| `GET` | `/detailed-records/cow/{cow_id}` | 젖소별 기록 조회 | ✅ |
-| `GET` | `/detailed-records/{record_id}` | 기록 상세 조회 | ✅ |
-| `DELETE` | `/detailed-records/{record_id}` | 기록 삭제 | ✅ |
+| `POST` | `/records/estrus` | 발정 기록 생성 | ✅ |
+| `POST` | `/records/insemination` | 인공수정 기록 생성 | ✅ |
+| `POST` | `/records/pregnancy-check` | 임신감정 기록 생성 | ✅ |
+| `POST` | `/records/calving` | 분만 기록 생성 | ✅ |
+| `POST` | `/records/feed` | 사료급여 기록 생성 | ✅ |
+| `POST` | `/records/health-check` | 건강검진 기록 생성 | ✅ |
+| `POST` | `/records/vaccination` | 백신접종 기록 생성 | ✅ |
+| `POST` | `/records/weight` | 체중측정 기록 생성 | ✅ |
+| `POST` | `/records/treatment` | 치료 기록 생성 | ✅ |
+| `GET` | `/records/cow/{cow_id}` | 젖소별 기록 조회 | ✅ |
+| `GET` | `/records/{record_id}` | 기록 상세 조회 | ✅ |
+| `DELETE` | `/records/{record_id}` | 기록 삭제 | ✅ |
 
 ### 📊 통계 및 분석 API
 | Method | Endpoint | 설명 | 상태 |
 |--------|----------|------|------|
-| `GET` | `/detailed-records/cow/{cow_id}/milking/statistics` | 착유 통계 | ✅ |
-| `GET` | `/detailed-records/cow/{cow_id}/weight/trend` | 체중 변화 추이 | ✅ |
-| `GET` | `/detailed-records/cow/{cow_id}/reproduction/timeline` | 번식 타임라인 | ✅ |
-| `GET` | `/detailed-records/cow/{cow_id}/summary` | 젖소 기록 요약 | ✅ |
+| `GET` | `/records/cow/{cow_id}/milking/statistics` | 착유 통계 | ✅ |
+| `GET` | `/records/cow/{cow_id}/weight/trend` | 체중 변화 추이 | ✅ |
+| `GET` | `/records/cow/{cow_id}/reproduction/timeline` | 번식 타임라인 | ✅ |
+| `GET` | `/records/cow/{cow_id}/summary` | 젖소 기록 요약 | ✅ |
 
 ## 💻 Flutter 앱 연동 예시
 
@@ -360,7 +360,7 @@ Future<Map<String, dynamic>> registerCow() async {
 // 필수 필드만으로 착유 기록 생성
 Future<Map<String, dynamic>> createBasicMilkingRecord(String cowId) async {
   final response = await http.post(
-    Uri.parse('$baseUrl/detailed-records/milking'),
+    Uri.parse('$baseUrl/records/milking'),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $accessToken',
@@ -378,7 +378,7 @@ Future<Map<String, dynamic>> createBasicMilkingRecord(String cowId) async {
 // 상세 정보 포함 착유 기록 생성
 Future<Map<String, dynamic>> createDetailedMilkingRecord(String cowId) async {
   final response = await http.post(
-    Uri.parse('$baseUrl/detailed-records/milking'),
+    Uri.parse('$baseUrl/records/milking'),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $accessToken',
@@ -434,9 +434,11 @@ Future<Map<String, dynamic>> updateCowDetails(String cowId) async {
 }
 ```
 
-## 🧪 테스트
+## 🧪 API 테스트
 
-### API 테스트 예시
+> **⚠️ 중요**: AWS EC2 사용량 절약을 위해 Swagger UI를 비활성화했습니다. 아래 curl 명령어나 Postman을 사용하여 API를 테스트하세요.
+
+### curl 테스트 예시
 
 ```bash
 # 회원가입 테스트
@@ -460,7 +462,7 @@ curl -X POST "http://localhost:8000/auth/login" \
   }'
 
 # 착유 기록 생성 테스트 (필수 필드만)
-curl -X POST "http://localhost:8000/detailed-records/milking" \
+curl -X POST "http://localhost:8000/records/milking" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-access-token" \
   -d '{
@@ -470,7 +472,7 @@ curl -X POST "http://localhost:8000/detailed-records/milking" \
   }'
 
 # 착유 기록 생성 테스트 (상세 정보 포함)
-curl -X POST "http://localhost:8000/detailed-records/milking" \
+curl -X POST "http://localhost:8000/records/milking" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer your-access-token" \
   -d '{
@@ -496,8 +498,8 @@ curl -X POST "http://localhost:8000/detailed-records/milking" \
    POST /auth/login → access_token 저장
    POST /cows/ → cow_id 저장
    PUT /cows/{{cow_id}}/details → 상세정보 입력
-   POST /detailed-records/milking → 착유 기록 생성
-   GET /detailed-records/cow/{{cow_id}}/milking → 착유 기록 조회
+   POST /records/milking → 착유 기록 생성
+   GET /records/cow/{{cow_id}}/milking → 착유 기록 조회
    ```
 
 ## 🚀 배포
@@ -519,7 +521,6 @@ GitHub Actions를 통한 자동 배포가 설정되어 있습니다:
 
 3. **배포 상태 확인**:
    - 서버 접속: http://52.78.212.96:8000
-   - API 문서: http://52.78.212.96:8000/docs
    - 헬스체크: http://52.78.212.96:8000/health
 
 ### 수동 배포
@@ -599,42 +600,41 @@ firebase deploy --only firestore:indexes
 - ✅ 아이디/비밀번호 찾기
 - ✅ 비밀번호 재설정 (이메일 토큰)
 
-## 🆕 최근 업데이트 (2025-06-19)
+## 🆕 최근 업데이트 (2025-06-20)
 
-### 착유 기록 API 개선사항
+### 시스템 최적화
 
-#### 1. **필수 필드 강화**
-- **착유 날짜** (`record_date`): YYYY-MM-DD 형식, 필수 입력
-- **착유량** (`milk_yield`): 리터 단위, 0보다 큰 값, 필수 입력
+#### 1. **Swagger UI 비활성화**
+- AWS EC2 사용량 절약을 위해 Swagger UI 비활성화
+- API 테스트는 curl 명령어 또는 Postman 사용 권장
+- 개발자 문서를 README 기반으로 제공
 
-#### 2. **유효성 검사 강화**
-- 날짜 형식 검증 (YYYY-MM-DD)
-- 착유량 범위 검증 (0-100L)
-- 시간 형식 검증 (HH:MM:SS 또는 HH:MM)
-- 비율 필드 검증 (0-10%)
+#### 2. **착유 기록 API 강화**
+- **필수 필드 명확화**: `cow_id`, `record_date`, `milk_yield`
+- **유효성 검사 강화**: 날짜 형식, 착유량 범위, 시간 형식 검증
+- **자동 제목/설명 생성**: "착유 기록 (25.5L, 1회차, 06:00:00)"
+- **새로운 엔드포인트**: 젖소별 착유 기록, 최근 착유 기록 조회
 
-#### 3. **자동 제목/설명 생성**
-- 제목: "착유 기록 (25.5L, 1회차, 06:00:00)"
-- 설명: "유지방 3.8%, 유단백 3.2%, 체세포수 150,000"
-
-#### 4. **인증 시스템 개선**
-- JWT 기반 비밀번호 재설정
+#### 3. **인증 시스템 개선**
+- JWT 기반 비밀번호 재설정 토큰 (1시간 유효)
 - 이메일 토큰 발송 (AWS SES 지원)
+- 임시 토큰 로그인 시스템
 - 회원탈퇴 시 모든 데이터 완전 삭제
 
-#### 5. **에러 처리 개선**
-- 명확한 에러 메시지
+#### 4. **데이터베이스 구조 최적화**
+- Firestore 복합 인덱스 추가
+- 젖소 상세 정보 중첩 구조 지원
+- 소프트 삭제로 데이터 무결성 유지
+
+#### 5. **에러 처리 및 로깅 개선**
+- 명확한 에러 메시지 제공
 - 필드별 상세 검증 오류 안내
 - HTTP 상태 코드 표준화
-
-#### 6. **새로운 엔드포인트 추가**
-- `GET /detailed-records/cow/{cow_id}/milking`: 젖소별 착유 기록 조회
-- `GET /detailed-records/milking/recent`: 최근 착유 기록 조회
 
 ## 🛠️ 기술 스택
 
 ### Backend
-- **Framework**: FastAPI 0.115+ (Python 3.11+)
+- **Framework**: FastAPI 2.3.1 (Python 3.11+)
 - **Database**: Firebase Firestore (NoSQL)
 - **Authentication**: JWT (JSON Web Tokens)
 - **Validation**: Pydantic 2.11+ (강화된 필드 검증)
@@ -649,10 +649,9 @@ firebase deploy --only firestore:indexes
 - **Environment**: Python venv
 
 ### Development Tools
-- **API Documentation**: Swagger UI, ReDoc
 - **Code Quality**: Python Type Hints
 - **Version Control**: Git (GitHub)
-- **Testing**: curl, Postman
+- **Testing**: curl, Postman (Swagger UI 비활성화)
 
 ## 🔍 문제 해결
 
@@ -730,6 +729,7 @@ tmux capture-pane -t 0 -p | grep -i error
 - ✅ HTTP 상태 코드 표준화
 - ✅ CORS 설정으로 Flutter 연동
 - ✅ 에러 응답 구조화
+- ✅ Swagger UI 비활성화로 리소스 절약
 
 ### 보안 강화
 - ✅ JWT 토큰 기반 인증
@@ -737,40 +737,6 @@ tmux capture-pane -t 0 -p | grep -i error
 - ✅ 농장별 데이터 격리
 - ✅ API 접근 권한 제어
 - ✅ 환경변수 보안 관리
-
-## 🧩 확장 가능성
-
-### 추가 개발 예정 기능
-- 🔄 **실시간 알림**: WebSocket 기반 실시간 데이터 동기화
-- 📊 **고급 분석**: 머신러닝 기반 착유량 예측
-- 📱 **모바일 최적화**: 오프라인 동기화 기능
-- 🏭 **다중 농장**: 대규모 농장 그룹 관리
-- 📈 **BI 대시보드**: 실시간 비즈니스 인텔리전스
-- 🤖 **자동화**: IoT 센서 데이터 자동 수집
-- 🌍 **다국어**: 국제 농장 지원
-
-### 아키텍처 확장
-- **마이크로서비스**: 서비스별 분리 배포
-- **로드밸런싱**: 트래픽 분산 처리  
-- **캐싱**: Redis 기반 성능 향상
-- **모니터링**: 실시간 시스템 모니터링
-
-## 📊 프로젝트 통계
-
-### 코드 통계
-- **총 파일 수**: 30개
-- **Python 코드**: ~3,000줄
-- **API 엔드포인트**: 35개+
-- **데이터 모델**: 15개+
-- **테스트 커버리지**: 진행 중
-
-### 기능 완성도
-- **인증 시스템**: 100% ✅
-- **젖소 관리**: 100% ✅  
-- **착유 기록**: 100% ✅
-- **상세 기록**: 100% ✅
-- **통계 분석**: 90% 🔄
-- **배포 자동화**: 100% ✅
 
 ## 🤝 기여하기
 
@@ -807,12 +773,15 @@ git push origin feature/new-feature
 ## 📞 지원 및 연락처
 
 ### 기술 지원
-- **이메일**: team@blackcowsdairy
-- **GitHub**: [@SeulGi0117]([https://github.com/SeulGi0117](https://github.com/BlackCows-Team/blackcows-server))
-- **이슈 트래커**: [GitHub Issues]([https://github.com/SeulGi0117/blackcows-server/issues](https://github.com/BlackCows-Team/blackcows-server/issues))
+- **이메일**: team@blackcowsdairy.com
+- **GitHub**: [@SeulGi0117](https://github.com/SeulGi0117)
+- **이슈 트래커**: [GitHub Issues](https://github.com/SeulGi0117/blackcows-server/issues)
 
 ### 문서 및 리소스
-- **API 문서**: http://52.78.212.96:8000/docs
+- **서버 상태**: http://52.78.212.96:8000/health
+- **GitHub Repository**: https://github.com/SeulGi0117/blackcows-server
+
+> 📢 **중요 공지**: AWS EC2 사용량 절약을 위해 Swagger UI가 비활성화되어 있습니다. API 테스트 시 본 README의 curl 예시나 Postman을 활용해주세요.
 
 ## 📄 라이선스
 
@@ -842,4 +811,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-*최종 업데이트: 2025년 6월 19일*
+---
+
+*최종 업데이트: 2025년 6월 20일*
