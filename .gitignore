@@ -83,9 +83,6 @@ desktop.ini
 test_main.py
 raw_response_debug.py
 
-# 개발 중인 파일 (아직 미완성)
-routers/livestock_trace.py
-
 # 임시 파일들
 *.tmp
 *.temp

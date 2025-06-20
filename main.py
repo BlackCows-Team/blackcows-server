@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI
-from routers import cow, test, record, detailed_record
+from routers import cow, test, record, detailed_record, livestock_trace
 from routers import auth_firebase, test
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,7 +12,7 @@ if not os.getenv("JWT_SECRET_KEY"):
 
 app = FastAPI(
     title="낙농 관리 서버 API",
-    version="2.3.1",
+    version="2.4.0",
     description="낙농 관리 시스템",
 )
 
@@ -33,6 +33,7 @@ app.include_router(auth_firebase.router, prefix="/auth", tags=["인증"])
 app.include_router(cow.router, prefix="/cows", tags=["소 관리"])
 app.include_router(record.router, prefix="/basic-records", tags=["기본 기록 관리"])
 app.include_router(detailed_record.router, prefix="/records", tags=["기록 관리"])
+app.include_router(livestock_trace.router, prefix="/api/livestock-trace", tags=["축산물이력조회"])
 
 # app.include_router(livestock_trace_router, prefix="/api/livestock-trace", tags=["축산물이력조회"])
 
@@ -41,15 +42,16 @@ def health_check():
     return {
         "status": "success",
         "message": "낙농 관리 서버가 정상 작동 중입니다!!!",
-        "version": "2.3.1",
+        "version": "2.4.0",
         "features": [
             "젖소 기본 관리",
             "기록 관리",
             "상세 기록 관리 (착유, 발정, 인공수정, 임신감정, 분만, 사료급여, 건강검진, 백신접종, 체중측정, 치료)",
+            "축산물 이력정보 조회 (축산물품질평가원 API)",
             "통계 및 분석"
         ]
     }
 
 @app.get("/health")
 def health_status():
-    return {"status": "healthy", "version": "2.3.1"}
+    return {"status": "healthy", "version": "2.4.0"}
