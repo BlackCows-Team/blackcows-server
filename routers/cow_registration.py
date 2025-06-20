@@ -347,3 +347,106 @@ async def test_livestock_trace_lookup(ear_tag_number: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"테스트 조회 실패: {str(e)}"
         )
+        
+        
+# 테스트용 엔드포인트
+@router.post("/test-check-ear-tag",
+             summary="테스트용: 인증 없는 이표번호 확인",
+             description="개발/테스트용 - 인증 없이 이표번호 확인 및 축산물이력제 조회")
+async def test_check_ear_tag_no_auth(request: EarTagCheckRequest):
+    """
+    테스트용: 인증 없는 이표번호 확인
+    실제 배포시에는 제거해야 함
+    """
+    try:
+        # 인증 없이 축산물이력제만 조회
+        service_key = os.getenv("LIVESTOCK_TRACE_API_ENCODING_EKEY")
+        if not service_key:
+            return {
+                "success": True,
+                "can_register": True,
+                "has_trace_info": False,
+                "message": "축산물이력제 API가 설정되지 않아 수동 등록만 가능합니다."
+            }
+        
+        try:
+            # API 호출
+            base_url = "http://data.ekape.or.kr/openapi-data/service/user/animalTrace/traceNoSearch"
+            params = {
+                "ServiceKey": service_key,
+                "traceNo": request.ear_tag_number,
+                "optionNo": "1"
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.get(base_url, params=params, timeout=30.0)
+                
+                if response.status_code != 200:
+                    raise Exception(f"API 호출 실패: {response.status_code}")
+                
+                # XML 응답 파싱
+                root = ET.fromstring(response.text)
+                
+                # 응답 상태 확인
+                header = root.find('header')
+                if header is not None:
+                    result_code = header.find('resultCode')
+                    if result_code is not None and result_code.text != "00":
+                        result_msg = header.find('resultMsg')
+                        error_msg = result_msg.text if result_msg is not None else "알 수 없는 오류"
+                        raise Exception(f"API 오류: {error_msg}")
+                
+                # 데이터 파싱
+                items = root.find('.//items')
+                if items is None or len(items.findall('item')) == 0:
+                    return {
+                        "success": True,
+                        "can_register": True,
+                        "has_trace_info": False,
+                        "message": "축산물이력제에서 소 정보를 찾을 수 없습니다.",
+                        "test_mode": True
+                    }
+                
+                # 소 정보 추출
+                item = items.find('item')
+                trace_info = {}
+                
+                for element in item:
+                    value = element.text
+                    if element.tag == 'birthYmd':
+                        if value and len(value) == 8:
+                            trace_info['birth_date'] = f"{value[:4]}-{value[4:6]}-{value[6:8]}"
+                    elif element.tag == 'sexNm':
+                        trace_info['gender'] = value
+                    elif element.tag == 'lsTypeNm':
+                        trace_info['breed'] = value
+                    elif element.tag == 'farmAddr':
+                        trace_info['farm_address'] = value
+                    elif element.tag == 'farmerNm':
+                        trace_info['farm_owner'] = value
+                    elif element.tag == 'cattleNo':
+                        trace_info['cattle_no'] = value
+                
+                return {
+                    "success": True,
+                    "can_register": True,
+                    "has_trace_info": True,
+                    "message": "축산물이력제에서 소 정보를 찾았습니다.",
+                    "trace_info": trace_info,
+                    "test_mode": True
+                }
+                
+        except Exception as api_error:
+            return {
+                "success": True,
+                "can_register": True,
+                "has_trace_info": False,
+                "message": f"축산물이력제 조회 중 오류가 발생했습니다: {str(api_error)}",
+                "test_mode": True
+            }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"테스트 조회 중 오류가 발생했습니다: {str(e)}"
+        )
