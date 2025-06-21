@@ -12,9 +12,14 @@ load_dotenv()
 if not os.getenv("JWT_SECRET_KEY"):
     raise ValueError("JWT_SECRET_KEY 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.")
 
+# 축산물이력제 API 키 검증 (경고만 출력)
+if not os.getenv("LIVESTOCK_TRACE_API_DECODING_KEY"):
+    print("[WARNING] LIVESTOCK_TRACE_API_DECODING_KEY 환경변수가 설정되지 않았습니다.")
+    print("축산물이력제 연동 기능이 제한될 수 있습니다.")
+
 app = FastAPI(
     title="낙농 관리 서버 API",
-    version="2.5.0",
+    version="2.6.0",
     description="낙농 관리 시스템",
 )
 
@@ -42,14 +47,21 @@ def health_check():
     return {
         "status": "success",
         "message": "낙농 관리 서버가 정상 작동 중입니다!!!",
-        "version": "2.5.0",
+        "version": "2.6.0",
         "features": [
             "젖소 기본 관리",
-            "3단계 젖소 등록 플로우 (축산물이력제 연동)",
+            "축산물이력제 연동 젖소 등록",
+            "3단계 젖소 등록 플로우 (축산물이력제 우선, 수동 등록 대안)",
             "기록 관리",
             "상세 기록 관리 (착유, 발정, 인공수정, 임신감정, 분만, 사료급여, 건강검진, 백신접종, 체중측정, 치료)",
             "축산물 이력정보 조회 (축산물품질평가원 API)",
             "통계 및 분석"
+        ],
+        "new_endpoints": [
+            "GET /cows/registration-status/{ear_tag_number} - 젖소 등록 상태 확인",
+            "POST /cows/register-from-livestock-trace - 축산물이력제 정보 기반 젖소 등록",
+            "POST /cows/manual - 젖소 수동 등록 (기존 POST /cows/ 경로 변경)",
+            "GET /cows/{cow_id}/livestock-trace-info - 젖소의 축산물이력제 정보 조회"
         ],
         "livestock_trace_features": [
             "소 기본 개체정보 (이표번호, 출생일, 품종, 성별, 개월령 자동계산)",
@@ -62,20 +74,13 @@ def health_check():
             "질병 정보",
             "수입축 정보 (수입국가, 수입경과월)"
         ],
-        "new_endpoints": [
-            "POST /livestock-trace/get-full-livestock-trace - 축산물 이력정보 전체 조회 (인증 필요)",
-            "POST /livestock-trace/simple-trace - 간단 축산물 이력 조회 (개발/테스트용)",
-            "GET /livestock-trace/test-single-option/{ear_tag_number}/{option_no} - 단일 옵션 조회 테스트",
-            "GET /livestock-trace/api-status - 축산물이력제 API 상태 확인",
-            "POST /livestock-trace/test-mtrace-api - mtrace.go.kr API 테스트 (새로 추가)",
-            "GET /livestock-trace/test-mtrace-auth - mtrace.go.kr 인증 정보 확인 (새로 추가)",
-            "GET /api/livestock/livestock-trace/{ear_tag_number} - 축산물이력정보 전체 조회 (완전한 7가지 옵션)",
-            "GET /api/livestock/livestock-trace-basic/{ear_tag_number} - 기본 개체정보 빠른 조회",
-            "GET /api/livestock/test-no-auth/{ear_tag_number} - 개발 테스트용 전체 조회 (인증 없음)",
-            "GET /api/livestock/test-basic-no-auth/{ear_tag_number} - 개발 테스트용 기본 조회 (인증 없음)"
-            
+        "registration_flow": [
+            "1단계: 이표번호 입력 → GET /cows/registration-status/{ear_tag_number}",
+            "2단계A: 축산물이력제 조회 성공 → POST /cows/register-from-livestock-trace",
+            "2단계B: 축산물이력제 조회 실패 → POST /cows/manual (수동 등록)",
+            "3단계: 등록 완료 후 젖소 목록 조회 → GET /cows/"
         ]
     }
 @app.get("/health")
 def health_status():
-    return {"status": "healthy", "version": "2.5.0"}
+    return {"status": "healthy", "version": "2.6.0"}
