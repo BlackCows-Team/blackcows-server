@@ -77,6 +77,7 @@ jobs:
           echo "FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}" >> .env
           echo "FIREBASE_PRIVATE_KEY=\"${{ secrets.FIREBASE_PRIVATE_KEY }}\"" >> .env
           echo "GOOGLE_APPLICATION_CREDENTIALS=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" >> .env
+          echo "LIVESTOCK_TRACE_API_DECODING_KEY=${{ secrets.LIVESTOCK_TRACE_API_DECODING_KEY }}" >> .env
           echo "MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
           echo "MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
           echo "MAIL_FROM=${{ secrets.MAIL_FROM }}" >> .env
@@ -84,7 +85,6 @@ jobs:
           echo "MAIL_PORT=587" >> .env
           echo "MAIL_TLS=True" >> .env
           echo "MAIL_SSL=False" >> .env
-
 
           # .env 파일 권한 설정
           chmod 600 .env
@@ -105,24 +105,49 @@ jobs:
           tmux send-keys -t 0 "pip install --upgrade pip" Enter
           sleep 3
           tmux send-keys -t 0 "pip install -r requirements.txt" Enter
-          sleep 5
-          tmux send-keys -t 0 "pip install email-validator" Enter
-          sleep 3
+          sleep 8
+
+          echo "=== 새로운 파일 구조 확인 ==="
+          if [ -f "schemas/livestock_cow.py" ]; then
+            echo "✅ 축산물이력제 스키마 파일 존재"
+          else
+            echo "⚠️ 축산물이력제 스키마 파일 없음 - 기능이 제한될 수 있습니다"
+          fi
+          
+          if [ -f "services/livestock_cow_service.py" ]; then
+            echo "✅ 축산물이력제 서비스 파일 존재"
+          else
+            echo "⚠️ 축산물이력제 서비스 파일 없음 - 기능이 제한될 수 있습니다"
+          fi
 
           echo "=== Python 구문 검사 ==="
           python3 -m py_compile main.py
+          
+          if [ -f "schemas/livestock_cow.py" ]; then
+            python3 -m py_compile schemas/livestock_cow.py
+            echo "livestock_cow.py 구문 검사 통과"
+          fi
+          
+          if [ -f "services/livestock_cow_service.py" ]; then
+            python3 -m py_compile services/livestock_cow_service.py
+            echo "livestock_cow_service.py 구문 검사 통과"
+          fi
 
-          echo "=== import 문제 자동 수정 ==="
-          # import 문제 자동 수정
-          if grep -q "routes.livestock_trace" main.py; then
-            sed -i '/routes\.livestock_trace/d' main.py
-            sed -i '/livestock_router/d' main.py
-            echo "✅ 문제 있는 import 제거 완료"
+          echo "=== 축산물이력제 API 설정 확인 ==="
+          # 축산물이력제 API 키 설정 확인
+          if [ -n "${{ secrets.LIVESTOCK_TRACE_API_DECODING_KEY }}" ]; then
+            echo "✅ 축산물이력제 API 키 설정됨"
+          else
+            echo "⚠️ 축산물이력제 API 키 미설정 - 연동 기능이 제한됩니다"
+            echo "   수동 젖소 등록은 정상 작동합니다"
           fi
 
           echo "=== 서버 시작 ==="
           # tmux 세션에서 환경변수 설정 후 서버 시작
           tmux send-keys -t 0 "export GOOGLE_APPLICATION_CREDENTIALS=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" Enter
+          sleep 1
+          # 축산물이력제 API 키도 환경변수로 설정
+          tmux send-keys -t 0 "export LIVESTOCK_TRACE_API_DECODING_KEY=${{ secrets.LIVESTOCK_TRACE_API_DECODING_KEY }}" Enter
           sleep 1
           tmux send-keys -t 0 "uvicorn main:app --host 0.0.0.0 --port 8000 --reload" Enter
           
@@ -180,6 +205,7 @@ jobs:
           
           HEALTH_CHECK_SUCCESS=false
           ROOT_CHECK_SUCCESS=false
+          LIVESTOCK_TRACE_CHECK=false
           
           # /health 엔드포인트 확인
           if curl -f -m 10 http://localhost:8000/health >/dev/null 2>&1; then
@@ -216,10 +242,20 @@ jobs:
             if [ "$PORT_CHECK_SUCCESS" = true ]; then
               echo "✅ 포트 8000 정상 사용"
             fi
+            # 축산물이력제 기능 상태 표시
+            if [ "$LIVESTOCK_TRACE_CHECK" = true ]; then
+              echo "✅ 축산물이력제 연동 기능 정상"
+            else
+              echo "⚠️ 축산물이력제 연동 기능 제한됨 (수동 등록은 가능)"
+            fi
             echo ""
             echo "🚀 배포 성공!"
             echo "💡 서버 로그 확인: tmux attach-session -t 0"
             echo "💡 tmux 세션 나가기: Ctrl+B → D"
+            
+            echo ""
+            echo "API 테스트:"
+            echo "curl http://52.78.212.96:8000/health"
             
           else
             echo "❌ 서버 시작 실패 - 상세 로그 확인"
