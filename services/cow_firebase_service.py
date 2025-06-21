@@ -1,8 +1,13 @@
+# services/cow_firebase_service.py
+
 from datetime import datetime
 from typing import List, Dict, Optional
 from fastapi import HTTPException, status
 from config.firebase_config import get_firestore_client
-from schemas.cow import CowCreate, CowResponse, CowUpdate, HealthStatus, BreedingStatus,CowDetailUpdate, CowDetailResponse, Temperament, MilkingBehavior
+from schemas.cow import (
+    CowCreate, CowResponse, CowUpdate, HealthStatus, BreedingStatus,
+    CowDetailUpdate, CowDetailResponse, Temperament, MilkingBehavior
+)
 import uuid
 
 # Firestore 클라이언트
