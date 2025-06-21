@@ -135,7 +135,31 @@ def get_recent_milking_records(
              response_model=DetailedRecordResponse, 
              status_code=status.HTTP_201_CREATED,
              summary="발정 기록 생성",
-             description="젖소의 발정 상태를 기록합니다. 발정 강도, 증상, 관찰 시간 등을 포함할 수 있습니다.")
+             description="""
+             젖소의 발정 상태를 기록합니다.
+             
+             **필수 필드:**
+             - cow_id: 젖소 ID
+             - record_date: 발정 관찰 날짜 (YYYY-MM-DD 형식)
+             
+             **선택적 필드:**
+             - estrus_start_time: 발정 시작 시간 (HH:MM:SS 형식)
+             - estrus_intensity: 발정 강도 (약/중/강)
+             - estrus_duration: 발정 지속시간 (시간 단위)
+             - behavior_signs: 발정 징후 목록 (승가허용, 불안, 울음 등)
+             - visual_signs: 육안 관찰 사항 (점액분비, 외음부종 등)
+             - detected_by: 발견자 이름
+             - detection_method: 발견 방법 (육안관찰/센서감지/기타)
+             - next_expected_estrus: 다음 발정 예상일 (YYYY-MM-DD 형식)
+             - breeding_planned: 교배 계획 여부 (true/false)
+             - notes: 특이사항 및 추가 메모
+             """,
+             responses={
+                 201: {"description": "발정 기록 생성 성공"},
+                 400: {"description": "잘못된 요청 (필수 필드 누락 또는 유효성 검사 실패)"},
+                 404: {"description": "젖소를 찾을 수 없음"},
+                 500: {"description": "서버 내부 오류"}
+             })
 def create_estrus_record(
     record_data: EstrusRecordCreate,
     current_user: dict = Depends(get_current_user)
@@ -148,7 +172,33 @@ def create_estrus_record(
              response_model=DetailedRecordResponse, 
              status_code=status.HTTP_201_CREATED,
              summary="인공수정 기록 생성",
-             description="젖소의 인공수정 작업을 기록합니다. 정액 정보, 수정 시간, 기술자 정보 등을 포함할 수 있습니다.")
+             description="""
+             젖소의 인공수정 작업을 기록합니다. 정액 정보, 수정시간, 기술자 정보 등을 포함할 수 있습니다.
+             
+             **필수 필드:**
+             - cow_id: 젖소 ID
+             - record_date: 인공수정 실시 날짜 (YYYY-MM-DD 형식)
+             
+             **선택적 필드:**
+             - insemination_time: 수정 시간 (HH:MM:SS 형식)
+             - bull_id: 종축(황소) ID
+             - bull_breed: 종축 품종 (홀스타인, 한우 등)
+             - semen_batch: 정액 로트번호
+             - semen_quality: 정액 품질등급 (A급, B급 등)
+             - technician_name: 수정사 이름
+             - insemination_method: 수정 방법 (직장수정, 질수정 등)
+             - cervix_condition: 자궁경관 상태 (양호, 불량 등)
+             - success_probability: 성공 예상률 (백분율, 0-100)
+             - cost: 수정 비용 (원 단위)
+             - pregnancy_check_scheduled: 임신감정 예정일 (YYYY-MM-DD 형식)
+             - notes: 특이사항 및 추가 메모
+             """,
+             responses={
+                 201: {"description": "인공수정 기록 생성 성공"},
+                 400: {"description": "잘못된 요청 (필수 필드 누락 또는 유효성 검사 실패)"},
+                 404: {"description": "젖소를 찾을 수 없음"},
+                 500: {"description": "서버 내부 오류"}
+             })
 def create_insemination_record(
     record_data: InseminationRecordCreate,
     current_user: dict = Depends(get_current_user)
@@ -161,7 +211,31 @@ def create_insemination_record(
              response_model=DetailedRecordResponse, 
              status_code=status.HTTP_201_CREATED,
              summary="임신감정 기록 생성",
-             description="젖소의 임신 여부를 확인한 결과를 기록합니다. 초음파 검사 결과, 예상 분만일 등을 포함할 수 있습니다.")
+             description="""
+             젖소의 임신 여부를 확인한 결과를 기록합니다. 초음파 검사 결과, 예상 분만일 등을 포함할 수 있습니다.
+             
+             **필수 필드:**
+             - cow_id: 젖소 ID
+             - record_date: 임신감정 실시 날짜 (YYYY-MM-DD 형식)
+             
+             **선택적 필드:**
+             - check_method: 감정 방법 (직장검사/초음파검사/혈액검사)
+             - check_result: 감정 결과 (임신/비임신/의심)
+             - pregnancy_stage: 임신 단계 (일 단위, 수정 후 경과일)
+             - fetus_condition: 태아 상태 (정상/이상/확인불가)
+             - expected_calving_date: 분만예정일 (YYYY-MM-DD 형식)
+             - veterinarian: 검사 수의사명
+             - check_cost: 감정비용 (원 단위)
+             - next_check_date: 다음 감정일 (YYYY-MM-DD 형식)
+             - additional_care: 추가 관리사항 (영양관리, 운동제한 등)
+             - notes: 특이사항 및 추가 메모
+             """,
+             responses={
+                 201: {"description": "임신감정 기록 생성 성공"},
+                 400: {"description": "잘못된 요청 (필수 필드 누락 또는 유효성 검사 실패)"},
+                 404: {"description": "젖소를 찾을 수 없음"},
+                 500: {"description": "서버 내부 오류"}
+             })
 def create_pregnancy_check_record(
     record_data: PregnancyCheckRecordCreate,
     current_user: dict = Depends(get_current_user)
@@ -174,7 +248,36 @@ def create_pregnancy_check_record(
              response_model=DetailedRecordResponse, 
              status_code=status.HTTP_201_CREATED,
              summary="분만 기록 생성",
-             description="젖소의 분만 상황을 기록합니다. 분만 일시, 송아지 정보, 분만 과정의 특이사항 등을 포함할 수 있습니다.")
+             description="""
+             젖소의 분만 상황을 기록합니다. 분만 일시, 송아지 정보, 분만 과정의 특이사항 등을 포함할 수 있습니다.
+             
+             **필수 필드:**
+             - cow_id: 젖소 ID
+             - record_date: 분만 날짜 (YYYY-MM-DD 형식)
+             
+             **선택적 필드:**
+             - calving_start_time: 분만 시작시간 (HH:MM:SS 형식)
+             - calving_end_time: 분만 완료시간 (HH:MM:SS 형식)
+             - calving_difficulty: 분만 난이도 (정상/약간어려움/어려움/제왕절개)
+             - calf_count: 송아지 수 (1, 2 등)
+             - calf_gender: 송아지 성별 목록 (["수컷", "암컷"] 등)
+             - calf_weight: 송아지 체중 목록 (kg 단위, [35.5, 40.2] 등)
+             - calf_health: 송아지 건강상태 목록 (["정상", "허약"] 등)
+             - placenta_expelled: 태반 배출 여부 (true/false)
+             - placenta_expulsion_time: 태반 배출 시간 (HH:MM:SS 형식)
+             - complications: 합병증 목록 (["난산", "태반정체"] 등)
+             - assistance_required: 도움 필요 여부 (true/false)
+             - veterinarian_called: 수의사 호출 여부 (true/false)
+             - dam_condition: 어미소 상태 (정상/허약/위험)
+             - lactation_start: 비유 시작일 (YYYY-MM-DD 형식)
+             - notes: 특이사항 및 추가 메모
+             """,
+             responses={
+                 201: {"description": "분만 기록 생성 성공"},
+                 400: {"description": "잘못된 요청 (필수 필드 누락 또는 유효성 검사 실패)"},
+                 404: {"description": "젖소를 찾을 수 없음"},
+                 500: {"description": "서버 내부 오류"}
+             })
 def create_calving_record(
     record_data: CalvingRecordCreate,
     current_user: dict = Depends(get_current_user)
@@ -187,7 +290,33 @@ def create_calving_record(
              response_model=DetailedRecordResponse, 
              status_code=status.HTTP_201_CREATED,
              summary="사료급여 기록 생성",
-             description="젖소의 사료급여 현황을 기록합니다. 사료 종류, 급여량, 급여 시간 등을 포함할 수 있습니다.")
+             description="""
+             젖소의 사료급여 현황을 기록합니다. 사료 종류, 급여량, 급여 시간 등을 포함할 수 있습니다.
+             
+             **필수 필드:**
+             - cow_id: 젖소 ID
+             - record_date: 사료급여 날짜 (YYYY-MM-DD 형식)
+             
+             **선택적 필드:**
+             - feed_time: 급여 시간 (HH:MM:SS 형식)
+             - feed_type: 사료 종류 (조사료, 농후사료, 혼합사료 등)
+             - feed_amount: 급여량 (kg 단위)
+             - feed_quality: 사료 품질 (1등급, 2등급, 특급 등)
+             - supplement_type: 첨가제 종류 (비타민, 미네랄, 효소 등)
+             - supplement_amount: 첨가제 양 (kg 또는 g 단위)
+             - water_consumption: 음수량 (리터 단위)
+             - appetite_condition: 식욕 상태 (정상/저하/증가)
+             - feed_efficiency: 사료효율 (증체량/사료섭취량)
+             - cost_per_feed: 사료비용 (원 단위)
+             - fed_by: 급여자 이름
+             - notes: 특이사항 및 추가 메모
+             """,
+             responses={
+                 201: {"description": "사료급여 기록 생성 성공"},
+                 400: {"description": "잘못된 요청 (필수 필드 누락 또는 유효성 검사 실패)"},
+                 404: {"description": "젖소를 찾을 수 없음"},
+                 500: {"description": "서버 내부 오류"}
+             })
 def create_feed_record(
     record_data: FeedRecordCreate,
     current_user: dict = Depends(get_current_user)
@@ -200,7 +329,37 @@ def create_feed_record(
              response_model=DetailedRecordResponse, 
              status_code=status.HTTP_201_CREATED,
              summary="건강검진 기록 생성",
-             description="젖소의 건강검진 결과를 기록합니다. 체온, 맥박, 호흡, 식욕 상태 등을 포함할 수 있습니다.")
+             description="""
+             젖소의 건강검진 결과를 기록합니다. 체온, 맥박, 호흡수, 일반건강상태 등을 포함할 수 있습니다. 
+             
+             **필수 필드:**
+             - cow_id: 젖소 ID
+             - record_date: 건강검진 날짜 (YYYY-MM-DD 형식)
+             
+             **선택적 필드:**
+             - check_time: 검진 시간 (HH:MM:SS 형식)
+             - body_temperature: 체온 (섭씨 온도, 38.5 등)
+             - heart_rate: 심박수 (회/분, 60-80 정상범위)
+             - respiratory_rate: 호흡수 (회/분, 15-30 정상범위)
+             - body_condition_score: 체형점수 (1-5점 척도)
+             - udder_condition: 유방 상태 (정상/부종/염증/상처)
+             - hoof_condition: 발굽 상태 (정상/균열/썩음/절뚝거림)
+             - coat_condition: 털 상태 (윤기있음/거침/탈모)
+             - eye_condition: 눈 상태 (맑음/충혈/분비물)
+             - nose_condition: 코 상태 (촉촉함/건조/분비물)
+             - appetite: 식욕 상태 (정상/저하/증가/없음)
+             - activity_level: 활동성 (활발/보통/둔함/무기력)
+             - abnormal_symptoms: 이상 증상 목록 (["기침", "설사"] 등)
+             - examiner: 검진자 이름
+             - next_check_date: 다음 검진일 (YYYY-MM-DD 형식)
+             - notes: 특이사항 및 추가 메모
+             """,
+             responses={
+                 201: {"description": "건강검진 기록 생성 성공"},
+                 400: {"description": "잘못된 요청 (필수 필드 누락 또는 유효성 검사 실패)"},
+                 404: {"description": "젖소를 찾을 수 없음"},
+                 500: {"description": "서버 내부 오류"}
+             })
 def create_health_check_record(
     record_data: HealthCheckRecordCreate,
     current_user: dict = Depends(get_current_user)
@@ -213,7 +372,36 @@ def create_health_check_record(
              response_model=DetailedRecordResponse, 
              status_code=status.HTTP_201_CREATED,
              summary="백신접종 기록 생성",
-             description="젖소의 백신접종 내역을 기록합니다. 백신 종류, 접종 일시, 다음 접종 예정일 등을 포함할 수 있습니다.")
+             description="""
+             젖소의 백신접종 내역을 기록합니다. 백신 종류, 접종일, 다음접종예정일 등을 포함할 수 있습니다.
+             
+             **필수 필드:**
+             - cow_id: 젖소 ID
+             - record_date: 백신접종 날짜 (YYYY-MM-DD 형식)
+             
+             **선택적 필드:**
+             - vaccination_time: 접종 시간 (HH:MM:SS 형식)
+             - vaccine_name: 백신명 (구제역백신, 소유행열백신 등)
+             - vaccine_type: 백신 종류 (생백신/사백신/혼합백신)
+             - vaccine_batch: 백신 로트번호
+             - dosage: 접종량 (ml 단위, 2.0 등)
+             - injection_site: 접종 부위 (목, 어깨, 엉덩이 등)
+             - injection_method: 접종 방법 (근육주사/피하주사)
+             - administrator: 접종자 이름
+             - vaccine_manufacturer: 백신 제조사명
+             - expiry_date: 백신 유효기간 (YYYY-MM-DD 형식)
+             - adverse_reaction: 부작용 발생 여부 (true/false)
+             - reaction_details: 부작용 세부사항 (발열, 식욕부진 등)
+             - next_vaccination_due: 다음 접종 예정일 (YYYY-MM-DD 형식)
+             - cost: 백신 비용 (원 단위)
+             - notes: 특이사항 및 추가 메모
+             """,
+             responses={
+                 201: {"description": "백신접종 기록 생성 성공"},
+                 400: {"description": "잘못된 요청 (필수 필드 누락 또는 유효성 검사 실패)"},
+                 404: {"description": "젖소를 찾을 수 없음"},
+                 500: {"description": "서버 내부 오류"}
+             })
 def create_vaccination_record(
     record_data: VaccinationRecordCreate,
     current_user: dict = Depends(get_current_user)
@@ -226,7 +414,33 @@ def create_vaccination_record(
              response_model=DetailedRecordResponse, 
              status_code=status.HTTP_201_CREATED,
              summary="체중측정 기록 생성",
-             description="젖소의 체중 측정 결과를 기록합니다. 측정 체중, 측정 방법, 체형점수 등을 포함할 수 있습니다.")
+             description="""
+             젖소의 체중 측정 결과를 기록합니다. 측정 체중, 측정 방법, 체형점수 등을 포함할 수 있습니다.
+             
+             **필수 필드:**
+             - cow_id: 젖소 ID
+             - record_date: 체중측정 날짜 (YYYY-MM-DD 형식)
+             
+             **선택적 필드:**
+             - measurement_time: 측정 시간 (HH:MM:SS 형식)
+             - weight: 체중 (kg 단위, 550.5 등)
+             - measurement_method: 측정 방법 (전자저울/체척자/목측)
+             - body_condition_score: 체형점수 (1-5점 척도)
+             - height_withers: 기갑고 (cm 단위, 어깨 높이)
+             - body_length: 체장 (cm 단위, 몸통 길이)
+             - chest_girth: 흉위 (cm 단위, 가슴둘레)
+             - growth_rate: 증체율 (kg/일 단위)
+             - target_weight: 목표체중 (kg 단위)
+             - weight_category: 체중 등급 (저체중/정상/과체중)
+             - measurer: 측정자 이름
+             - notes: 특이사항 및 추가 메모
+             """,
+             responses={
+                 201: {"description": "체중측정 기록 생성 성공"},
+                 400: {"description": "잘못된 요청 (필수 필드 누락 또는 유효성 검사 실패)"},
+                 404: {"description": "젖소를 찾을 수 없음"},
+                 500: {"description": "서버 내부 오류"}
+             })
 def create_weight_record(
     record_data: WeightRecordCreate,
     current_user: dict = Depends(get_current_user)
@@ -239,7 +453,37 @@ def create_weight_record(
              response_model=DetailedRecordResponse, 
              status_code=status.HTTP_201_CREATED,
              summary="치료 기록 생성",
-             description="젖소의 질병 치료 과정을 기록합니다. 진단명, 처방약, 치료 방법, 회복 상태 등을 포함할 수 있습니다.")
+             description="""
+             젖소의 질병 치료 과정을 기록합니다. 진단명, 처방약, 치료과정, 회복상태 등을 포함할 수 있습니다.
+             
+             **필수 필드:**
+             - cow_id: 젖소 ID
+             - record_date: 치료 날짜 (YYYY-MM-DD 형식)
+             
+             **선택적 필드:**
+             - treatment_time: 치료 시간 (HH:MM:SS 형식)
+             - treatment_type: 치료 종류 (약물치료/수술/물리치료 등)
+             - symptoms: 증상 목록 (["발열", "설사", "기침"] 등)
+             - diagnosis: 진단명 (유방염, 소화불량, 호흡기질환 등)
+             - medication_used: 사용약물 목록 (["항생제", "해열제"] 등)
+             - dosage_info: 용법용량 정보 ({"항생제": "1일 2회, 5ml"} 등)
+             - treatment_method: 치료 방법 (근육주사/정맥주사/경구투여)
+             - treatment_duration: 치료 기간 (일 단위)
+             - veterinarian: 담당 수의사명
+             - treatment_response: 치료 반응 (호전/악화/변화없음)
+             - side_effects: 부작용 내용
+             - follow_up_required: 추후 관찰 필요 여부 (true/false)
+             - follow_up_date: 추후 관찰일 (YYYY-MM-DD 형식)
+             - treatment_cost: 치료비용 (원 단위)
+             - withdrawal_period: 휴약기간 (일 단위, 우유 폐기 기간)
+             - notes: 특이사항 및 추가 메모
+             """,
+             responses={
+                 201: {"description": "치료 기록 생성 성공"},
+                 400: {"description": "잘못된 요청 (필수 필드 누락 또는 유효성 검사 실패)"},
+                 404: {"description": "젖소를 찾을 수 없음"},
+                 500: {"description": "서버 내부 오류"}
+             })
 def create_treatment_record(
     record_data: TreatmentRecordCreate,
     current_user: dict = Depends(get_current_user)
@@ -251,10 +495,70 @@ def create_treatment_record(
 @router.get("/cow/{cow_id}", 
             response_model=List[DetailedRecordSummary],
             summary="젖소별 상세 기록 목록 조회",
-            description="특정 젖소의 모든 상세 기록을 조회합니다. 기록 유형별로 필터링할 수 있습니다.")
+            description="""
+            특정 젖소의 모든 상세 기록을 조회합니다. 기록 유형별로 필터링할 수 있습니다.
+            
+            **기록 유형별 필터링 옵션:**
+            
+            **기본 관리 기록**
+            - `milking`: **착유 기록** - 착유량, 유성분, 착유시간 등
+            - `feed`: **사료급여 기록** - 사료종류, 급여량, 급여시간 등
+            - `weight`: **체중측정 기록** - 체중, 체형점수, 성장률 등
+            
+            **건강 관리 기록**
+            - `health_check`: **건강검진 기록** - 체온, 맥박, 호흡수, 일반건강상태 등
+            - `vaccination`: **백신접종 기록** - 백신명, 접종일, 다음접종예정일 등
+            - `treatment`: **치료 기록** - 진단명, 처방약, 치료과정 등
+            - `disease`: **질병 기록** - 질병발생, 증상, 치료이력 등
+            
+            **번식 관리 기록**
+            - `estrus`: **발정 기록** - 발정증상, 발정강도, 발정주기 등
+            - `insemination`: **인공수정 기록** - 수정일, 정액정보, 수정사 등
+            - `pregnancy_check`: **임신감정 기록** - 임신여부, 임신단계, 분만예정일 등
+            - `calving`: **분만 기록** - 분만일시, 송아지정보, 분만과정 등
+            - `breeding`: **번식 관련 기타 기록**
+            
+            **특수 관리 기록**
+            - `abortion`: **유산 기록** - 유산일, 유산원인, 후속조치 등
+            - `dry_off`: **건유 전환 기록** - 건유시작일, 건유기간 등
+            - `culling`: **도태 기록** - 도태일, 도태사유, 처리방법 등
+            - `status_change`: **상태 변경 기록** - 젖소 상태 변화 이력
+            - `other`: **기타 기록** - 위 분류에 속하지 않는 특별한 기록
+            
+            **사용 예시:**
+            - 전체 기록 조회: record_type 파라미터 없이 호출
+            - 착유 기록만 조회: `?record_type=milking`
+            - 건강 기록만 조회: `?record_type=health_check`
+            - 번식 기록만 조회: `?record_type=breeding`
+            """)
 def get_cow_detailed_records(
     cow_id: str,
-    record_type: Optional[DetailedRecordType] = Query(None, description="기록 유형 필터"),
+    record_type: Optional[DetailedRecordType] = Query(
+        None, 
+        description="""
+        **기록 유형 필터 (선택사항)**
+        
+        - `milking`: 착유 기록 (착유량, 유성분 등)
+        - `feed`: 사료급여 기록 (사료종류, 급여량 등) 
+        - `weight`: 체중측정 기록 (체중, 체형점수 등)
+        - `health_check`: 건강검진 기록 (체온, 맥박, 일반건강상태 등)
+        - `vaccination`: 백신접종 기록 (백신명, 접종일 등)
+        - `treatment`: 치료 기록 (진단명, 처방약, 치료과정 등)
+        - `estrus`: 발정 기록 (발정증상, 발정주기 등)
+        - `insemination`: 인공수정 기록 (수정일, 정액정보 등)
+        - `pregnancy_check`: 임신감정 기록 (임신여부, 분만예정일 등)
+        - `calving`: 분만 기록 (분만일시, 송아지정보 등)
+        - `abortion`: 유산 기록 (유산일, 유산원인 등)
+        - `dry_off`: 건유 전환 기록 (건유시작일, 건유기간 등)
+        - `culling`: 도태 기록 (도태일, 도태사유 등)
+        - `breeding`: 번식 관련 기타 기록
+        - `disease`: 질병 기록 (질병발생, 증상, 치료이력 등)
+        - `status_change`: 상태 변경 기록 (젖소 상태 변화)
+        - `other`: 기타 기록 (특별한 기록사항)
+        
+        **미입력시 모든 기록 타입을 조회합니다.**
+        """
+    ),
     current_user: dict = Depends(get_current_user)
 ):
     """특정 젖소의 상세 기록 목록 조회"""
@@ -801,11 +1105,74 @@ def get_cow_weight_records(
 @router.get("/cow/{cow_id}/all-records", 
             response_model=List[DetailedRecordSummary],
             summary="젖소별 전체 기록 조회",
-            description="특정 젖소의 모든 상세 기록을 조회합니다. 기록 유형별 필터링이 가능하며, 전체 또는 특정 타입만 조회할 수 있습니다.")
+            description="""
+            특정 젖소의 모든 상세 기록을 조회합니다. 기록 유형별 필터링이 가능하며, 전체 또는 특정 타입만 조회할 수 있습니다.
+            
+            **기록 유형별 필터링 옵션:**
+            
+            **기본 관리**
+            - `milking`: 착유 기록 (착유량, 유성분 등)
+            - `feed`: 사료급여 기록 (사료종류, 급여량 등) 
+            - `weight`: 체중측정 기록 (체중, 체형점수 등)
+            
+            **건강 관리**
+            - `health_check`: 건강검진 기록 (체온, 맥박, 일반건강상태 등)
+            - `vaccination`: 백신접종 기록 (백신명, 접종일 등)
+            - `treatment`: 치료 기록 (진단명, 처방약, 치료과정 등)
+            - `disease`: 질병 기록 (질병발생, 증상 등)
+            
+            **번식 관리**
+            - `estrus`: 발정 기록 (발정증상, 발정주기 등)
+            - `insemination`: 인공수정 기록 (수정일, 정액정보 등)
+            - `pregnancy_check`: 임신감정 기록 (임신여부, 분만예정일 등)
+            - `calving`: 분만 기록 (분만일시, 송아지정보 등)
+            - `breeding`: 번식 관련 기타 기록
+            
+            **특수 관리**
+            - `abortion`: 유산 기록 (유산원인, 후속조치 등)
+            - `dry_off`: 건유 전환 기록 (건유시작일, 건유기간 등)
+            - `culling`: 도태 기록 (도태사유, 처리방법 등)
+            - `status_change`: 상태 변경 기록 (젖소 상태 변화)
+            - `other`: 기타 기록 (특별한 기록사항)
+            
+            **미입력시 모든 기록 타입을 조회합니다.**
+            """)
 def get_cow_all_records(
     cow_id: str,
-    limit: int = Query(100, description="조회할 기록 수 제한", ge=1, le=200),
-    record_type: Optional[DetailedRecordType] = Query(None, description="특정 기록 유형 필터"),
+    limit: int = Query(100, description="조회할 기록 수 제한 (최대 200개)", ge=1, le=200),
+    record_type: Optional[DetailedRecordType] = Query(
+        None, 
+        description="""
+        **기록 유형 필터 (선택사항)**
+        
+        **기본 관리**
+        - `milking`: 착유 기록 (착유량, 유성분 등)
+        - `feed`: 사료급여 기록 (사료종류, 급여량 등) 
+        - `weight`: 체중측정 기록 (체중, 체형점수 등)
+        
+        **건강 관리**
+        - `health_check`: 건강검진 기록 (체온, 맥박, 일반건강상태 등)
+        - `vaccination`: 백신접종 기록 (백신명, 접종일 등)
+        - `treatment`: 치료 기록 (진단명, 처방약, 치료과정 등)
+        - `disease`: 질병 기록 (질병발생, 증상 등)
+        
+        **번식 관리**
+        - `estrus`: 발정 기록 (발정증상, 발정주기 등)
+        - `insemination`: 인공수정 기록 (수정일, 정액정보 등)
+        - `pregnancy_check`: 임신감정 기록 (임신여부, 분만예정일 등)
+        - `calving`: 분만 기록 (분만일시, 송아지정보 등)
+        - `breeding`: 번식 관련 기타 기록
+        
+        **특수 관리**
+        - `abortion`: 유산 기록 (유산원인, 후속조치 등)
+        - `dry_off`: 건유 전환 기록 (건유시작일, 건유기간 등)
+        - `culling`: 도태 기록 (도태사유, 처리방법 등)
+        - `status_change`: 상태 변경 기록 (젖소 상태 변화)
+        - `other`: 기타 기록 (특별한 기록사항)
+        
+        **미입력시 모든 기록 타입을 조회합니다.**
+        """
+    ),
     current_user: dict = Depends(get_current_user)
 ):
     """특정 젖소의 모든 상세 기록 조회 (전체 또는 특정 타입 필터링)"""
