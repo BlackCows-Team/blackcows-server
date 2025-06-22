@@ -22,7 +22,37 @@ def register_cow_legacy(
     """레거시 젖소 등록 (기존 호환성)"""
     return CowFirebaseService.create_cow(cow_data, current_user)
 
-
+ # 임시 엔드포인트
+@router.get("/", 
+           response_model=List[CowResponse],
+           summary="젖소 목록 조회",
+           description="현재 사용자의 농장에 등록된 모든 젖소 목록을 조회합니다.")
+def list_cows(
+    sortDirection: Optional[str] = Query("DESCENDING", description="정렬 방향"),
+    current_user: dict = Depends(get_current_user)
+):
+    """현재 사용자의 농장에 등록된 젖소 목록 조회"""
+    try:
+        farm_id = current_user.get("farm_id")
+        
+        # 로깅 추가
+        print(f"[DEBUG] 젖소 목록 조회 시작 - farm_id: {farm_id}")
+        print(f"[DEBUG] sortDirection: {sortDirection}")
+        
+        # CowFirebaseService 호출
+        cows = CowFirebaseService.get_cows_by_farm(farm_id)
+        
+        print(f"[DEBUG] 조회된 젖소 수: {len(cows)}")
+        
+        return cows
+        
+    except Exception as e:
+        print(f"[ERROR] 젖소 목록 조회 실패: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"젖소 목록 조회 중 오류가 발생했습니다: {str(e)}"
+        )
+        
 # ===== 축산물이력제 연동 API =====
 
 @router.get("/registration-status/{ear_tag_number}",
