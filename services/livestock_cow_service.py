@@ -26,9 +26,9 @@ class LivestockCowService:
             
             # 1. 이미 등록된 젖소인지 확인 (해당 농장 내)
             existing_cow_query = db.collection('cows')\
-                .where(filter=('farm_id', '==', farm_id))\
-                .where(filter=('ear_tag_number', '==', ear_tag_number))\
-                .where(filter=('is_active', '==', True))\
+                .where('farm_id', '==', farm_id)\
+                .where('ear_tag_number', '==', ear_tag_number)\
+                .where('is_active', '==', True)\
                 .get()
             
             if existing_cow_query:
@@ -93,9 +93,9 @@ class LivestockCowService:
             
             # 1. 중복 확인 (다시 한번 체크)
             existing_cow_query = db.collection('cows')\
-                .where(filter=('farm_id', '==', farm_id))\
-                .where(filter=('ear_tag_number', '==', ear_tag_number))\
-                .where(filter=('is_active', '==', True))\
+                .where('farm_id', '==', farm_id)\
+                .where('ear_tag_number', '==', ear_tag_number)\
+                .where('is_active', '==', True)\
                 .get()
             
             if existing_cow_query:
@@ -107,9 +107,9 @@ class LivestockCowService:
             # 2. 센서 번호 중복 확인 (제공된 경우)
             if sensor_number:
                 existing_sensor_query = db.collection('cows')\
-                    .where(filter=('farm_id', '==', farm_id))\
-                    .where(filter=('sensor_number', '==', sensor_number))\
-                    .where(filter=('is_active', '==', True))\
+                    .where('farm_id', '==', farm_id)\
+                    .where('sensor_number', '==', sensor_number)\
+                    .where('is_active', '==', True)\
                     .get()
                 
                 if existing_sensor_query:

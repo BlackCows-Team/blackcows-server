@@ -13,6 +13,16 @@ from services.livestock_cow_service import LivestockCowService
 
 router = APIRouter()
 
+# ===== 임시 flutter 젖소 추가 엔드포인트 =====
+@router.post("/", response_model=CowResponse, status_code=status.HTTP_201_CREATED)
+def register_cow_legacy(
+    cow_data: CowCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """레거시 젖소 등록 (기존 호환성)"""
+    return CowFirebaseService.create_cow(cow_data, current_user)
+
+
 # ===== 축산물이력제 연동 API =====
 
 @router.get("/registration-status/{ear_tag_number}",
