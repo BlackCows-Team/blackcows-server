@@ -22,22 +22,18 @@ def register_cow_legacy(
     """레거시 젖소 등록 (기존 호환성)"""
     return CowFirebaseService.create_cow(cow_data, current_user)
 
- # 임시 엔드포인트
+# ===== 임시 젖소 목록 조회 엔드포인트 =====
 @router.get("/", 
            response_model=List[CowResponse],
            summary="젖소 목록 조회",
            description="현재 사용자의 농장에 등록된 모든 젖소 목록을 조회합니다.")
-def list_cows(
-    sortDirection: Optional[str] = Query("DESCENDING", description="정렬 방향"),
-    current_user: dict = Depends(get_current_user)
-):
+def list_cows(current_user: dict = Depends(get_current_user)):
     """현재 사용자의 농장에 등록된 젖소 목록 조회"""
     try:
         farm_id = current_user.get("farm_id")
         
         # 로깅 추가
         print(f"[DEBUG] 젖소 목록 조회 시작 - farm_id: {farm_id}")
-        print(f"[DEBUG] sortDirection: {sortDirection}")
         
         # CowFirebaseService 호출
         cows = CowFirebaseService.get_cows_by_farm(farm_id)
