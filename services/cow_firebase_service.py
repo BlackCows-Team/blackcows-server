@@ -113,14 +113,32 @@ class CowFirebaseService:
             cows = []
             for cow_doc in cows_query:
                 cow_data = cow_doc.to_dict()
+                # HealthStatus와 BreedingStatus 안전하게 변환
+                health_status = None
+                if cow_data.get("health_status"):
+                    try:
+                        health_status = HealthStatus(cow_data["health_status"])
+                    except ValueError:
+                        print(f"[WARNING] 잘못된 health_status 값: {cow_data['health_status']} (젖소 ID: {cow_data['id']})")
+                        # 기본값으로 설정하거나 None으로 유지
+                        health_status = HealthStatus.NORMAL  # 또는 None
+                
+                breeding_status = None
+                if cow_data.get("breeding_status"):
+                    try:
+                        breeding_status = BreedingStatus(cow_data["breeding_status"])
+                    except ValueError:
+                        print(f"[WARNING] 잘못된 breeding_status 값: {cow_data['breeding_status']} (젖소 ID: {cow_data['id']})")
+                        breeding_status = None
+                
                 cows.append(CowResponse(
                     id=cow_data["id"],
                     ear_tag_number=cow_data["ear_tag_number"],
                     name=cow_data["name"],
                     birthdate=cow_data.get("birthdate"),
                     sensor_number=cow_data.get("sensor_number"),
-                    health_status=HealthStatus(cow_data["health_status"]) if cow_data.get("health_status") else None,
-                    breeding_status=BreedingStatus(cow_data["breeding_status"]) if cow_data.get("breeding_status") else None,
+                    health_status=health_status,
+                    breeding_status=breeding_status,
                     breed=cow_data.get("breed"),
                     notes=cow_data.get("notes"),
                     is_favorite=cow_data.get("is_favorite", False),
@@ -154,14 +172,31 @@ class CowFirebaseService:
             if cow_data.get("farm_id") != farm_id:
                 return None
             
+            # HealthStatus와 BreedingStatus 안전하게 변환
+            health_status = None
+            if cow_data.get("health_status"):
+                try:
+                    health_status = HealthStatus(cow_data["health_status"])
+                except ValueError:
+                    print(f"[WARNING] 잘못된 health_status 값: {cow_data['health_status']} (젖소 ID: {cow_data['id']})")
+                    health_status = HealthStatus.NORMAL
+            
+            breeding_status = None
+            if cow_data.get("breeding_status"):
+                try:
+                    breeding_status = BreedingStatus(cow_data["breeding_status"])
+                except ValueError:
+                    print(f"[WARNING] 잘못된 breeding_status 값: {cow_data['breeding_status']} (젖소 ID: {cow_data['id']})")
+                    breeding_status = None
+            
             return CowResponse(
                 id=cow_data["id"],
                 ear_tag_number=cow_data["ear_tag_number"],
                 name=cow_data["name"],
                 birthdate=cow_data.get("birthdate"),
                 sensor_number=cow_data.get("sensor_number"),
-                health_status=HealthStatus(cow_data["health_status"]) if cow_data.get("health_status") else None,
-                breeding_status=BreedingStatus(cow_data["breeding_status"]) if cow_data.get("breeding_status") else None,
+                health_status=health_status,
+                breeding_status=breeding_status,
                 breed=cow_data.get("breed"),
                 notes=cow_data.get("notes"),
                 is_favorite=cow_data.get("is_favorite", False),
@@ -339,14 +374,31 @@ class CowFirebaseService:
             cows = []
             for cow_doc in cows_query:
                 cow_data = cow_doc.to_dict()
+                # HealthStatus와 BreedingStatus 안전하게 변환
+                health_status = None
+                if cow_data.get("health_status"):
+                    try:
+                        health_status = HealthStatus(cow_data["health_status"])
+                    except ValueError:
+                        print(f"[WARNING] 잘못된 health_status 값: {cow_data['health_status']} (젖소 ID: {cow_data['id']})")
+                        health_status = HealthStatus.NORMAL
+                
+                breeding_status = None
+                if cow_data.get("breeding_status"):
+                    try:
+                        breeding_status = BreedingStatus(cow_data["breeding_status"])
+                    except ValueError:
+                        print(f"[WARNING] 잘못된 breeding_status 값: {cow_data['breeding_status']} (젖소 ID: {cow_data['id']})")
+                        breeding_status = None
+                        
                 cows.append(CowResponse(
                     id=cow_data["id"],
                     ear_tag_number=cow_data["ear_tag_number"],
                     name=cow_data["name"],
                     birthdate=cow_data.get("birthdate"),
                     sensor_number=cow_data.get("sensor_number"),
-                    health_status=HealthStatus(cow_data["health_status"]) if cow_data.get("health_status") else None,
-                    breeding_status=BreedingStatus(cow_data["breeding_status"]) if cow_data.get("breeding_status") else None,
+                    health_status=health_status,
+                    breeding_status=breeding_status,
                     breed=cow_data.get("breed"),
                     notes=cow_data.get("notes"),
                     is_favorite=cow_data.get("is_favorite", False),
@@ -542,6 +594,23 @@ def get_cow_details_by_id(cow_id: str, farm_id: str) -> Optional[CowDetailRespon
         location_info = detailed_info.get("location_info", {})
         behavioral_info = detailed_info.get("behavioral_info", {})
         
+        # HealthStatus와 BreedingStatus 안전하게 변환
+        health_status = None
+        if cow_data.get("health_status"):
+            try:
+                health_status = HealthStatus(cow_data["health_status"])
+            except ValueError:
+                print(f"[WARNING] 잘못된 health_status 값: {cow_data['health_status']} (젖소 ID: {cow_data['id']})")
+                health_status = HealthStatus.NORMAL
+        
+        breeding_status = None
+        if cow_data.get("breeding_status"):
+            try:
+                breeding_status = BreedingStatus(cow_data["breeding_status"])
+            except ValueError:
+                print(f"[WARNING] 잘못된 breeding_status 값: {cow_data['breeding_status']} (젖소 ID: {cow_data['id']})")
+                breeding_status = None
+                
         return CowDetailResponse(
             # 기본 정보
             id=cow_data["id"],
@@ -549,8 +618,8 @@ def get_cow_details_by_id(cow_id: str, farm_id: str) -> Optional[CowDetailRespon
             name=cow_data["name"],
             birthdate=cow_data.get("birthdate"),
             sensor_number=cow_data.get("sensor_number"),
-            health_status=HealthStatus(cow_data["health_status"]) if cow_data.get("health_status") else None,
-            breeding_status=BreedingStatus(cow_data["breeding_status"]) if cow_data.get("breeding_status") else None,
+            health_status=health_status,
+            breeding_status=breeding_status,
             breed=cow_data.get("breed"),
             notes=cow_data.get("notes"),
             is_favorite=cow_data.get("is_favorite", False),

@@ -82,11 +82,10 @@ def get_recent_milking_records(
         
         # 최근 착유 기록만 조회
         records_query = db.collection('cow_detailed_records')\
-            .where(filter=('farm_id', '==', farm_id))\
-            .where(filter=('record_type', '==', DetailedRecordType.MILKING.value))\
-            .where(filter=('is_active', '==', True))\
+            .where('farm_id', '==', farm_id)\
+            .where('record_type', '==', DetailedRecordType.MILKING.value)\
+            .where('is_active', '==', True)\
             .order_by('record_date', direction='DESCENDING')\
-            .order_by('created_at', direction='DESCENDING')\
             .limit(limit)\
             .get()
         
