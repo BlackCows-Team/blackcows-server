@@ -11,6 +11,9 @@ import xml.etree.ElementTree as ET
 import os
 
 class LivestockCowService:
+    # 메모리 캐싱 
+    _cache = {}  # 결과 저장
+    _cache_time = {}  # 언제 저장했는지 기록
     
     @staticmethod
     async def check_registration_status(ear_tag_number: str, farm_id: str) -> Dict:
@@ -185,11 +188,24 @@ class LivestockCowService:
     
     @staticmethod
     async def _fetch_livestock_trace_data(ear_tag_number: str) -> Optional[Dict]:
-        """
-        축산물이력제 API에서 젖소 정보 조회
-        livestock_trace.py의 로직을 재사용
-        """
+        """축산물이력제 API에서 젖소 정보 조회"""
         try:
+            # 캐시 확인 (5분간 유효)
+            current_time = datetime.utcnow()
+            if ear_tag_number in LivestockCowService._cache:
+                cached_time = LivestockCowService._cache_time[ear_tag_number]
+                time_diff = (current_time - cached_time).total_seconds()
+                
+                if time_diff < 300:  # 5분
+                    print(f"[캐시 사용] 이표번호 {ear_tag_number}")
+                    return LivestockCowService._cache[ear_tag_number]
+                else:
+                    # 오래된 캐시 삭제
+                    del LivestockCowService._cache[ear_tag_number]
+                    del LivestockCowService._cache_time[ear_tag_number]
+            
+            print(f"[API 호출] 이표번호 {ear_tag_number}")
+            
             service_key = os.getenv("LIVESTOCK_TRACE_API_DECODING_KEY")
             if not service_key:
                 print("[ERROR] 축산물이력제 API 키가 설정되지 않았습니다")
@@ -208,11 +224,18 @@ class LivestockCowService:
             # 기본 정보 파싱
             parsed_basic_info = LivestockCowService._parse_basic_info(basic_info, ear_tag_number)
             
-            return {
+            result = {
                 "basic_info": parsed_basic_info,
                 "ear_tag_number": ear_tag_number,
-                "api_response_time": datetime.utcnow().isoformat()
+                "api_response_time": current_time.isoformat()
             }
+            
+            # 캐시에 저장
+            LivestockCowService._cache[ear_tag_number] = result
+            LivestockCowService._cache_time[ear_tag_number] = current_time
+            print(f"[캐시 저장] 이표번호 {ear_tag_number}")
+            
+            return result
             
         except Exception as e:
             print(f"[ERROR] 축산물이력제 API 조회 실패: {str(e)}")

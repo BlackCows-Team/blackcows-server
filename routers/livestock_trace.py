@@ -228,8 +228,10 @@ async def _fetch_livestock_data(base_url: str, service_key: str, ear_tag_number:
         print(f"API 호출 - URL: {base_url}")
         print(f"API 호출 - Params: {params}")
         
+        # 에러가 발생할 때만 로그 출력하도록 수정
+        
         async with httpx.AsyncClient() as client:
-            response = await client.get(base_url, params=params, timeout=30.0)
+            response = await client.get(base_url, params=params, timeout=8.0)
             
             print(f"응답 상태 코드: {response.status_code}")
             print(f"최종 요청 URL: {response.url}")
@@ -257,7 +259,7 @@ async def _fetch_livestock_data(base_url: str, service_key: str, ear_tag_number:
                         print(f"API 결과 메시지: {result_msg.text}")
                     
                     if result_code.text != "00":
-                        print(f"API 오류 - 코드: {result_code.text}, 메시지: {result_msg.text if result_msg is not None else 'N/A'}")
+                        print(f"API 호출 오류 (optionNo={option_no}):")
                         return None
             
             # 데이터 추출

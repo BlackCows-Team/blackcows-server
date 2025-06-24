@@ -1,8 +1,12 @@
 import os
+import warnings
 from fastapi import FastAPI
 from routers import cow, record, detailed_record, livestock_trace, chatbot
 from routers import auth_firebase
 from fastapi.middleware.cors import CORSMiddleware
+
+# Firestore positional arguments 경고 무시
+warnings.filterwarnings("ignore", message="Detected filter using positional arguments*")
 
 # .env 파일 로드
 from dotenv import load_dotenv
