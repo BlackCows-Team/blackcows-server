@@ -19,21 +19,21 @@ class CowFirebaseService:
     def create_cow(cow_data: CowCreate, user: Dict) -> CowResponse:
         """새로운 젖소 등록"""
         try:
-            # 동일한 농장 내에서 이표번호 중복 확인
-            farm_id = user.get("farm_id")
+            # 전체 시스템에서 이표번호 중복 확인 (농장 구분 없이)
             existing_cow_query = db.collection('cows')\
-                .where('farm_id', '==', farm_id)\
                 .where('ear_tag_number', '==', cow_data.ear_tag_number)\
                 .where('is_active', '==', True)\
                 .get()
             
             if existing_cow_query:
+                existing_cow = existing_cow_query[0].to_dict()
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"이표번호 '{cow_data.ear_tag_number}'는 이미 등록되어 있습니다"
+                    detail=f"이표번호 '{cow_data.ear_tag_number}'는 이미 다른 농장에서 등록되어 있습니다"
                 )
             
-            # 센서 번호가 제공된 경우에만 중복 확인
+            # 센서 번호가 제공된 경우에만 중복 확인 (농장별로)
+            farm_id = user.get("farm_id")
             if cow_data.sensor_number:
                 existing_sensor_query = db.collection('cows')\
                     .where('farm_id', '==', farm_id)\
@@ -289,7 +289,7 @@ class CowFirebaseService:
     
     @staticmethod
     def delete_cow(cow_id: str, user: Dict) -> Dict:
-        """젖소 삭제 (소프트 삭제)"""
+        """젖소 삭제 (하드 삭제 - Firebase DB에서 완전 삭제)"""
         try:
             farm_id = user.get("farm_id")
             
@@ -301,16 +301,32 @@ class CowFirebaseService:
                     detail="젖소를 찾을 수 없습니다"
                 )
             
-            # 소프트 삭제 (is_active를 False로 변경)
-            db.collection('cows').document(cow_id).update({
-                "is_active": False,
-                "updated_at": datetime.utcnow(),
-                "deleted_at": datetime.utcnow()
-            })
+            # 1. 젖소 관련 모든 기록 삭제
+            # 상세 기록 삭제
+            detailed_records_query = db.collection('cow_detailed_records')\
+                .where('cow_id', '==', cow_id)\
+                .where('farm_id', '==', farm_id)\
+                .get()
+            
+            for record in detailed_records_query:
+                record.reference.delete()
+            
+            # 기본 기록 삭제
+            basic_records_query = db.collection('cow_records')\
+                .where('cow_id', '==', cow_id)\
+                .where('farm_id', '==', farm_id)\
+                .get()
+            
+            for record in basic_records_query:
+                record.reference.delete()
+            
+            # 2. 젖소 정보 완전 삭제
+            db.collection('cows').document(cow_id).delete()
             
             return {
-                "message": f"젖소 '{existing_cow.name}' (이표번호: {existing_cow.ear_tag_number})가 삭제되었습니다",
-                "cow_id": cow_id
+                "message": f"젖소 '{existing_cow.name}' (이표번호: {existing_cow.ear_tag_number})와 관련된 모든 데이터가 완전히 삭제되었습니다",
+                "cow_id": cow_id,
+                "deleted_records_count": len(detailed_records_query) + len(basic_records_query)
             }
             
         except Exception as e:

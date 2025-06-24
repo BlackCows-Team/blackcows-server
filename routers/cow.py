@@ -196,12 +196,12 @@ def update_cow_info(
 
 @router.delete("/{cow_id}",
               summary="젖소 삭제",
-              description="특정 젖소를 삭제합니다.")
+              description="특정 젖소와 관련된 모든 데이터를 Firebase DB에서 완전히 삭제합니다. (하드 삭제)")
 def delete_cow(
     cow_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """젖소 삭제"""
+    """젖소 삭제 (하드 삭제 - Firebase DB에서 완전 삭제)"""
     return CowFirebaseService.delete_cow(cow_id, current_user)
 
 @router.get("/search/by-tag/{ear_tag_number}", 
