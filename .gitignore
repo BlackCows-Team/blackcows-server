@@ -108,3 +108,6 @@ config/*.json
 !firebase.json
 !firestore.indexes.json
 !package.json
+
+*/bin
+blackcows/bin
