@@ -8,7 +8,7 @@ from schemas.user import (
     TemporaryTokenLogin, ChangePasswordRequest, DeleteAccountRequest
 )
 from services.firebase_user_service import FirebaseUserService, ACCESS_TOKEN_EXPIRE_MINUTES
-from config.email_config import email_config
+
 from datetime import timedelta
 
 router = APIRouter()
@@ -27,16 +27,7 @@ async def register_user(user_data: UserCreate):
         password=user_data.password,            # 비밀번호
         farm_nickname=user_data.farm_nickname   # 목장 별명 (선택)
     )
-    
-    # 환영 이메일 발송 (선택사항)
-    try:
-        await email_config.send_welcome_email(
-            email=user_data.email,
-            username=user_data.username
-        )
-    except Exception as e:
-        print(f"[WARNING] 환영 이메일 발송 실패: {str(e)}")
-        # 이메일 발송 실패해도 회원가입은 성공으로 처리
+
     
     return {
         "success": True,
@@ -184,26 +175,11 @@ async def request_password_reset(request: PasswordResetRequest):
         
         # JWT 기반 비밀번호 재설정 토큰 생성 (1시간 유효)
         reset_token = FirebaseUserService.create_password_reset_token(user)
-        
-        # 이메일 발송
-        try:
-            email_sent = await email_config.send_password_reset_email(
-                email=request.email, 
-                username=request.username, 
-                reset_token=reset_token
-            )
-            
-            if not email_sent:
-                print(f"[WARNING] 이메일 발송 실패 - {request.email}")
-                # 이메일 발송 실패해도 요청은 성공으로 처리 (보안상)
-                
-        except Exception as e:
-            print(f"[ERROR] 이메일 발송 중 오류: {str(e)}")
-            # 이메일 발송 실패해도 요청은 성공으로 처리 (보안상)
+
         
         return {
             "success": True,
-            "message": f"{user['username']}님의 이메일({request.email})로 비밀번호 재설정 링크를 전송했습니다",
+            "message": f"{user['username']}님의 비밀번호 재설정 요청이 완료되었습니다",
             "username": user["username"],               # 사용자 이름/실명
             "user_id": request.user_id,                 # 로그인용 아이디
             "email": request.email,                     # 이메일
