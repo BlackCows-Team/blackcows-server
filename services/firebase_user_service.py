@@ -38,7 +38,8 @@ class FirebaseUserService:
         """Firestore에 새 사용자 생성 - 목장 별명으로 변경"""
         try:
             # 아이디 중복 확인
-            user_id_query = db.collection('users').where('user_id', '==', user_id).get()
+            from google.cloud.firestore_v1.base_query import FieldFilter
+            user_id_query = db.collection('users').where(filter=FieldFilter('user_id', '==', user_id)).get()
             if user_id_query:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -46,7 +47,7 @@ class FirebaseUserService:
                 )
             
             # 이메일 중복 확인
-            email_query = db.collection('users').where('email', '==', email).get()
+            email_query = db.collection('users').where(filter=FieldFilter('email', '==', email)).get()
             if email_query:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -142,8 +143,9 @@ class FirebaseUserService:
     def get_user_by_user_id(user_id: str) -> Optional[Dict]:
         """user_id로 사용자 조회"""
         try:
+            from google.cloud.firestore_v1.base_query import FieldFilter
             users_ref = db.collection('users')
-            query = users_ref.where('user_id', '==', user_id).limit(1).get()
+            query = users_ref.where(filter=FieldFilter('user_id', '==', user_id)).limit(1).get()
             
             if query:
                 return query[0].to_dict()
