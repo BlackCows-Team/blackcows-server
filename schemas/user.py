@@ -196,3 +196,18 @@ class ChangePasswordRequest(BaseModel):
 class DeleteAccountRequest(BaseModel):
     password: str = Field(..., description="계정 삭제 확인용 현재 비밀번호")
     confirmation: str = Field(..., description="삭제 확인 문구 ('DELETE' 입력)")
+
+class FarmNicknameUpdate(BaseModel):
+    farm_nickname: str = Field(..., description="새로운 목장 이름")
+    
+    @validator('farm_nickname')
+    def farm_nickname_validation(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('목장 이름을 입력해주세요')
+        if len(v.strip()) > 50:
+            raise ValueError('목장 이름은 50자 이하여야 합니다')
+        # 특수문자 제한 (기본적인 특수문자만 허용)
+        import re
+        if not re.match(r'^[가-힣a-zA-Z0-9\s\-_()]+$', v.strip()):
+            raise ValueError('목장 이름에는 특수문자를 사용할 수 없습니다 (-, _, () 제외)')
+        return v.strip()

@@ -5,7 +5,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from schemas.user import (
     UserCreate, UserLogin, TokenResponse, RefreshTokenRequest, UserResponse,
     FindUserIdRequest, PasswordResetRequest, PasswordResetConfirm,
-    TemporaryTokenLogin, ChangePasswordRequest, DeleteAccountRequest
+    TemporaryTokenLogin, ChangePasswordRequest, DeleteAccountRequest,
+    FarmNicknameUpdate
 )
 from services.firebase_user_service import FirebaseUserService, ACCESS_TOKEN_EXPIRE_MINUTES
 
@@ -480,6 +481,72 @@ def change_password(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"비밀번호 변경 중 오류가 발생했습니다: {str(e)}"
+        )
+
+# ============= 목장 이름 수정 API =============
+
+@router.put("/update-farm-name",
+           response_model=dict,
+           summary="목장 이름 수정",
+           description="현재 로그인된 사용자의 목장 이름을 수정합니다.")
+def update_farm_name(
+    request: FarmNicknameUpdate,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """목장 이름 수정"""
+    try:
+        token = credentials.credentials
+        
+        # 일반 액세스 토큰 검증 (로그인된 사용자)
+        user = FirebaseUserService.verify_access_token(token)
+        
+        # Firebase DB에서 사용자 문서의 farm_nickname 필드 업데이트
+        from config.firebase_config import get_firestore_client
+        from datetime import datetime
+        db = get_firestore_client()
+        
+        # 사용자 문서 업데이트
+        update_data = {
+            "farm_nickname": request.farm_nickname,
+            "updated_at": datetime.utcnow()
+        }
+        
+        db.collection('users').document(user["id"]).update(update_data)
+        
+        # 업데이트된 사용자 정보 가져오기
+        updated_user_doc = db.collection('users').document(user["id"]).get()
+        if not updated_user_doc.exists:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="사용자를 찾을 수 없습니다"
+            )
+        
+        updated_user_data = updated_user_doc.to_dict()
+        
+        # 사용자 정보 응답 (비밀번호 제외)
+        user_response = UserResponse(
+            id=updated_user_data["id"],
+            username=updated_user_data["username"],              # 사용자 이름/실명
+            user_id=updated_user_data["user_id"],                # 로그인용 아이디
+            email=updated_user_data["email"],                    # 이메일
+            farm_nickname=updated_user_data["farm_nickname"],    # 수정된 목장 별명
+            farm_id=updated_user_data["farm_id"],                # 농장 ID
+            created_at=updated_user_data["created_at"],          # 가입일
+            is_active=updated_user_data["is_active"]             # 활성 상태
+        )
+        
+        return {
+            "success": True,
+            "message": "목장 이름이 성공적으로 수정되었습니다",
+            "user": user_response.dict()
+        }
+            
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"목장 이름 수정 중 오류가 발생했습니다: {str(e)}"
         )
 
 # ============= 회원탈퇴 API =============
