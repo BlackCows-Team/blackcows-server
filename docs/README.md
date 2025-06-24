@@ -33,6 +33,12 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 - ⚖️ **체중측정 기록** - 체중, 체척, 증체율 등
 - 🩺 **치료 기록** - 진단명, 사용약물, 치료비용 등
 
+#### 📝 기본 기록 관리 (4가지 유형)
+- 🔄 **번식 기록** - 인공수정, 자연교배, 번식 결과 등
+- 🏥 **질병 기록** - 질병명, 증상, 치료내용, 심각도 등
+- 📊 **분류변경 기록** - 젖소 상태 변경 이력, 변경 사유 등
+- 📋 **기타 기록** - 위 분류에 속하지 않는 특별한 기록
+
 #### 🔗 축산물이력제 연동 기능
 - ✅ **소 기본 개체정보** - 이표번호, 출생일, 품종, 성별, 개월령 자동계산
 - ✅ **농장 등록 이력** - 여러 농장 이동 이력 추적
@@ -43,6 +49,12 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 - ✅ **결핵 검사 정보** - 검사일, 결과
 - ✅ **질병 정보** - 질병유무 상태
 - ✅ **수입축 정보** - 수입국가, 수입경과월
+
+#### 🤖 AI 챗봇 기능 (NEW!)
+- ✅ **소담이 챗봇** - 낙농업 전문 AI 어시스턴트
+- ✅ **질문 분류** - 낙농 지식, 농장 데이터, 일반 대화, 무관한 질문 자동 분류
+- ✅ **LangGraph 기반** - 고도화된 대화 플로우 관리
+- ✅ **OpenAI GPT-4o-mini** - 최신 AI 모델 활용
 
 #### 🔐 보안 및 인증
 - ✅ **JWT 기반 사용자 인증** - Access/Refresh Token
@@ -67,6 +79,7 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 | `POST` | `/auth/reset-password` | 비밀번호 재설정 | `token`, `new_password`, `confirm_password` | 재설정 성공 메시지 |
 | `POST` | `/auth/login-with-reset-token` | 임시 토큰 로그인 | `user_id`, `reset_token` | 임시 `access_token` (비밀번호 변경 권한) |
 | `POST` | `/auth/change-password` | 비밀번호 변경 | `new_password`, `confirm_password` + Bearer Token | 변경 성공 메시지 |
+| `PUT` | `/auth/update-farm-name` | 목장 이름 수정 | `farm_nickname` + Bearer Token | 수정된 사용자 정보 |
 | `DELETE` | `/auth/delete-account` | 회원탈퇴 | `password`, `confirmation` + Bearer Token | 삭제 완료 메시지 |
 | `POST` | `/auth/login-debug` | 로그인 디버깅 | 원시 요청 데이터 | 디버그 정보 |
 
@@ -84,6 +97,7 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 | Method | Endpoint | 설명 | 필수 필드 | 응답 |
 |--------|----------|------|----------|------|
 | `POST` | `/cows/manual` | 젖소 수동 등록 | `ear_tag_number`, `name` | 등록된 젖소 정보 |
+| `POST` | `/cows/` | 젖소 등록 (레거시) | `ear_tag_number`, `name` | 등록된 젖소 정보 |
 | `GET` | `/cows/` | 젖소 목록 조회 | Bearer Token | 농장 내 모든 젖소 목록 |
 | `GET` | `/cows/{cow_id}` | 젖소 상세 조회 | `cow_id` + Bearer Token | 특정 젖소 상세 정보 |
 | `PUT` | `/cows/{cow_id}` | 젖소 정보 수정 | `cow_id` + Bearer Token | 수정된 젖소 정보 |
@@ -212,6 +226,22 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 | `POST` | `/api/livestock-trace/livestock-trace-async/{ear_tag_number}` | 비동기 전체정보 조회 | `ear_tag_number` + Bearer Token | task_id 반환 (백그라운드 처리) |
 | `GET` | `/api/livestock-trace/livestock-trace-status/{task_id}` | 비동기 조회 상태 확인 | `task_id` + Bearer Token | 진행상황 및 결과 |
 
+#### 개발/테스트용 API (인증 불필요)
+
+| Method | Endpoint | 설명 | 응답 |
+|--------|----------|------|------|
+| `GET` | `/api/livestock-trace/test-quick-check-no-auth/{ear_tag_number}` | 테스트용 빠른 기본정보 확인 | 기본 개체정보 (인증 없음) |
+| `POST` | `/api/livestock-trace/test-async-no-auth/{ear_tag_number}` | 테스트용 비동기 전체 조회 | task_id 반환 (인증 없음) |
+| `GET` | `/api/livestock-trace/test-status-no-auth/{task_id}` | 테스트용 작업 상태 확인 | 진행상황 및 결과 (인증 없음) |
+| `GET` | `/api/livestock-trace/test-no-auth/{ear_tag_number}` | 테스트용 축산물이력정보 조회 | 전체 이력정보 (인증 없음) |
+| `GET` | `/api/livestock-trace/test-basic-no-auth/{ear_tag_number}` | 테스트용 기본 정보 조회 | 기본 개체정보 (인증 없음) |
+
+### 🤖 AI 챗봇 API (`/chatbot`) - NEW!
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/chatbot/ask` | 챗봇 질문하기 | `user_id`, `chatroom_id`, `question` | 챗봇 응답 |
+
 ### 🔧 시스템 정보 API
 
 | Method | Endpoint | 설명 | 응답 |
@@ -234,7 +264,6 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 
 ### 3단계 젖소 등록 프로세스
 
-
 ```
                         1단계: 이표번호 입력
                                   ↓
@@ -243,20 +272,20 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
         ┌─────────────────────────┼─────────────────────────┐
         ↓                         ↓                         ↓
 ┌───────────────────┐  ┌───────────────────┐  ┌───────────────────┐
-│ already_registered │ │ livestock_trace_  │  │ manual_registration │
+│ already_registered │ │ livestock_trace_  │  │manual_registration│
 │                   │  │    available      │  │     _required     │
 │                   │  │                   │  │                   │
-│   이미 등록된 젖소  │  │   축산물이력제에서   │  │   축산물이력제에서   │
-│     (등록 불가)    │  │      정보 찾음      │  │     정보 없음      │
+│ 이미 등록된 젖소  │  │  축산물이력제에서 │  │  축산물이력제에서 │
+│    (등록 불가)    │  │     정보 찾음     │  │     정보 없음     │
 │                   │  │                   │  │                   │
-│  ❌ 오류 메시지    │  │        ↓          │  │        ↓          │
+│  ❌ 오류 메시지  │  │         ↓         │  │         ↓         │
 │                   │  │                   │  │                   │
 │                   │  │ POST /cows/       │  │ POST /cows/manual │
 │                   │  │ register-from-    │  │                   │
 │                   │  │ livestock-trace   │  │                   │
 │                   │  │                   │  │                   │
-│                   │  │ (축산물이력제 기반   │  │  (사용자 직접 입력  │
-│                   │  │     자동 등록)     │  │      수동 등록)     │
+│                   │  │(축산물이력제 기반 │  │ (사용자 직접 입력 │
+│                   │  │     자동 등록)    │  │    수동 등록)     │
 └───────────────────┘  └─────────┬─────────┘  └─────────┬─────────┘
                                  ↓                      ↓
                                  └──────────┬───────────┘
@@ -266,7 +295,6 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
                                        GET /cows/
                                      (젖소 목록 조회)
 ```
-
 
 ### 축산물이력제 조회 정보
 
@@ -298,6 +326,34 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 - 브루셀라: 검사일, 결과, 경과일 자동계산
 - 결핵: 검사일, 결과
 
+## 🤖 AI 챗봇 "소담이" 기능 상세
+
+### 챗봇 특징
+- **이름**: 소담소이 (낙농업 전문 AI 어시스턴트)
+- **엔진**: OpenAI GPT-4o-mini
+- **프레임워크**: LangGraph 기반 대화 플로우
+- **언어**: 한국어 지원
+
+### 질문 분류 시스템
+소담이는 사용자의 질문을 다음 4가지로 자동 분류합니다:
+
+1. **rag** - 낙농 지식 질문
+   - 낙농업 관련 전문 정보
+   - 젖소 사육 방법, 질병 관리 등
+
+2. **cow_info** - 사용자 목장 데이터 질문
+   - 특정 젖소 정보 조회
+   - 농장 기록 및 통계 관련
+
+3. **general** - 인사/잡담
+   - 일반적인 대화 및 인사
+   - 챗봇 소개 등
+
+4. **irrelevant** - 무관한 질문
+   - 낙농과 관련 없는 질문
+   - 적절한 안내 메시지 제공
+
+
 ## 📚 API 문서 및 개발 도구
 
 ### 🔧 로컬 개발환경에서 Swagger UI 사용
@@ -317,8 +373,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 ## 🧪 API 테스트
 
-> **⚠️ 중요**: AWS EC2 사용량 절약을 위해 Swagger UI가 비활성화되어 있습니다. curl 명령어나 Postman을 사용하여 API를 테스트하세요.
-
+> **⚠️ 중요**: AWS EC2 사용량 절약을 위해 프로덕션에서는 Swagger UI가 비활성화되어 있습니다. curl 명령어나 Postman을 사용하여 API를 테스트하세요.
 
 ## 🔧 설치 및 실행
 
@@ -326,6 +381,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 - **Python**: 3.11 이상
 - **Firebase**: Firestore 데이터베이스
 - **축산물이력제**: 축산물품질평가원 OpenAPI 키
+- **OpenAI**: GPT-4o-mini API 키 (챗봇 기능)
 
 ### 1️⃣ 프로젝트 설정
 
@@ -340,43 +396,6 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 의존성 설치
 pip install -r requirements.txt
-```
-
-### 2️⃣ 환경변수 설정
-
-`.env` 파일 생성:
-```bash
-# 개발 환경 설정
-ENVIRONMENT=development
-
-# JWT 설정
-JWT_SECRET_KEY=your-super-secret-jwt-key-here
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
-
-# Firebase 설정
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/serviceAccountKey.json
-
-FIREBASE_TYPE
-FIREBASE_PROJECT_ID=your-firebase-project-id
-FIREBASE_PRIVATE_KEY_ID
-FIREBASE_PRIVATE_KEY
-FIREBASE_CLIENT_EMAIL
-FIREBASE_CLIENT_ID
-FIREBASE_AUTH_URI
-FIREBASE_TOKEN_URI
-FIREBASE_AUTH_PROVIDER_X509_CERT_URL
-FIREBASE_CLIENT_X509_CERT_URL
-FIREBASE_UNIVERSE_DOMAIN
-
-# 축산물이력제 API 설정
-LIVESTOCK_TRACE_API_DECODING_KEY=your-livestock-trace-api-key
-
-# 서버 설정
-DEBUG=True
-HOST=0.0.0.0
-PORT=8000
-
 ```
 
 ### 3️⃣ 서버 실행
@@ -567,28 +586,25 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 | 6 | 질병 정보 | 질병유무 |
 | 7 | 브루셀라/결핵 | 검사일, 결과, 경과일 |
 
-### 데이터 변환 및 매핑
-
-```python
-# 품종 매핑
-breed_mapping = {
-    "홀스타인": "Holstein",
-    "젖소": "Holstein", 
-    "한우": "Korean Native",
-    "육우": "Beef Cattle"
-}
-
-# 성별에 따른 번식상태 자동 설정
-if "암" in gender:
-    if age_months < 12:
-        breeding_status = "calf"
-    elif age_months < 24:
-        breeding_status = "heifer"
-    else:
-        breeding_status = "lactating"
-```
-
 ## 📈 주요 업데이트 내역
+
+### v2.6.3 (2025-06-25) - NEW!
+#### 🤖 AI 챗봇 "소담이" 추가
+- **LangGraph 기반 대화 시스템**: 고도화된 대화 플로우 관리
+- **질문 자동 분류**: 낙농 지식, 농장 데이터, 일반 대화, 무관한 질문 자동 구분
+- **OpenAI GPT-4o-mini**: 최신 AI 모델 활용으로 정확한 응답 제공
+- **한국어 전용**: 낙농업 전문용어에 특화된 한국어 대화 지원
+- **POST /chatbot/ask**: 챗봇 질문 API 엔드포인트 추가
+
+#### 🔐 사용자 관리 기능 강화
+- **목장 이름 수정 기능**: PUT /auth/update-farm-name 엔드포인트 추가
+- **향상된 사용자 검증**: 이름과 이메일 기반 아이디 찾기 정확도 향상
+- **보안 강화**: 토큰 기반 비밀번호 재설정 시스템 개선
+
+#### 🔗 축산물이력제 연동 최적화
+- **캐싱 시스템**: 5분간 API 응답 캐시로 성능 향상
+- **테스트 엔드포인트 확장**: 개발자 친화적인 인증 불필요 테스트 API 추가
+- **오류 처리 개선**: 일부 API 실패 시에도 나머지 정보 수집 계속 진행
 
 ### v2.6.0 (2025-06-22)
 #### 🔗 축산물이력제 연동 기능 추가
@@ -609,6 +625,13 @@ if "암" in gender:
 - **임시 토큰 로그인**: 비밀번호 변경 권한 분리
 - **회원탈퇴**: 관련 데이터 완전 삭제
 - **리프레시 토큰 관리**: 보안 강화된 토큰 무효화
+
+### 새로운 엔드포인트 (v2.6.3)
+#### AI 챗봇
+- `POST /chatbot/ask`: 챗봇 질문하기
+
+#### 사용자 관리
+- `PUT /auth/update-farm-name`: 목장 이름 수정
 
 ### 새로운 엔드포인트 (v2.6.0)
 #### 축산물이력제 연동
@@ -660,6 +683,11 @@ if "암" in gender:
 - **Email Service**: AWS SES / Gmail SMTP
 - **External API**: 축산물품질평가원 OpenAPI
 
+### AI & Machine Learning
+- **AI Framework**: LangGraph (대화 플로우 관리)
+- **LLM**: OpenAI GPT-4o-mini
+- **Natural Language**: 한국어 낙농업 전문 대화 시스템
+
 ### Infrastructure
 - **Deployment**: AWS EC2 (Ubuntu)
 - **CI/CD**: GitHub Actions
@@ -692,8 +720,15 @@ if "암" in gender:
 - **이표번호 형식**: 정확히 12자리 숫자
 - **응답 시간**: 비동기 처리로 성능 최적화
 - **오류 처리**: 일부 API 실패해도 나머지 정보 수집 계속
+- **캐싱**: 5분간 API 응답 캐시로 불필요한 호출 방지
 
-#### 4. 에러 처리
+#### 4. AI 챗봇 사용
+- **OpenAI API 키**: `OPENAI_API_KEY` 환경변수 필수
+- **질문 언어**: 한국어 권장 (낙농업 전문용어 특화)
+- **응답 시간**: 일반적으로 2-5초 소요
+- **질문 분류**: 시스템이 자동으로 적절한 응답 경로 선택
+
+#### 5. 에러 처리
 ```typescript
 // 표준 에러 응답 형태
 interface ApiError {
@@ -724,62 +759,51 @@ try {
    - 서버 재시작 (tmux session)
    - 헬스체크 확인
 
-### 수동 배포
-```bash
-# EC2 서버 접속
-ssh -i your-key.pem ubuntu@52.78.212.96
-
-# 코드 업데이트
-cd ~/blackcows-server
-git pull origin main
-
-# 서버 재시작
-tmux attach-session -t 0
-```
-
 ## 📞 지원 및 연락처
 
 ### 기술 지원
 - **GitHub**: [BlackCows-Team/blackcows-server](https://github.com/BlackCows-Team/blackcows-server)
 - **Issues**: [GitHub Issues](https://github.com/BlackCows-Team/blackcows-server/issues)
-- **이메일**: team@blackcows.com
+- **이메일**: team@blackcowsdairy.com
 
-## 📋 개발 체크리스트
+## 🔄 API 사용 패턴
 
-### 백엔드 개발 시
-- [ ] 새로운 엔드포인트 추가 후 테스트
-- [ ] 축산물이력제 API 키 설정 확인
-- [ ] 인증이 필요한 API에 `get_current_user` 의존성 추가
-- [ ] 데이터 검증 및 에러 처리 구현
-- [ ] 농장별 데이터 격리 확인
-- [ ] 상세 기록 타입별 필수 필드 검증
+### 1. 젖소 등록 워크플로우
+```
+사용자 입력: 이표번호
+     ↓
+등록 상태 확인 API
+     ↓
+┌─ 이미 등록됨 → 오류 메시지
+├─ 축산물이력제 정보 있음 → 자동 등록
+└─ 정보 없음 → 수동 등록
+     ↓
+등록 완료 → 젖소 목록 조회
+```
 
-### 프론트엔드 연동 시
-- [ ] 최신 OpenAPI JSON 파일 확인
-- [ ] 축산물이력제 연동 플로우 구현
-- [ ] 3단계 젖소 등록 프로세스 구현
-- [ ] 상세 기록 관리 UI 구현
-- [ ] 인증 플로우 구현 (로그인 → 토큰 저장 → API 호출)
-- [ ] 토큰 만료 처리 구현
-- [ ] 에러 응답 처리 구현
-- [ ] 필수 필드 검증 구현
+### 2. 기록 관리 워크플로우
+```
+기록 유형 선택 (착유/발정/치료 등)
+     ↓
+젖소 선택
+     ↓
+기록 데이터 입력
+     ↓
+기록 생성 API 호출
+     ↓
+성공 → 기록 목록 업데이트
+```
 
-### 축산물이력제 연동 시
-- [ ] API 키 발급 및 설정
-- [ ] 이표번호 형식 검증 (12자리 숫자)
-- [ ] 비동기 처리 구현
-- [ ] 오류 처리 및 fallback 로직
-- [ ] 데이터 매핑 및 변환 로직
-
-## 📊 프로젝트 통계
-
-- **총 API 엔드포인트**: 90개+
-- **지원 기록 유형**: 14가지 (기본 4가지 + 상세 10가지)
-- **축산물이력제 조회 옵션**: 7가지
-- **인증 방식**: JWT (Access/Refresh Token)
-- **데이터베이스**: Firebase Firestore (NoSQL)
-- **배포 환경**: AWS EC2
-- **외부 연동**: 축산물품질평가원 OpenAPI
+### 3. AI 챗봇 사용 패턴
+```
+사용자 질문 입력
+     ↓
+질문 분류 (낙농지식/농장데이터/일반/무관)
+     ↓
+적절한 응답 생성
+     ↓
+결과 반환
+```
 
 ## 📄 라이선스
 
@@ -808,6 +832,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-
----
-**최종 업데이트**: 2025년 6월 22일 - v2.6.0 축산물이력제 연동 및 상세 기록 관리 시스템 추가
