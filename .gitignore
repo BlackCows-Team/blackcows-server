@@ -108,6 +108,7 @@ config/*.json
 !firebase.json
 !firestore.indexes.json
 !package.json
+!logging_config.json
 
 */bin
 blackcows/bin
