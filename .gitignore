@@ -112,3 +112,7 @@ config/*.json
 !firebase.json
 !firestore.indexes.json
 !package.json
+
+# 로컬 가상환경
+*/bin
+blackcows/bin
