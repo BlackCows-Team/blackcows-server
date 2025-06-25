@@ -289,7 +289,8 @@ class RecordFirebaseService:
             # 기본 쿼리
             query = (db.collection('cow_records')
                     .where('cow_id', '==', cow_id)
-                    .where('farm_id', '==', farm_id))
+                    .where('farm_id', '==', farm_id)
+                    .get())
             
             # 기록 유형 필터링
             if record_type:
@@ -379,7 +380,8 @@ class RecordFirebaseService:
             db = get_firestore_client()
             # 기본 쿼리
             query = (db.collection('cow_records')
-                    .where('farm_id', '==', farm_id))
+                    .where('farm_id', '==', farm_id)
+                    .get())
             
             # 기록 유형 필터링
             if record_type:

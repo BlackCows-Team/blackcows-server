@@ -30,7 +30,8 @@ class LivestockCowService:
             # 1. 이미 등록된 젖소인지 확인 (전체 시스템에서)
             existing_cow_query = (db.collection('cows')
                                 .where('ear_tag_number', '==', ear_tag_number)
-                                .where('is_active', '==', True))
+                                .where('is_active', '==', True)
+                                .get())
             
             if existing_cow_query:
                 existing_cow = existing_cow_query[0].to_dict()
@@ -104,7 +105,8 @@ class LivestockCowService:
             # 1. 중복 확인 (전체 시스템에서)
             existing_cow_query = (db.collection('cows')
                                 .where('ear_tag_number', '==', ear_tag_number)
-                                .where('is_active', '==', True))
+                                .where('is_active', '==', True)
+                                .get())
             
             if existing_cow_query:
                 existing_cow = existing_cow_query[0].to_dict()
@@ -125,7 +127,8 @@ class LivestockCowService:
                 existing_sensor_query = (db.collection('cows')
                                        .where('farm_id', '==', farm_id)
                                        .where('sensor_number', '==', sensor_number)
-                                       .where('is_active', '==', True))
+                                       .where('is_active', '==', True)
+                                       .get())
                 
                 if existing_sensor_query:
                     raise HTTPException(

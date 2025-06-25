@@ -86,7 +86,8 @@ def get_recent_milking_records(
                         .where('record_type', '==', DetailedRecordType.MILKING.value)
                         .where('is_active', '==', True)
                         .order_by('record_date', direction='DESCENDING')
-                        .limit(limit))
+                        .limit(limit)
+                        .get())
         
         records = []
         for record_doc in records_query:
@@ -613,7 +614,8 @@ def get_milking_statistics(
                           .where(filter=('record_type', '==', DetailedRecordType.MILKING.value))
                           .where(filter=('is_active', '==', True))
                           .where(filter=('record_date', '>=', start_date.strftime('%Y-%m-%d')))
-                          .where(filter=('record_date', '<=', end_date.strftime('%Y-%m-%d'))))
+                          .where(filter=('record_date', '<=', end_date.strftime('%Y-%m-%d')))
+                          .get())
         
         total_yield = 0
         total_sessions = 0
@@ -698,7 +700,8 @@ def get_weight_trend(
                          .where(filter=('record_type', '==', DetailedRecordType.WEIGHT.value))
                          .where(filter=('is_active', '==', True))
                          .where(filter=('record_date', '>=', start_date.strftime('%Y-%m-%d')))
-                         .order_by('record_date'))
+                         .order_by('record_date')
+                         .get())
         
         weights = []
         for record in weight_records:
@@ -760,7 +763,8 @@ def get_reproduction_timeline(
                       .where(filter=('record_type', '==', record_type))
                       .where(filter=('is_active', '==', True))
                       .order_by('record_date', direction='DESCENDING')
-                      .limit(10))
+                      .limit(10)
+                      .get())
             
             for record in records:
                 data = record.to_dict()
@@ -811,7 +815,8 @@ def get_cow_records_summary(
                         .where(filter=('cow_id', '==', cow_id))
                         .where(filter=('farm_id', '==', farm_id))
                         .where(filter=('record_type', '==', record_type.value))
-                        .where(filter=('is_active', '==', True))))
+                        .where(filter=('is_active', '==', True))
+                        .get()))
             total_counts[record_type.value] = count
         
         # 최근 30일 기록 개수
@@ -820,13 +825,15 @@ def get_cow_records_summary(
                            .where(filter=('farm_id', '==', farm_id))
                            .where(filter=('record_type', '==', record_type.value))
                            .where(filter=('is_active', '==', True))
-                           .where(filter=('record_date', '>=', thirty_days_ago))))
+                           .where(filter=('record_date', '>=', thirty_days_ago))
+                           .get()))
         
         # 전체 기록 개수
         total_records = len((db.collection('cow_detailed_records')
                            .where(filter=('cow_id', '==', cow_id))
                            .where(filter=('farm_id', '==', farm_id))
-                           .where(filter=('is_active', '==', True))))
+                           .where(filter=('is_active', '==', True))
+                           .get()))
         
         return {
             "cow_id": cow_id,
@@ -873,6 +880,7 @@ def get_cow_health_records(
                       .where(filter=('record_type', '==', record_type))
                       .where(filter=('is_active', '==', True))
                       .order_by('record_date', direction='DESCENDING')
+                      .limit(limit)
                       .get())
             
             for record in records:
@@ -920,7 +928,8 @@ def get_cow_all_milking_records(
                   .where(filter=('record_type', '==', DetailedRecordType.MILKING.value))
                   .where(filter=('is_active', '==', True))
                   .order_by('record_date', direction='DESCENDING')
-                  .limit(limit))
+                  .limit(limit)
+                  .get())
         
         result = []
         for record in records:
@@ -975,6 +984,7 @@ def get_cow_breeding_records(
                       .where(filter=('record_type', '==', record_type))
                       .where(filter=('is_active', '==', True))
                       .order_by('record_date', direction='DESCENDING')
+                      .limit(limit)
                       .get())
             
             for record in records:
@@ -1022,7 +1032,8 @@ def get_cow_feed_records(
                   .where(filter=('record_type', '==', DetailedRecordType.FEED.value))
                   .where(filter=('is_active', '==', True))
                   .order_by('record_date', direction='DESCENDING')
-                  .limit(limit))
+                  .limit(limit)
+                  .get())
         
         result = []
         for record in records:
@@ -1067,7 +1078,8 @@ def get_cow_weight_records(
                   .where(filter=('record_type', '==', DetailedRecordType.WEIGHT.value))
                   .where(filter=('is_active', '==', True))
                   .order_by('record_date', direction='DESCENDING')
-                  .limit(limit))
+                  .limit(limit)
+                  .get())
         
         result = []
         for record in records:
@@ -1181,7 +1193,8 @@ def get_cow_all_records(
             query = query.where(filter=('record_type', '==', record_type.value))
         
         records = (query.order_by('record_date', direction='DESCENDING')
-                  .limit(limit))
+                  .limit(limit)
+                  .get())
         
         result = []
         for record in records:

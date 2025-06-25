@@ -22,7 +22,8 @@ class CowFirebaseService:
             # 전체 시스템에서 이표번호 중복 확인 (농장 구분 없이)
             existing_cow_query = (db.collection('cows')
                                 .where('ear_tag_number', '==', cow_data.ear_tag_number)
-                                .where('is_active', '==', True))
+                                .where('is_active', '==', True)
+                                .get())
             
             if existing_cow_query.get():
                 existing_cow = existing_cow_query[0].to_dict()
@@ -37,7 +38,8 @@ class CowFirebaseService:
                 existing_sensor_query = (db.collection('cows')
                                        .where('farm_id', '==', farm_id)
                                        .where('sensor_number', '==', cow_data.sensor_number)
-                                       .where('is_active', '==', True))
+                                       .where('is_active', '==', True)
+                                       .get())
                 
                 if existing_sensor_query.get():
                     raise HTTPException(
@@ -105,7 +107,8 @@ class CowFirebaseService:
             cows_query = (db.collection('cows')
                          .where('farm_id', '==', farm_id)
                          .where('is_active', '==', is_active)
-                         .order_by('created_at', direction='DESCENDING'))
+                         .order_by('created_at', direction='DESCENDING')
+                         .get())
             
             cows = []
             for cow_doc in cows_query:
@@ -237,7 +240,8 @@ class CowFirebaseService:
                     existing_sensor_query = (db.collection('cows')
                                            .where('farm_id', '==', farm_id)
                                            .where('sensor_number', '==', cow_update.sensor_number)
-                                           .where('is_active', '==', True))
+                                           .where('is_active', '==', True)
+                                           .get())
                     
                     for doc in existing_sensor_query:
                         if doc.to_dict().get("id") != cow_id:
@@ -301,7 +305,8 @@ class CowFirebaseService:
             # 상세 기록 삭제
             detailed_records_query = (db.collection('cow_detailed_records')
                                     .where('cow_id', '==', cow_id)
-                                    .where('farm_id', '==', farm_id))
+                                    .where('farm_id', '==', farm_id)
+                                    .get())
             
             for record in detailed_records_query:
                 record.reference.delete()
@@ -309,7 +314,8 @@ class CowFirebaseService:
             # 기본 기록 삭제
             basic_records_query = (db.collection('cow_records')
                                  .where('cow_id', '==', cow_id)
-                                 .where('farm_id', '==', farm_id))
+                                 .where('farm_id', '==', farm_id)
+                                 .get())
             
             for record in basic_records_query:
                 record.reference.delete()
@@ -378,7 +384,8 @@ class CowFirebaseService:
                          .where('farm_id', '==', farm_id)
                          .where('is_favorite', '==', True)
                          .where('is_active', '==', True)
-                         .order_by('updated_at', direction='DESCENDING'))
+                         .order_by('updated_at', direction='DESCENDING')
+                         .get())
             
             cows = []
             for cow_doc in cows_query:

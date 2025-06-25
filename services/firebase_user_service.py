@@ -165,7 +165,8 @@ class FirebaseUserService:
                     .where('username', '==', username)
                     .where('email', '==', email)
                     .where('is_active', '==', True)
-                    .limit(1))
+                    .limit(1)
+                    .get())
             
             if query:
                 return query[0].to_dict()
@@ -187,7 +188,8 @@ class FirebaseUserService:
                     .where('user_id', '==', user_id)
                     .where('email', '==', email)
                     .where('is_active', '==', True)
-                    .limit(1))
+                    .limit(1)
+                    .get())
             
             if query:
                 return query[0].to_dict()

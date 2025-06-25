@@ -122,7 +122,8 @@ def get_record_statistics(current_user: dict = Depends(get_current_user)):
             count = len((db.collection('cow_records')
                         .where(filter=('farm_id', '==', farm_id))
                         .where(filter=('record_type', '==', record_type))
-                        .where(filter=('is_active', '==', True))))
+                        .where(filter=('is_active', '==', True))
+                        .get()))
             record_stats[record_type] = count
         
         # 최근 30일 기록 수
@@ -131,7 +132,8 @@ def get_record_statistics(current_user: dict = Depends(get_current_user)):
         recent_records_count = len((db.collection('cow_records')
                                   .where(filter=('farm_id', '==', farm_id))
                                   .where(filter=('created_at', '>=', thirty_days_ago))
-                                  .where(filter=('is_active', '==', True))))
+                                  .where(filter=('is_active', '==', True))
+                                  .get()))
         
         # 전체 기록 수
         total_records = sum(record_stats.values())
