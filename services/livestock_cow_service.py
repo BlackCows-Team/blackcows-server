@@ -11,38 +11,49 @@ import xml.etree.ElementTree as ET
 import os
 
 class LivestockCowService:
+    # 메모리 캐싱 
+    _cache = {}  # 결과 저장
+    _cache_time = {}  # 언제 저장했는지 기록
     
     @staticmethod
     async def check_registration_status(ear_tag_number: str, farm_id: str) -> Dict:
         """
         젖소 등록 상태 확인
         
-        1. 이미 등록된 젖소인지 확인
+        1. 이미 등록된 젖소인지 확인 (전체 시스템에서)
         2. 축산물이력제에서 조회 가능한지 확인
         3. 상태에 따른 응답 반환
         """
         try:
             db = get_firestore_client()
             
-            # 1. 이미 등록된 젖소인지 확인 (해당 농장 내)
-            existing_cow_query = db.collection('cows')\
-                .where('farm_id', '==', farm_id)\
-                .where('ear_tag_number', '==', ear_tag_number)\
-                .where('is_active', '==', True)\
-                .get()
+            # 1. 이미 등록된 젖소인지 확인 (전체 시스템에서)
+            existing_cow_query = (db.collection('cows')
+                                .where('ear_tag_number', '==', ear_tag_number)
+                                .where('is_active', '==', True)
+                                .get())
             
             if existing_cow_query:
                 existing_cow = existing_cow_query[0].to_dict()
+                existing_farm_id = existing_cow.get("farm_id")
+                
+                # 같은 농장인지 다른 농장인지 확인
+                if existing_farm_id == farm_id:
+                    message = f"이표번호 '{ear_tag_number}'은 이미 등록된 젖소입니다"
+                else:
+                    message = f"이표번호 '{ear_tag_number}'은 이미 다른 농장에서 등록되어 있습니다"
+                
                 return {
                     "status": "already_registered",
                     "ear_tag_number": ear_tag_number,
-                    "message": f"이표번호 '{ear_tag_number}'은 이미 등록된 젖소입니다",
+                    "message": message,
                     "existing_cow_info": {
                         "id": existing_cow["id"],
                         "name": existing_cow["name"],
                         "ear_tag_number": existing_cow["ear_tag_number"],
                         "birthdate": existing_cow.get("birthdate"),
                         "breed": existing_cow.get("breed"),
+                        "farm_id": existing_farm_id,
                         "created_at": existing_cow["created_at"].isoformat() if existing_cow.get("created_at") else None
                     }
                 }
@@ -91,26 +102,33 @@ class LivestockCowService:
             db = get_firestore_client()
             farm_id = user.get("farm_id")
             
-            # 1. 중복 확인 (다시 한번 체크)
-            existing_cow_query = db.collection('cows')\
-                .where('farm_id', '==', farm_id)\
-                .where('ear_tag_number', '==', ear_tag_number)\
-                .where('is_active', '==', True)\
-                .get()
+            # 1. 중복 확인 (전체 시스템에서)
+            existing_cow_query = (db.collection('cows')
+                                .where('ear_tag_number', '==', ear_tag_number)
+                                .where('is_active', '==', True)
+                                .get())
             
             if existing_cow_query:
+                existing_cow = existing_cow_query[0].to_dict()
+                existing_farm_id = existing_cow.get("farm_id")
+                
+                if existing_farm_id == farm_id:
+                    detail_message = f"이표번호 '{ear_tag_number}'는 이미 등록되어 있습니다"
+                else:
+                    detail_message = f"이표번호 '{ear_tag_number}'는 이미 다른 농장에서 등록되어 있습니다"
+                
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"이표번호 '{ear_tag_number}'는 이미 등록되어 있습니다"
+                    detail=detail_message
                 )
             
             # 2. 센서 번호 중복 확인 (제공된 경우)
             if sensor_number:
-                existing_sensor_query = db.collection('cows')\
-                    .where('farm_id', '==', farm_id)\
-                    .where('sensor_number', '==', sensor_number)\
-                    .where('is_active', '==', True)\
-                    .get()
+                existing_sensor_query = (db.collection('cows')
+                                       .where('farm_id', '==', farm_id)
+                                       .where('sensor_number', '==', sensor_number)
+                                       .where('is_active', '==', True)
+                                       .get())
                 
                 if existing_sensor_query:
                     raise HTTPException(
@@ -185,11 +203,24 @@ class LivestockCowService:
     
     @staticmethod
     async def _fetch_livestock_trace_data(ear_tag_number: str) -> Optional[Dict]:
-        """
-        축산물이력제 API에서 젖소 정보 조회
-        livestock_trace.py의 로직을 재사용
-        """
+        """축산물이력제 API에서 젖소 정보 조회"""
         try:
+            # 캐시 확인 (5분간 유효)
+            current_time = datetime.utcnow()
+            if ear_tag_number in LivestockCowService._cache:
+                cached_time = LivestockCowService._cache_time[ear_tag_number]
+                time_diff = (current_time - cached_time).total_seconds()
+                
+                if time_diff < 300:  # 5분
+                    print(f"[캐시 사용] 이표번호 {ear_tag_number}")
+                    return LivestockCowService._cache[ear_tag_number]
+                else:
+                    # 오래된 캐시 삭제
+                    del LivestockCowService._cache[ear_tag_number]
+                    del LivestockCowService._cache_time[ear_tag_number]
+            
+            print(f"[API 호출] 이표번호 {ear_tag_number}")
+            
             service_key = os.getenv("LIVESTOCK_TRACE_API_DECODING_KEY")
             if not service_key:
                 print("[ERROR] 축산물이력제 API 키가 설정되지 않았습니다")
@@ -208,11 +239,18 @@ class LivestockCowService:
             # 기본 정보 파싱
             parsed_basic_info = LivestockCowService._parse_basic_info(basic_info, ear_tag_number)
             
-            return {
+            result = {
                 "basic_info": parsed_basic_info,
                 "ear_tag_number": ear_tag_number,
-                "api_response_time": datetime.utcnow().isoformat()
+                "api_response_time": current_time.isoformat()
             }
+            
+            # 캐시에 저장
+            LivestockCowService._cache[ear_tag_number] = result
+            LivestockCowService._cache_time[ear_tag_number] = current_time
+            print(f"[캐시 저장] 이표번호 {ear_tag_number}")
+            
+            return result
             
         except Exception as e:
             print(f"[ERROR] 축산물이력제 API 조회 실패: {str(e)}")

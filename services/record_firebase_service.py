@@ -287,14 +287,14 @@ class RecordFirebaseService:
             cow_info = RecordFirebaseService._get_cow_info(cow_id, farm_id)
             
             # 기본 쿼리
-            query = db.collection('cow_records')\
-                .where('cow_id', '==', cow_id)\
-                .where('farm_id', '==', farm_id)\
-                .where('is_active', '==', True)
+            query = (db.collection('cow_records')
+                    .where('cow_id', '==', cow_id)
+                    .where('farm_id', '==', farm_id)
+                    .get())
             
             # 기록 유형 필터링
             if record_type:
-                query = query.where(('record_type', '==', record_type.value))
+                query = query.where('record_type', '==', record_type.value)
             
             # 날짜 순으로 정렬 (최신순)
             records_query = query.order_by('record_date', direction='DESCENDING').get()
@@ -379,9 +379,9 @@ class RecordFirebaseService:
         try:
             db = get_firestore_client()
             # 기본 쿼리
-            query = db.collection('cow_records')\
-                .where('farm_id', '==', farm_id)\
-                .where('is_active', '==', True)
+            query = (db.collection('cow_records')
+                    .where('farm_id', '==', farm_id)
+                    .get())
             
             # 기록 유형 필터링
             if record_type:

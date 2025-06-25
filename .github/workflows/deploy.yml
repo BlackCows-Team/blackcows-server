@@ -104,6 +104,8 @@ jobs:
           # tmux 세션에서 패키지 업데이트
           tmux send-keys -t 0 "pip install --upgrade pip" Enter
           sleep 3
+          tmux send-keys -t 0 "pip install --upgrade --force-reinstall bcrypt==4.0.1 passlib[bcrypt]==1.7.4" Enter
+          sleep 5
           tmux send-keys -t 0 "pip install -r requirements.txt" Enter
           sleep 8
 
@@ -149,7 +151,7 @@ jobs:
           # 축산물이력제 API 키도 환경변수로 설정
           tmux send-keys -t 0 "export LIVESTOCK_TRACE_API_DECODING_KEY=${{ secrets.LIVESTOCK_TRACE_API_DECODING_KEY }}" Enter
           sleep 1
-          tmux send-keys -t 0 "uvicorn main:app --host 0.0.0.0 --port 8000 --reload" Enter
+          tmux send-keys -t 0 "uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level info --access-log" Enter
           
           echo "=== 서버 시작 대기 (15초) ==="
           sleep 15

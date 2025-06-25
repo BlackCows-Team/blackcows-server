@@ -1,8 +1,12 @@
 import os
+import warnings
 from fastapi import FastAPI
 from routers import chatbot_router, cow, record, detailed_record, livestock_trace
 from routers import auth_firebase
 from fastapi.middleware.cors import CORSMiddleware
+
+# Firestore positional arguments 경고 무시
+warnings.filterwarnings("ignore", message="Detected filter using positional arguments*")
 
 # .env 파일 로드
 from dotenv import load_dotenv
@@ -19,7 +23,7 @@ if not os.getenv("LIVESTOCK_TRACE_API_DECODING_KEY"):
 
 app = FastAPI(
     title="낙농 관리 서버 API",
-    version="2.6.3",
+    version="2.7.0",
     description="낙농 관리 시스템",
 )
 
@@ -49,7 +53,7 @@ def health_check():
     return {
         "status": "success",
         "message": "낙농 관리 서버가 정상 작동 중입니다!!!",
-        "version": "2.6.3",
+        "version": "2.7.0",
         "features": [
             "젖소 기본 관리",
             "축산물이력제 연동 젖소 등록",
@@ -85,4 +89,4 @@ def health_check():
     }
 @app.get("/health")
 def health_status():
-    return {"status": "healthy", "version": "2.6.3"}
+    return {"status": "healthy", "version": "2.7.0"}

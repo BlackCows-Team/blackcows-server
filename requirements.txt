@@ -2,7 +2,7 @@ aiosmtplib==2.0.2
 annotated-types==0.7.0
 anyio==4.9.0
 async-timeout==5.0.1
-bcrypt==4.3.0
+bcrypt==4.0.1
 blinker==1.9.0
 CacheControl==0.14.3
 cachetools==5.5.2

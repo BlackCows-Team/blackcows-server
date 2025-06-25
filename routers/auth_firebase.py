@@ -5,10 +5,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from schemas.user import (
     UserCreate, UserLogin, TokenResponse, RefreshTokenRequest, UserResponse,
     FindUserIdRequest, PasswordResetRequest, PasswordResetConfirm,
-    TemporaryTokenLogin, ChangePasswordRequest, DeleteAccountRequest
+    TemporaryTokenLogin, ChangePasswordRequest, DeleteAccountRequest,
+    FarmNicknameUpdate
 )
 from services.firebase_user_service import FirebaseUserService, ACCESS_TOKEN_EXPIRE_MINUTES
-from config.email_config import email_config
+
 from datetime import timedelta
 
 router = APIRouter()
@@ -27,16 +28,7 @@ async def register_user(user_data: UserCreate):
         password=user_data.password,            # 비밀번호
         farm_nickname=user_data.farm_nickname   # 목장 별명 (선택)
     )
-    
-    # 환영 이메일 발송 (선택사항)
-    try:
-        await email_config.send_welcome_email(
-            email=user_data.email,
-            username=user_data.username
-        )
-    except Exception as e:
-        print(f"[WARNING] 환영 이메일 발송 실패: {str(e)}")
-        # 이메일 발송 실패해도 회원가입은 성공으로 처리
+
     
     return {
         "success": True,
@@ -184,26 +176,11 @@ async def request_password_reset(request: PasswordResetRequest):
         
         # JWT 기반 비밀번호 재설정 토큰 생성 (1시간 유효)
         reset_token = FirebaseUserService.create_password_reset_token(user)
-        
-        # 이메일 발송
-        try:
-            email_sent = await email_config.send_password_reset_email(
-                email=request.email, 
-                username=request.username, 
-                reset_token=reset_token
-            )
-            
-            if not email_sent:
-                print(f"[WARNING] 이메일 발송 실패 - {request.email}")
-                # 이메일 발송 실패해도 요청은 성공으로 처리 (보안상)
-                
-        except Exception as e:
-            print(f"[ERROR] 이메일 발송 중 오류: {str(e)}")
-            # 이메일 발송 실패해도 요청은 성공으로 처리 (보안상)
+
         
         return {
             "success": True,
-            "message": f"{user['username']}님의 이메일({request.email})로 비밀번호 재설정 링크를 전송했습니다",
+            "message": f"{user['username']}님의 비밀번호 재설정 요청이 완료되었습니다",
             "username": user["username"],               # 사용자 이름/실명
             "user_id": request.user_id,                 # 로그인용 아이디
             "email": request.email,                     # 이메일
@@ -504,6 +481,72 @@ def change_password(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"비밀번호 변경 중 오류가 발생했습니다: {str(e)}"
+        )
+
+# ============= 목장 이름 수정 API =============
+
+@router.put("/update-farm-name",
+           response_model=dict,
+           summary="목장 이름 수정",
+           description="현재 로그인된 사용자의 목장 이름을 수정합니다.")
+def update_farm_name(
+    request: FarmNicknameUpdate,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """목장 이름 수정"""
+    try:
+        token = credentials.credentials
+        
+        # 일반 액세스 토큰 검증 (로그인된 사용자)
+        user = FirebaseUserService.verify_access_token(token)
+        
+        # Firebase DB에서 사용자 문서의 farm_nickname 필드 업데이트
+        from config.firebase_config import get_firestore_client
+        from datetime import datetime
+        db = get_firestore_client()
+        
+        # 사용자 문서 업데이트
+        update_data = {
+            "farm_nickname": request.farm_nickname,
+            "updated_at": datetime.utcnow()
+        }
+        
+        db.collection('users').document(user["id"]).update(update_data)
+        
+        # 업데이트된 사용자 정보 가져오기
+        updated_user_doc = db.collection('users').document(user["id"]).get()
+        if not updated_user_doc.exists:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="사용자를 찾을 수 없습니다"
+            )
+        
+        updated_user_data = updated_user_doc.to_dict()
+        
+        # 사용자 정보 응답 (비밀번호 제외)
+        user_response = UserResponse(
+            id=updated_user_data["id"],
+            username=updated_user_data["username"],              # 사용자 이름/실명
+            user_id=updated_user_data["user_id"],                # 로그인용 아이디
+            email=updated_user_data["email"],                    # 이메일
+            farm_nickname=updated_user_data["farm_nickname"],    # 수정된 목장 별명
+            farm_id=updated_user_data["farm_id"],                # 농장 ID
+            created_at=updated_user_data["created_at"],          # 가입일
+            is_active=updated_user_data["is_active"]             # 활성 상태
+        )
+        
+        return {
+            "success": True,
+            "message": "목장 이름이 성공적으로 수정되었습니다",
+            "user": user_response.dict()
+        }
+            
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"목장 이름 수정 중 오류가 발생했습니다: {str(e)}"
         )
 
 # ============= 회원탈퇴 API =============
