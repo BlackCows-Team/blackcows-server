@@ -10,7 +10,8 @@ def initialize_firebase():
     """Firebase 초기화 - 환경변수 기반"""
     
     # 방법 1: JSON 파일 경로를 사용하는 경우
-    json_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+    # json_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+    json_path = "config/firebase-service-account.json"
     
     if json_path and os.path.exists(json_path):
         if not firebase_admin._apps:
@@ -63,3 +64,4 @@ def get_firestore_client():
     if db is None:
         raise ValueError("Firebase가 초기화되지 않았습니다.")
     return db
+
