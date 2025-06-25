@@ -82,6 +82,7 @@ desktop.ini
 # 테스트용 파일들
 test_main.py
 raw_response_debug.py
+test_chatbot.py
 
 # 임시 파일들
 *.tmp
@@ -96,6 +97,9 @@ current_indexes.json
 **/service-account-key.json
 *.json
 config/service-account-key.json
+config/firebase-service-account.json
+config/firebase_config.py
+
 
 # Firebase 배포 관련
 .firebase/
@@ -112,4 +116,7 @@ config/*.json
 !logging_config_simple.json
 
 */bin
-blackcows/bin
+*/blackcows/bin/*
+*/blackcows/bin/
+blackcows/bin/*
+blackcows/bin/
