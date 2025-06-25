@@ -804,10 +804,10 @@ class DetailedRecordService:
             db = get_firestore_client()
             cow_info = DetailedRecordService._get_cow_info(cow_id, farm_id)
             
-            query = db.collection('cow_detailed_records')\
-                .where(('cow_id', '==', cow_id))\
-                .where(('farm_id', '==', farm_id))\
-                .where(('is_active', '==', True))
+            query = (db.collection('cow_detailed_records')
+                    .where(('cow_id', '==', cow_id))
+                    .where(('farm_id', '==', farm_id))
+                    .where(('is_active', '==', True)))
             
             if record_type:
                 query = query.where(('record_type', '==', record_type.value))

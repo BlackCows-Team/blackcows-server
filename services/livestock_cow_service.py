@@ -28,10 +28,9 @@ class LivestockCowService:
             db = get_firestore_client()
             
             # 1. 이미 등록된 젖소인지 확인 (전체 시스템에서)
-            existing_cow_query = db.collection('cows')\
-                .where('ear_tag_number', '==', ear_tag_number)\
-                .where('is_active', '==', True)\
-                .get()
+            existing_cow_query = (db.collection('cows')
+                                .where('ear_tag_number', '==', ear_tag_number)
+                                .where('is_active', '==', True))
             
             if existing_cow_query:
                 existing_cow = existing_cow_query[0].to_dict()
@@ -103,10 +102,9 @@ class LivestockCowService:
             farm_id = user.get("farm_id")
             
             # 1. 중복 확인 (전체 시스템에서)
-            existing_cow_query = db.collection('cows')\
-                .where('ear_tag_number', '==', ear_tag_number)\
-                .where('is_active', '==', True)\
-                .get()
+            existing_cow_query = (db.collection('cows')
+                                .where('ear_tag_number', '==', ear_tag_number)
+                                .where('is_active', '==', True))
             
             if existing_cow_query:
                 existing_cow = existing_cow_query[0].to_dict()
@@ -124,11 +122,10 @@ class LivestockCowService:
             
             # 2. 센서 번호 중복 확인 (제공된 경우)
             if sensor_number:
-                existing_sensor_query = db.collection('cows')\
-                    .where('farm_id', '==', farm_id)\
-                    .where('sensor_number', '==', sensor_number)\
-                    .where('is_active', '==', True)\
-                    .get()
+                existing_sensor_query = (db.collection('cows')
+                                       .where('farm_id', '==', farm_id)
+                                       .where('sensor_number', '==', sensor_number)
+                                       .where('is_active', '==', True))
                 
                 if existing_sensor_query:
                     raise HTTPException(

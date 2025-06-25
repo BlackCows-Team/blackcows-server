@@ -119,21 +119,19 @@ def get_record_statistics(current_user: dict = Depends(get_current_user)):
         # 기록 유형별 통계
         record_stats = {}
         for record_type in ["breeding", "disease", "status_change", "other"]:
-            count = len(db.collection('cow_records')\
-                       .where(filter=('farm_id', '==', farm_id))\
-                       .where(filter=('record_type', '==', record_type))\
-                       .where(filter=('is_active', '==', True))\
-                       .get())
+            count = len((db.collection('cow_records')
+                        .where(filter=('farm_id', '==', farm_id))
+                        .where(filter=('record_type', '==', record_type))
+                        .where(filter=('is_active', '==', True))))
             record_stats[record_type] = count
         
         # 최근 30일 기록 수
         from datetime import datetime, timedelta
         thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-        recent_records_count = len(db.collection('cow_records')\
-                                  .where(filter=('farm_id', '==', farm_id))\
-                                  .where(filter=('created_at', '>=', thirty_days_ago))\
-                                  .where(filter=('is_active', '==', True))\
-                                  .get())
+        recent_records_count = len((db.collection('cow_records')
+                                  .where(filter=('farm_id', '==', farm_id))
+                                  .where(filter=('created_at', '>=', thirty_days_ago))
+                                  .where(filter=('is_active', '==', True))))
         
         # 전체 기록 수
         total_records = sum(record_stats.values())

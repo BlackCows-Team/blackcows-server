@@ -20,12 +20,11 @@ class CowFirebaseService:
         """새로운 젖소 등록"""
         try:
             # 전체 시스템에서 이표번호 중복 확인 (농장 구분 없이)
-            existing_cow_query = db.collection('cows')\
-                .where('ear_tag_number', '==', cow_data.ear_tag_number)\
-                .where('is_active', '==', True)\
-                .get()
+            existing_cow_query = (db.collection('cows')
+                                .where('ear_tag_number', '==', cow_data.ear_tag_number)
+                                .where('is_active', '==', True))
             
-            if existing_cow_query:
+            if existing_cow_query.get():
                 existing_cow = existing_cow_query[0].to_dict()
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -35,13 +34,12 @@ class CowFirebaseService:
             # 센서 번호가 제공된 경우에만 중복 확인 (농장별로)
             farm_id = user.get("farm_id")
             if cow_data.sensor_number:
-                existing_sensor_query = db.collection('cows')\
-                    .where('farm_id', '==', farm_id)\
-                    .where('sensor_number', '==', cow_data.sensor_number)\
-                    .where('is_active', '==', True)\
-                    .get()
+                existing_sensor_query = (db.collection('cows')
+                                       .where('farm_id', '==', farm_id)
+                                       .where('sensor_number', '==', cow_data.sensor_number)
+                                       .where('is_active', '==', True))
                 
-                if existing_sensor_query:
+                if existing_sensor_query.get():
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"센서 번호 '{cow_data.sensor_number}'는 이미 사용 중입니다"
@@ -104,11 +102,10 @@ class CowFirebaseService:
     def get_cows_by_farm(farm_id: str, is_active: bool = True) -> List[CowResponse]:
         """농장별 젖소 목록 조회"""
         try:
-            cows_query = db.collection('cows')\
-                .where('farm_id', '==', farm_id)\
-                .where('is_active', '==', is_active)\
-                .order_by('created_at', direction='DESCENDING')\
-                .get()
+            cows_query = (db.collection('cows')
+                         .where('farm_id', '==', farm_id)
+                         .where('is_active', '==', is_active)
+                         .order_by('created_at', direction='DESCENDING'))
             
             cows = []
             for cow_doc in cows_query:
@@ -237,11 +234,10 @@ class CowFirebaseService:
             if cow_update.sensor_number is not None:
                 # 센서 번호가 제공된 경우에만 중복 확인
                 if cow_update.sensor_number.strip():  # 빈 문자열이 아닌 경우
-                    existing_sensor_query = db.collection('cows')\
-                        .where('farm_id', '==', farm_id)\
-                        .where('sensor_number', '==', cow_update.sensor_number)\
-                        .where('is_active', '==', True)\
-                        .get()
+                    existing_sensor_query = (db.collection('cows')
+                                           .where('farm_id', '==', farm_id)
+                                           .where('sensor_number', '==', cow_update.sensor_number)
+                                           .where('is_active', '==', True))
                     
                     for doc in existing_sensor_query:
                         if doc.to_dict().get("id") != cow_id:
@@ -303,19 +299,17 @@ class CowFirebaseService:
             
             # 1. 젖소 관련 모든 기록 삭제
             # 상세 기록 삭제
-            detailed_records_query = db.collection('cow_detailed_records')\
-                .where('cow_id', '==', cow_id)\
-                .where('farm_id', '==', farm_id)\
-                .get()
+            detailed_records_query = (db.collection('cow_detailed_records')
+                                    .where('cow_id', '==', cow_id)
+                                    .where('farm_id', '==', farm_id))
             
             for record in detailed_records_query:
                 record.reference.delete()
             
             # 기본 기록 삭제
-            basic_records_query = db.collection('cow_records')\
-                .where('cow_id', '==', cow_id)\
-                .where('farm_id', '==', farm_id)\
-                .get()
+            basic_records_query = (db.collection('cow_records')
+                                 .where('cow_id', '==', cow_id)
+                                 .where('farm_id', '==', farm_id))
             
             for record in basic_records_query:
                 record.reference.delete()
@@ -380,12 +374,11 @@ class CowFirebaseService:
     def get_favorite_cows(farm_id: str) -> List[CowResponse]:
         """즐겨찾기된 젖소 목록 조회"""
         try:
-            cows_query = db.collection('cows')\
-                .where('farm_id', '==', farm_id)\
-                .where('is_favorite', '==', True)\
-                .where('is_active', '==', True)\
-                .order_by('updated_at', direction='DESCENDING')\
-                .get()
+            cows_query = (db.collection('cows')
+                         .where('farm_id', '==', farm_id)
+                         .where('is_favorite', '==', True)
+                         .where('is_active', '==', True)
+                         .order_by('updated_at', direction='DESCENDING'))
             
             cows = []
             for cow_doc in cows_query:
