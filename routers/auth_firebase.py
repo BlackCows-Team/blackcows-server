@@ -9,10 +9,106 @@ from schemas.user import (
     FarmNicknameUpdate, SocialLoginRequest, AuthType
 )
 from services.firebase_user_service import FirebaseUserService, ACCESS_TOKEN_EXPIRE_MINUTES
-from datetime import timedelta
+from datetime import timedelta, datetime
+from config.firebase_config import get_firestore_client
 
 router = APIRouter()
 security = HTTPBearer()
+
+# Firestore 클라이언트
+db = get_firestore_client()
+
+# (개발용)
+
+@router.post("/mock-social-login",
+            summary="개발용 모의 SNS 로그인",
+            description="실제 SNS 토큰 없이 테스트할 수 있는 모의 엔드포인트")
+async def mock_social_login(mock_request: dict):
+    """개발용 모의 SNS 로그인"""
+    try:
+        auth_type = mock_request.get("auth_type")
+        mock_user_info = mock_request.get("mock_user_info", {})
+        
+        # 모의 사용자 정보 생성
+        from schemas.user import SocialUserInfo, AuthType
+        social_info = SocialUserInfo(
+            social_id=mock_user_info.get("social_id", "mock_id_12345"),
+            email=mock_user_info.get("email", f"mock@{auth_type}.test"),
+            name=mock_user_info.get("name", f"{auth_type.capitalize()} 테스트 사용자"),
+            profile_image=None
+        )
+        
+        # 기존 사용자 확인
+        existing_user = FirebaseUserService._find_user_by_social_id(
+            social_info.social_id, 
+            AuthType(auth_type)
+        )
+        
+        current_time = datetime.utcnow()
+        
+        if existing_user:
+            # 기존 사용자 로그인
+            db.collection('users').document(existing_user["id"]).update({
+                "last_login": current_time,
+                "updated_at": current_time
+            })
+            existing_user["last_login"] = current_time
+            user_data = existing_user
+            is_new_user = False
+        else:
+            # 신규 사용자 생성
+            from services.social_auth_service import SocialAuthService
+            username = social_info.name
+            user_id = SocialAuthService.generate_unique_user_id(social_info, AuthType(auth_type))
+            farm_nickname = f"{username}의 목장 ({auth_type} 테스트)"
+            
+            user_data = FirebaseUserService.create_user(
+                username=username,
+                user_id=user_id,
+                email=social_info.email,
+                password=None,
+                farm_nickname=farm_nickname,
+                auth_type=AuthType(auth_type),
+                social_id=social_info.social_id
+            )
+            is_new_user = True
+        
+        # 토큰 생성
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = FirebaseUserService.create_access_token(
+            data={"sub": user_data["user_id"], "user_uuid": user_data["id"]},
+            expires_delta=access_token_expires
+        )
+        refresh_token = FirebaseUserService.create_refresh_token(user_data["id"])
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            "user": {
+                "id": user_data["id"],
+                "username": user_data["username"],
+                "user_id": user_data["user_id"],
+                "email": user_data["email"],
+                "farm_nickname": user_data["farm_nickname"],
+                "farm_id": user_data["farm_id"],
+                "auth_type": user_data["auth_type"],
+                "created_at": user_data["created_at"].isoformat(),
+                "last_login": user_data["last_login"].isoformat(),
+                "is_active": user_data["is_active"]
+            },
+            "is_new_user": is_new_user,
+            "mock_mode": True
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"모의 로그인 처리 중 오류: {str(e)}"
+        )
+        
+        
 
 @router.post("/register", 
             response_model=dict,
