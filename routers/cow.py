@@ -220,12 +220,12 @@ def get_cow_by_tag_number(
         db = get_firestore_client()
         
         # 이표번호로 젖소 검색
-        cows_query = db.collection('cows')\
-            .where(filter=('farm_id', '==', farm_id))\
-            .where(filter=('ear_tag_number', '==', ear_tag_number))\
-            .where(filter=('is_active', '==', True))\
-            .limit(1)\
-            .get()
+        cows_query = (db.collection('cows')
+                     .where(filter=('farm_id', '==', farm_id))
+                     .where(filter=('ear_tag_number', '==', ear_tag_number))
+                     .where(filter=('is_active', '==', True))
+                     .limit(1)
+                     .get())
         
         if not cows_query:
             raise HTTPException(
@@ -273,37 +273,37 @@ def get_farm_statistics(current_user: dict = Depends(get_current_user)):
         db = get_firestore_client()
         
         # 전체 젖소 수
-        total_cows = len(db.collection('cows')\
-                         .where(filter=('farm_id', '==', farm_id))\
-                         .where(filter=('is_active', '==', True))\
-                         .get())
+        total_cows = len((db.collection('cows')
+                         .where(filter=('farm_id', '==', farm_id))
+                         .where(filter=('is_active', '==', True))
+                         .get()))
         
         # 건강상태별 통계
         health_stats = {}
         for status in ["normal", "warning", "danger"]:
-            count = len(db.collection('cows')\
-                       .where(filter=('farm_id', '==', farm_id))\
-                       .where(filter=('health_status', '==', status))\
-                       .where(filter=('is_active', '==', True))\
-                       .get())
+            count = len((db.collection('cows')
+                        .where(filter=('farm_id', '==', farm_id))
+                        .where(filter=('health_status', '==', status))
+                        .where(filter=('is_active', '==', True))
+                        .get()))
             health_stats[status] = count
         
         # 번식상태별 통계
         breeding_stats = {}
         for status in ["calf", "heifer", "pregnant", "lactating", "dry", "breeding"]:
-            count = len(db.collection('cows')\
-                       .where(filter=('farm_id', '==', farm_id))\
-                       .where(filter=('breeding_status', '==', status))\
-                       .where(filter=('is_active', '==', True))\
-                       .get())
+            count = len((db.collection('cows')
+                        .where(filter=('farm_id', '==', farm_id))
+                        .where(filter=('breeding_status', '==', status))
+                        .where(filter=('is_active', '==', True))
+                        .get()))
             breeding_stats[status] = count
         
         # 축산물이력제 연동 통계 추가
-        livestock_trace_registered = len(db.collection('cows')\
-                                        .where(filter=('farm_id', '==', farm_id))\
-                                        .where(filter=('registered_from_livestock_trace', '==', True))\
-                                        .where(filter=('is_active', '==', True))\
-                                        .get())
+        livestock_trace_registered = len((db.collection('cows')
+                                        .where(filter=('farm_id', '==', farm_id))
+                                        .where(filter=('registered_from_livestock_trace', '==', True))
+                                        .where(filter=('is_active', '==', True))
+                                        .get()))
         
         return {
             "total_cows": total_cows,

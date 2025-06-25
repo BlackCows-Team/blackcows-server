@@ -1,7 +1,7 @@
 import os
 import warnings
 from fastapi import FastAPI
-from routers import cow, record, detailed_record, livestock_trace, chatbot, ai_prediction
+from routers import cow, record, detailed_record, livestock_trace, chatbot_router, ai_prediction
 from routers import auth_firebase
 from fastapi.middleware.cors import CORSMiddleware
 

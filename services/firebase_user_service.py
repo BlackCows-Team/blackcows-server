@@ -161,12 +161,12 @@ class FirebaseUserService:
             users_ref = db.collection('users')
             
             # 이름과 이메일이 모두 일치하는 사용자 검색
-            query = users_ref\
-                .where('username', '==', username)\
-                .where('email', '==', email)\
-                .where('is_active', '==', True)\
-                .limit(1)\
-                .get()
+            query = (users_ref
+                    .where('username', '==', username)
+                    .where('email', '==', email)
+                    .where('is_active', '==', True)
+                    .limit(1)
+                    .get())
             
             if query:
                 return query[0].to_dict()
@@ -183,13 +183,13 @@ class FirebaseUserService:
             users_ref = db.collection('users')
             
             # 이름, user_id, 이메일이 모두 일치하는 사용자 검색
-            query = users_ref\
-                .where('username', '==', username)\
-                .where('user_id', '==', user_id)\
-                .where('email', '==', email)\
-                .where('is_active', '==', True)\
-                .limit(1)\
-                .get()
+            query = (users_ref
+                    .where('username', '==', username)
+                    .where('user_id', '==', user_id)
+                    .where('email', '==', email)
+                    .where('is_active', '==', True)
+                    .limit(1)
+                    .get())
             
             if query:
                 return query[0].to_dict()
