@@ -25,7 +25,7 @@ class CowFirebaseService:
                                 .where('is_active', '==', True)
                                 .get())
             
-            if existing_cow_query.get():
+            if existing_cow_query:
                 existing_cow = existing_cow_query[0].to_dict()
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -41,7 +41,7 @@ class CowFirebaseService:
                                        .where('is_active', '==', True)
                                        .get())
                 
-                if existing_sensor_query.get():
+                if existing_sensor_query:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"센서 번호 '{cow_data.sensor_number}'는 이미 사용 중입니다"
