@@ -807,8 +807,7 @@ class DetailedRecordService:
             query = (db.collection('cow_detailed_records')
                     .where(('cow_id', '==', cow_id))
                     .where(('farm_id', '==', farm_id))
-                    .where(('is_active', '==', True))
-                    .get())
+                    .where(('is_active', '==', True)))
             
             if record_type:
                 query = query.where(('record_type', '==', record_type.value))
