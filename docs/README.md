@@ -240,7 +240,13 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 
 | Method | Endpoint | 설명 | 필수 필드 | 응답 |
 |--------|----------|------|----------|------|
-| `POST` | `/chatbot/ask` | 챗봇 질문하기 | `user_id`, `chatroom_id`, `question` | 챗봇 응답 |
+| -------- | ----------------------------- | ------------------------------ | -------------------------------- | --------------------------------------------------- |
+| `POST`   | `/chatbot/ask`                | 챗봇 질문하기 (LangGraph 실행 + 응답 저장) | `user_id`, `chat_id`, `question` | `answer`                                            |
+| `GET`    | `/chatbot/rooms/{user_id}`    | 사용자의 채팅방 목록 조회                 | 없음 (경로에 `user_id`)               | `chats: [{chat_id, created_at}]`                    |
+| `POST`   | `/chatbot/rooms`              | 새로운 채팅방 생성                     | `user_id`                        | `chats: [{chat_id, created_at}]`                    |
+| `GET`    | `/chatbot/history/{chat_id}`  | 특정 채팅방의 메시지(대화 이력) 조회          | 없음 (경로에 `chat_id`)               | `chat_id`, `messages: [{role, content, timestamp}]` |
+| `DELETE` | `/chatbot/rooms/{chat_id}`    | 특정 채팅방 및 메시지 삭제                | 없음 (경로에 `chat_id`)               | `detail: 삭제 결과 메시지`                                 |
+| `DELETE` | `/chatbot/rooms/expired/auto` | 14일 이상 지난 채팅방 자동 삭제            | 없음                               | `detail: 삭제 결과 메시지`                                 |
 
 ### 🔧 시스템 정보 API
 
@@ -594,7 +600,13 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 - **질문 자동 분류**: 낙농 지식, 농장 데이터, 일반 대화, 무관한 질문 자동 구분
 - **OpenAI GPT-4o-mini**: 최신 AI 모델 활용으로 정확한 응답 제공
 - **한국어 전용**: 낙농업 전문용어에 특화된 한국어 대화 지원
-- **POST /chatbot/ask**: 챗봇 질문 API 엔드포인트 추가
+- API 엔드포인트 추가
+  - POST    /chatbot/ask
+  - GET     /chatbot/rooms/{user_id}
+  - POST    /chatbot/rooms
+  - GET     /chatbot/history/{chat_id}
+  - DELETE  /chatbot/rooms/{chat_id}
+  - DELETE  /chatbot/rooms/expired/auto 
 
 #### 🔐 사용자 관리 기능 강화
 - **목장 이름 수정 기능**: PUT /auth/update-farm-name 엔드포인트 추가
