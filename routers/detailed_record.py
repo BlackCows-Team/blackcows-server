@@ -875,10 +875,10 @@ def get_cow_health_records(
         all_records = []
         for record_type in health_types:
             records = (db.collection('cow_detailed_records')
-                      .where('cow_id', '==', cow_id)
-                      .where('farm_id', '==', farm_id)
-                      .where('record_type', '==', record_type)
-                      .where('is_active', '==', True)
+                      .where(filter=('cow_id', '==', cow_id))
+                      .where(filter=('farm_id', '==', farm_id))
+                      .where(filter=('record_type', '==', record_type))
+                      .where(filter=('is_active', '==', True))
                       .order_by('record_date', direction='DESCENDING')
                       .limit(limit)
                       .get())
