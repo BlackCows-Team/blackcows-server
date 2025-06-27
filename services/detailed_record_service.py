@@ -173,7 +173,7 @@ class DetailedRecordService:
                 "updated_at": current_time,
                 "is_active": True
             }
-            
+            print("🔥 저장될 record_data:", estrus_data)
             db.collection('cow_detailed_records').document(record_id).set(record_document)
             
             return DetailedRecordResponse(
@@ -205,6 +205,7 @@ class DetailedRecordService:
     def create_insemination_record(record_data: InseminationRecordCreate, user: Dict) -> DetailedRecordResponse:
         """인공수정 기록 생성"""
         try:
+            print("[DEBUG] 수신된 record_data:", record_data)
             db = get_firestore_client()
             farm_id = user.get("farm_id")
             cow_info = DetailedRecordService._get_cow_info(record_data.cow_id, farm_id)
@@ -1000,6 +1001,12 @@ class DetailedRecordService:
                     key_values["intensity"] = record_data["estrus_intensity"]
                 if record_data.get("estrus_duration"):
                     key_values["duration"] = f"{record_data['estrus_duration']}시간"
+                if record_data.get("visual_signs"):  # 👁️ 육안 관찰
+                    key_values["visual_signs"] = record_data["visual_signs"]
+                if record_data.get("next_expected_estrus"):  # 📅 다음 발정 예상일
+                    key_values["next_expected_estrus"] = record_data["next_expected_estrus"]
+                if "breeding_planned" in record_data:  # 🎯 교배 계획
+                    key_values["breeding_planned"] = record_data["breeding_planned"]
             
             elif record_type == DetailedRecordType.PREGNANCY_CHECK.value:
                 if record_data.get("check_result"):
@@ -1036,6 +1043,19 @@ class DetailedRecordService:
                     key_values["temperature"] = f"{record_data['body_temperature']}°C"
                 if record_data.get("body_condition_score"):
                     key_values["bcs"] = f"{record_data['body_condition_score']}"
+
+            elif record_type == DetailedRecordType.INSEMINATION.value:
+                print(f"[DEBUG] record_type: {record_type}, record_data: {record_data}")
+                if record_data.get("insemination_method"):
+                    key_values["method"] = record_data["insemination_method"]
+                if record_data.get("semen_quality"):
+                    key_values["quality"] = record_data["semen_quality"]
+                if record_data.get("technician_name"):
+                    key_values["technician"] = record_data["technician_name"]
+                if record_data.get("bull_breed"):
+                    key_values["bull"] = record_data["bull_breed"]
+                if record_data.get("success_probability") is not None:
+                    key_values["success"] = f"{record_data['success_probability']}%"
             
             return key_values
             
