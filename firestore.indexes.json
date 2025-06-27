@@ -75,6 +75,58 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "cow_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "farm_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "is_active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cow_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "farm_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "is_active",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "record_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "cow_detailed_records",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "farm_id",
           "order": "ASCENDING"
         },
@@ -471,6 +523,44 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "chat_rooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chat_rooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "created_at",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sns_user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sns_provider",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -718,6 +808,54 @@
     {
       "collectionGroup": "users",
       "fieldPath": "username",
+      "ttl": false,
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chat_rooms",
+      "fieldPath": "user_id",
+      "ttl": false,
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chat_rooms",
+      "fieldPath": "created_at",
+      "ttl": false,
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "fieldPath": "sns_user_id",
+      "ttl": false,
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "fieldPath": "sns_provider",
       "ttl": false,
       "indexes": [
         {
