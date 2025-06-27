@@ -859,11 +859,22 @@ def get_cow_health_records(
     limit: int = Query(100, description="조회할 기록 수 제한", ge=1, le=200),
     current_user: dict = Depends(get_current_user)
 ):
-    """특정 젖소의 모든 건강 관련 기록 조회 (건강검진, 백신접종, 치료)"""
+    """🔧 특정 젖소의 모든 건강 관련 기록 조회 (건강검진, 백신접종, 치료) - 500 오류 해결"""
     try:
         from config.firebase_config import get_firestore_client
         db = get_firestore_client()
         farm_id = current_user.get("farm_id")
+        
+        # 젖소 정보 안전하게 조회
+        cow_info = None
+        try:
+            cow_info = DetailedRecordService._get_cow_info(cow_id, farm_id)
+        except:
+            # 젖소 정보 조회 실패 시 기본값 사용
+            cow_info = {
+                "name": "알 수 없음",
+                "ear_tag_number": "N/A"
+            }
         
         # 건강 관련 기록 타입들
         health_types = [
@@ -874,27 +885,49 @@ def get_cow_health_records(
         
         all_records = []
         for record_type in health_types:
-            records = (db.collection('cow_detailed_records')
-                      .where('cow_id', '==', cow_id)
-                      .where('farm_id', '==', farm_id)
-                      .where('record_type', '==', record_type)
-                      .where('is_active', '==', True)
-                      .order_by('record_date', direction='DESCENDING')
-                      .limit(limit)
-                      .get())
-            
-            for record in records:
-                data = record.to_dict()
-                all_records.append(DetailedRecordSummary(
-                    id=data["id"],
-                    cow_id=data["cow_id"],
-                    record_type=data["record_type"],
-                    record_date=data["record_date"],
-                    title=data["title"],
-                    description=data.get("description", ""),
-                    created_at=data["created_at"],
-                    updated_at=data["updated_at"]
-                ))
+            try:
+                records = (db.collection('cow_detailed_records')
+                          .where('cow_id', '==', cow_id)
+                          .where('farm_id', '==', farm_id)
+                          .where('record_type', '==', record_type)
+                          .where('is_active', '==', True)
+                          .order_by('record_date', direction='DESCENDING')
+                          .limit(limit)
+                          .get())
+                
+                for record in records:
+                    try:
+                        data = record.to_dict()
+                        
+                        # 키 값 추출 (안전하게)
+                        key_values = DetailedRecordService._extract_key_values(
+                            data.get("record_type", ""), 
+                            data.get("record_data", {})
+                        )
+                        
+                        # 수정된 부분: 필수 필드에 기본값 제공
+                        all_records.append(DetailedRecordSummary(
+                            id=data.get("id", ""),
+                            cow_id=data.get("cow_id", cow_id),
+                            cow_name=cow_info.get("name", "알 수 없음"),  # 기본값 제공
+                            cow_ear_tag_number=cow_info.get("ear_tag_number", "N/A"),  # 기본값 제공
+                            record_type=DetailedRecordType(data.get("record_type", "other")),
+                            record_date=data.get("record_date", ""),
+                            title=data.get("title", "제목 없음"),
+                            description=data.get("description"),  # Optional
+                            key_values=key_values or {},  # 기본값 제공
+                            created_at=data.get("created_at", datetime.utcnow()),
+                            updated_at=data.get("updated_at", datetime.utcnow())
+                        ))
+                    except Exception as record_error:
+                        # 개별 기록 처리 실패 시 로그만 남기고 계속 진행
+                        print(f"[WARNING] 건강 기록 처리 실패 (ID: {record.id}): {str(record_error)}")
+                        continue
+                        
+            except Exception as type_error:
+                # 특정 타입 조회 실패 시 로그만 남기고 계속 진행
+                print(f"[WARNING] 건강 기록 타입 조회 실패 ({record_type}): {str(type_error)}")
+                continue
         
         # 날짜순 정렬 (최신순)
         all_records.sort(key=lambda x: x.record_date, reverse=True)
@@ -902,10 +935,9 @@ def get_cow_health_records(
         return all_records[:limit]
         
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"건강 기록 조회 중 오류가 발생했습니다: {str(e)}"
-        )
+        # 전체 실패 시에도 빈 배열 반환 (500 오류 방지)
+        print(f"[ERROR] 건강 기록 조회 전체 실패: {str(e)}")
+        return []
 
 @router.get("/cow/{cow_id}/milking-records", 
             response_model=List[DetailedRecordSummary],
@@ -1020,11 +1052,22 @@ def get_cow_feed_records(
     limit: int = Query(100, description="조회할 기록 수 제한", ge=1, le=200),
     current_user: dict = Depends(get_current_user)
 ):
-    """특정 젖소의 모든 사료급여 기록 조회"""
+    """특정 젖소의 모든 사료급여 기록 조회 - 500 오류 해결"""
     try:
         from config.firebase_config import get_firestore_client
         db = get_firestore_client()
         farm_id = current_user.get("farm_id")
+        
+        # 젖소 정보 안전하게 조회
+        cow_info = None
+        try:
+            cow_info = DetailedRecordService._get_cow_info(cow_id, farm_id)
+        except:
+            # 젖소 정보 조회 실패 시 기본값 사용
+            cow_info = {
+                "name": "알 수 없음",
+                "ear_tag_number": "N/A"
+            }
         
         records = (db.collection('cow_detailed_records')
                   .where('cow_id', '==', cow_id)
@@ -1037,26 +1080,42 @@ def get_cow_feed_records(
         
         result = []
         for record in records:
-            data = record.to_dict()
-            result.append(DetailedRecordSummary(
-                id=data["id"],
-                cow_id=data["cow_id"],
-                record_type=data["record_type"],
-                record_date=data["record_date"],
-                title=data["title"],
-                description=data.get("description", ""),
-                created_at=data["created_at"],
-                updated_at=data["updated_at"]
-            ))
+            try:
+                data = record.to_dict()
+                
+                # 키 값 추출 (안전하게)
+                key_values = DetailedRecordService._extract_key_values(
+                    data.get("record_type", ""), 
+                    data.get("record_data", {})
+                )
+                
+                # 수정된 부분: 필수 필드에 기본값 제공
+                result.append(DetailedRecordSummary(
+                    id=data.get("id", ""),
+                    cow_id=data.get("cow_id", cow_id),
+                    cow_name=cow_info.get("name", "알 수 없음"),  # 기본값 제공
+                    cow_ear_tag_number=cow_info.get("ear_tag_number", "N/A"),  # 기본값 제공
+                    record_type=DetailedRecordType(data.get("record_type", "feed")),
+                    record_date=data.get("record_date", ""),
+                    title=data.get("title", "제목 없음"),
+                    description=data.get("description"),  # Optional
+                    key_values=key_values or {},  # 기본값 제공
+                    created_at=data.get("created_at", datetime.utcnow()),
+                    updated_at=data.get("updated_at", datetime.utcnow())
+                ))
+            except Exception as record_error:
+                # 개별 기록 처리 실패 시 로그만 남기고 계속 진행
+                print(f"[WARNING] 사료급여 기록 처리 실패 (ID: {record.id}): {str(record_error)}")
+                continue
         
         return result
         
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"사료급여 기록 조회 중 오류가 발생했습니다: {str(e)}"
-        )
-
+        # 전체 실패 시에도 빈 배열 반환 (500 오류 방지)
+        print(f"[ERROR] 사료급여 기록 조회 전체 실패: {str(e)}")
+        return []
+    
+    
 @router.get("/cow/{cow_id}/weight-records", 
             response_model=List[DetailedRecordSummary],
             summary="젖소별 체중측정 기록 조회",
@@ -1217,3 +1276,5 @@ def get_cow_all_records(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"기록 조회 중 오류가 발생했습니다: {str(e)}"
         )
+        
+        

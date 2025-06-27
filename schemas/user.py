@@ -3,6 +3,14 @@
 from pydantic import BaseModel, EmailStr, validator, Field
 from typing import Optional
 from datetime import datetime
+from enum import Enum
+
+class LoginType(str, Enum):
+    EMAIL = "email"           # 이메일/비밀번호 로그인
+    GOOGLE = "google"         # 구글 로그인
+    KAKAO = "kakao"          # 카카오 로그인
+    NAVER = "naver"          # 네이버 로그인
+    FACEBOOK = "facebook"    # 페이스북 로그인
 
 class UserCreate(BaseModel):
     username: str                            # 사용자 이름/실명
@@ -81,6 +89,9 @@ class UserResponse(BaseModel):
     farm_id: str                             # 농장 ID
     created_at: datetime                     # 가입일
     is_active: bool                          # 활성 상태
+    login_type: Optional[LoginType] = None   # 로그인 타입 (SNS 로그인 구분용)
+    sns_provider: Optional[str] = None       # SNS 제공자 (google, kakao, naver 등)
+    sns_user_id: Optional[str] = None        # SNS 사용자 ID
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -194,8 +205,14 @@ class ChangePasswordRequest(BaseModel):
         return v
 
 class DeleteAccountRequest(BaseModel):
-    password: str = Field(..., description="계정 삭제 확인용 현재 비밀번호")
+    password: Optional[str] = Field(None, description="이메일 로그인 사용자의 경우 현재 비밀번호")
     confirmation: str = Field(..., description="삭제 확인 문구 ('DELETE' 입력)")
+    sns_token: Optional[str] = Field(None, description="SNS 로그인 사용자의 경우 SNS 액세스 토큰")
+
+class SNSDeleteAccountRequest(BaseModel):
+    confirmation: str = Field(..., description="삭제 확인 문구 ('DELETE' 입력)")
+    sns_provider: LoginType = Field(..., description="SNS 제공자 (google, kakao, naver 등)")
+    sns_token: str = Field(..., description="SNS 액세스 토큰")
 
 class FarmNicknameUpdate(BaseModel):
     farm_nickname: str = Field(..., description="새로운 목장 이름")

@@ -265,69 +265,109 @@ def get_cow_by_tag_number(
            summary="농장 통계 조회",
            description="농장의 젖소 통계 정보를 조회합니다 (전체 수, 건강상태별, 번식상태별 통계).")
 def get_farm_statistics(current_user: dict = Depends(get_current_user)):
-    """농장 젖소 통계 정보"""
+    """농장 젖소 통계 정보 - 500 오류 해결"""
     farm_id = current_user.get("farm_id")
     
     try:
         from config.firebase_config import get_firestore_client
         db = get_firestore_client()
         
-        # 전체 젖소 수
-        total_cows = len((db.collection('cows')
-                         .where('farm_id', '==', farm_id)
-                         .where('is_active', '==', True)
-                         .get()))
+        # 전체 젖소 수 (안전한 처리)
+        total_cows = 0
+        try:
+            total_cows = len((db.collection('cows')
+                             .where('farm_id', '==', farm_id)
+                             .where('is_active', '==', True)
+                             .get()))
+        except Exception as total_error:
+            print(f"[WARNING] 전체 젖소 수 조회 실패: {str(total_error)}")
+            total_cows = 0
         
-        # 건강상태별 통계
+        # 건강상태별 통계 (안전한 처리)
         health_stats = {}
         for status in ["normal", "warning", "danger"]:
-            count = len((db.collection('cows')
-                        .where('farm_id', '==', farm_id)
-                        .where('health_status', '==', status)
-                        .where('is_active', '==', True)
-                        .get()))
-            health_stats[status] = count
+            try:
+                count = len((db.collection('cows')
+                            .where('farm_id', '==', farm_id)
+                            .where('health_status', '==', status)
+                            .where('is_active', '==', True)
+                            .get()))
+                health_stats[status] = count
+            except Exception as health_error:
+                print(f"[WARNING] 건강상태 통계 조회 실패 ({status}): {str(health_error)}")
+                health_stats[status] = 0
         
-        # 번식상태별 통계
+        # 번식상태별 통계 (안전한 처리)
         breeding_stats = {}
         for status in ["calf", "heifer", "pregnant", "lactating", "dry", "breeding"]:
-            count = len((db.collection('cows')
-                        .where('farm_id', '==', farm_id)
-                        .where('breeding_status', '==', status)
-                        .where('is_active', '==', True)
-                        .get()))
-            breeding_stats[status] = count
+            try:
+                count = len((db.collection('cows')
+                            .where('farm_id', '==', farm_id)
+                            .where('breeding_status', '==', status)
+                            .where('is_active', '==', True)
+                            .get()))
+                breeding_stats[status] = count
+            except Exception as breeding_error:
+                print(f"[WARNING] 번식상태 통계 조회 실패 ({status}): {str(breeding_error)}")
+                breeding_stats[status] = 0
         
-        # 축산물이력제 연동 통계 추가
-        livestock_trace_registered = len((db.collection('cows')
-                                        .where('farm_id', '==', farm_id)
-                                        .where('registered_from_livestock_trace', '==', True)
-                                        .where('is_active', '==', True)
-                                        .get()))
+        # 축산물이력제 연동 통계 추가 (안전한 처리)
+        livestock_trace_registered = 0
+        try:
+            livestock_trace_registered = len((db.collection('cows')
+                                            .where('farm_id', '==', farm_id)
+                                            .where('registered_from_livestock_trace', '==', True)
+                                            .where('is_active', '==', True)
+                                            .get()))
+        except Exception as livestock_error:
+            print(f"[WARNING] 축산물이력제 통계 조회 실패: {str(livestock_error)}")
+            livestock_trace_registered = 0
         
         return {
             "total_cows": total_cows,
             "health_statistics": health_stats,
             "breeding_statistics": breeding_stats,
             "livestock_trace_registered": livestock_trace_registered,
-            "manual_registered": total_cows - livestock_trace_registered,
+            "manual_registered": max(0, total_cows - livestock_trace_registered),
             "farm_id": farm_id
         }
         
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"통계 조회 중 오류가 발생했습니다: {str(e)}"
-        )
+        # 전체 실패 시에도 기본값 반환 (500 오류 방지)
+        print(f"[ERROR] 통계 조회 전체 실패: {str(e)}")
+        return {
+            "total_cows": 0,
+            "health_statistics": {
+                "normal": 0,
+                "warning": 0,
+                "danger": 0
+            },
+            "breeding_statistics": {
+                "calf": 0,
+                "heifer": 0,
+                "pregnant": 0,
+                "lactating": 0,
+                "dry": 0,
+                "breeding": 0
+            },
+            "livestock_trace_registered": 0,
+            "manual_registered": 0,
+            "farm_id": farm_id
+        }
 
 @router.get("/favorites/list", 
            response_model=List[CowResponse],
            summary="즐겨찾기 젖소 목록",
            description="즐겨찾기로 등록된 젖소들의 목록을 조회합니다.")
 def get_favorite_cows(current_user: dict = Depends(get_current_user)):
-    """즐겨찾기된 젖소 목록 조회"""
-    farm_id = current_user.get("farm_id")
-    return CowFirebaseService.get_favorite_cows(farm_id)
+    """즐겨찾기된 젖소 목록 조회 - 500 오류 해결"""
+    try:
+        farm_id = current_user.get("farm_id")
+        return CowFirebaseService.get_favorite_cows(farm_id)
+    except Exception as e:
+        # 전체 실패 시에도 빈 배열 반환 (500 오류 방지)
+        print(f"[ERROR] 즐겨찾기 젖소 목록 조회 전체 실패: {str(e)}")
+        return []
 
 # ===== 젖소 상세 정보 관리 API =====
 

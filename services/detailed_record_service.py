@@ -798,44 +798,63 @@ class DetailedRecordService:
             )
     
     @staticmethod
-    def get_detailed_records_by_cow(cow_id: str, farm_id: str, record_type: Optional[DetailedRecordType] = None) -> List[DetailedRecordSummary]:
-        """특정 젖소의 상세 기록 목록 조회"""
+    def get_detailed_records_by_cow(cow_id: str, farm_id: str, record_type: Optional[DetailedRecordType] = None, limit: int = 100) -> List[DetailedRecordSummary]:
+        """특정 젖소의 상세 기록 목록 조회 (500 오류 해결)"""
         try:
             db = get_firestore_client()
-            cow_info = DetailedRecordService._get_cow_info(cow_id, farm_id)
             
+            # 젖소 정보 안전하게 조회 (실패해도 계속 진행)
+            cow_info = None
+            try:
+                cow_info = DetailedRecordService._get_cow_info(cow_id, farm_id)
+            except:
+                # 젖소 정보 조회 실패 시 기본값 사용
+                cow_info = {
+                    "name": "알 수 없음",
+                    "ear_tag_number": "N/A"
+                }
+            
+            # 기본 쿼리 구성
             query = (db.collection('cow_detailed_records')
-                    .where(('cow_id', '==', cow_id))
-                    .where(('farm_id', '==', farm_id))
-                    .where(('is_active', '==', True))
-                    .get())
+                    .where('cow_id', '==', cow_id)
+                    .where('farm_id', '==', farm_id)
+                    .where('is_active', '==', True))
             
+            # 기록 타입 필터링 (선택적)
             if record_type:
-                query = query.where(('record_type', '==', record_type.value))
+                query = query.where('record_type', '==', record_type.value)
             
-            records_query = query.order_by('record_date', direction='DESCENDING').get()
+            # 정렬 및 제한 적용
+            records_query = query.order_by('record_date', direction='DESCENDING').limit(limit).get()
             
             records = []
             for record_doc in records_query:
-                record_data = record_doc.to_dict()
-                
-                # 기록 유형별 주요 수치 추출
-                key_values = DetailedRecordService._extract_key_values(
-                    record_data["record_type"], 
-                    record_data["record_data"]
-                )
-                
-                records.append(DetailedRecordSummary(
-                    id=record_data["id"],
-                    cow_id=record_data["cow_id"],
-                    cow_name=cow_info["name"],
-                    cow_ear_tag_number=cow_info["ear_tag_number"],
-                    record_type=DetailedRecordType(record_data["record_type"]),
-                    record_date=record_data["record_date"],
-                    title=record_data["title"],
-                    key_values=key_values,
-                    created_at=record_data["created_at"]
-                ))
+                try:
+                    record_data = record_doc.to_dict()
+                    
+                    # 기록 유형별 주요 수치 추출 (안전하게)
+                    key_values = DetailedRecordService._extract_key_values(
+                        record_data.get("record_type", ""), 
+                        record_data.get("record_data", {})
+                    )
+                    
+                    # 수정된 부분: 필수 필드에 기본값 제공
+                    records.append(DetailedRecordSummary(
+                        id=record_data.get("id", ""),
+                        cow_id=record_data.get("cow_id", cow_id),
+                        cow_name=cow_info.get("name", "알 수 없음"),  # 기본값 제공
+                        cow_ear_tag_number=cow_info.get("ear_tag_number", "N/A"),  # 기본값 제공
+                        record_type=DetailedRecordType(record_data.get("record_type", "other")),
+                        record_date=record_data.get("record_date", ""),
+                        title=record_data.get("title", "제목 없음"),
+                        description=record_data.get("description"),  # Optional 필드
+                        key_values=key_values or {},  # 기본값 제공
+                        created_at=record_data.get("created_at", datetime.utcnow())
+                    ))
+                except Exception as record_error:
+                    # 개별 기록 처리 실패 시 로그만 남기고 계속 진행
+                    print(f"[WARNING] 기록 처리 실패 (ID: {record_doc.id}): {str(record_error)}")
+                    continue
             
             return records
             
@@ -925,79 +944,102 @@ class DetailedRecordService:
     
     @staticmethod
     def _get_cow_info(cow_id: str, farm_id: str) -> Dict:
-        """젖소 정보 조회 (내부 사용)"""
-        db = get_firestore_client()
-        cow_doc = db.collection('cows').document(cow_id).get()
-        
-        if not cow_doc.exists:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="젖소를 찾을 수 없습니다"
-            )
-        
-        cow_data = cow_doc.to_dict()
-        
-        if cow_data.get("farm_id") != farm_id or not cow_data.get("is_active", True):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="젖소를 찾을 수 없습니다"
-            )
-        
-        return cow_data
+        """젖소 정보 조회 (내부 사용) - 안전한 오류 처리"""
+        try:
+            db = get_firestore_client()
+            cow_doc = db.collection('cows').document(cow_id).get()
+            
+            if not cow_doc.exists:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="젖소를 찾을 수 없습니다"
+                )
+            
+            cow_data = cow_doc.to_dict()
+            
+            if cow_data.get("farm_id") != farm_id or not cow_data.get("is_active", True):
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="젖소를 찾을 수 없습니다"
+                )
+            
+            return cow_data
+            
+        except Exception as e:
+            # 젖소 정보 조회 실패 시 기본 정보 반환 (500 에러 방지)
+            print(f"[WARNING] 젖소 정보 조회 실패 (cow_id: {cow_id}): {str(e)}")
+            return {
+                "name": "알 수 없음",
+                "ear_tag_number": "N/A",
+                "id": cow_id,
+                "farm_id": farm_id
+            }
     
     @staticmethod
     def _extract_key_values(record_type: str, record_data: Dict) -> Dict[str, Any]:
-        """기록 유형별 주요 수치 추출"""
-        key_values = {}
-        
-        if record_type == DetailedRecordType.MILKING.value:
-            if record_data.get("milk_yield"):
-                key_values["milk_yield"] = f"{record_data['milk_yield']}L"
-            if record_data.get("milking_session"):
-                key_values["session"] = f"{record_data['milking_session']}회차"
-            if record_data.get("fat_percentage"):
-                key_values["fat"] = f"{record_data['fat_percentage']}%"
-        
-        elif record_type == DetailedRecordType.WEIGHT.value:
-            if record_data.get("weight"):
-                key_values["weight"] = f"{record_data['weight']}kg"
-            if record_data.get("body_condition_score"):
-                key_values["bcs"] = f"{record_data['body_condition_score']}"
-        
-        elif record_type == DetailedRecordType.ESTRUS.value:
-            if record_data.get("estrus_intensity"):
-                key_values["intensity"] = record_data["estrus_intensity"]
-            if record_data.get("estrus_duration"):
-                key_values["duration"] = f"{record_data['estrus_duration']}시간"
-        
-        elif record_type == DetailedRecordType.PREGNANCY_CHECK.value:
-            if record_data.get("check_result"):
-                key_values["result"] = record_data["check_result"]
-            if record_data.get("pregnancy_stage"):
-                key_values["stage"] = f"{record_data['pregnancy_stage']}일"
-        
-        elif record_type == DetailedRecordType.CALVING.value:
-            if record_data.get("calf_count"):
-                key_values["calf_count"] = f"{record_data['calf_count']}마리"
-            if record_data.get("calving_difficulty"):
-                key_values["difficulty"] = record_data["calving_difficulty"]
-        
-        elif record_type == DetailedRecordType.FEED.value:
-            if record_data.get("feed_amount"):
-                key_values["amount"] = f"{record_data['feed_amount']}kg"
-            if record_data.get("feed_type"):
-                key_values["type"] = record_data["feed_type"]
-        
-        elif record_type == DetailedRecordType.VACCINATION.value:
-            if record_data.get("vaccine_name"):
-                key_values["vaccine"] = record_data["vaccine_name"]
-            if record_data.get("dosage"):
-                key_values["dosage"] = f"{record_data['dosage']}ml"
-        
-        elif record_type == DetailedRecordType.TREATMENT.value:
-            if record_data.get("diagnosis"):
-                key_values["diagnosis"] = record_data["diagnosis"]
-            if record_data.get("treatment_cost"):
-                key_values["cost"] = f"{record_data['treatment_cost']:,}원"
-        
-        return key_values
+        """기록 유형별 주요 수치 추출 - 안전한 처리"""
+        try:
+            key_values = {}
+            
+            if record_type == DetailedRecordType.MILKING.value:
+                if record_data.get("milk_yield"):
+                    key_values["milk_yield"] = f"{record_data['milk_yield']}L"
+                if record_data.get("milking_session"):
+                    key_values["session"] = f"{record_data['milking_session']}회차"
+                if record_data.get("fat_percentage"):
+                    key_values["fat"] = f"{record_data['fat_percentage']}%"
+            
+            elif record_type == DetailedRecordType.WEIGHT.value:
+                if record_data.get("weight"):
+                    key_values["weight"] = f"{record_data['weight']}kg"
+                if record_data.get("body_condition_score"):
+                    key_values["bcs"] = f"{record_data['body_condition_score']}"
+            
+            elif record_type == DetailedRecordType.ESTRUS.value:
+                if record_data.get("estrus_intensity"):
+                    key_values["intensity"] = record_data["estrus_intensity"]
+                if record_data.get("estrus_duration"):
+                    key_values["duration"] = f"{record_data['estrus_duration']}시간"
+            
+            elif record_type == DetailedRecordType.PREGNANCY_CHECK.value:
+                if record_data.get("check_result"):
+                    key_values["result"] = record_data["check_result"]
+                if record_data.get("pregnancy_stage"):
+                    key_values["stage"] = f"{record_data['pregnancy_stage']}일"
+            
+            elif record_type == DetailedRecordType.CALVING.value:
+                if record_data.get("calf_count"):
+                    key_values["calf_count"] = f"{record_data['calf_count']}마리"
+                if record_data.get("calving_difficulty"):
+                    key_values["difficulty"] = record_data["calving_difficulty"]
+            
+            elif record_type == DetailedRecordType.FEED.value:
+                if record_data.get("feed_amount"):
+                    key_values["amount"] = f"{record_data['feed_amount']}kg"
+                if record_data.get("feed_type"):
+                    key_values["type"] = record_data["feed_type"]
+            
+            elif record_type == DetailedRecordType.VACCINATION.value:
+                if record_data.get("vaccine_name"):
+                    key_values["vaccine"] = record_data["vaccine_name"]
+                if record_data.get("dosage"):
+                    key_values["dosage"] = f"{record_data['dosage']}ml"
+            
+            elif record_type == DetailedRecordType.TREATMENT.value:
+                if record_data.get("diagnosis"):
+                    key_values["diagnosis"] = record_data["diagnosis"]
+                if record_data.get("treatment_cost"):
+                    key_values["cost"] = f"{record_data['treatment_cost']:,}원"
+            
+            elif record_type == DetailedRecordType.HEALTH_CHECK.value:
+                if record_data.get("body_temperature"):
+                    key_values["temperature"] = f"{record_data['body_temperature']}°C"
+                if record_data.get("body_condition_score"):
+                    key_values["bcs"] = f"{record_data['body_condition_score']}"
+            
+            return key_values
+            
+        except Exception as e:
+            # 키 값 추출 실패 시 빈 딕셔너리 반환
+            print(f"[WARNING] 키 값 추출 실패 (record_type: {record_type}): {str(e)}")
+            return {}

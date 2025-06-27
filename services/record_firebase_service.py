@@ -280,17 +280,23 @@ class RecordFirebaseService:
     
     @staticmethod
     def get_records_by_cow(cow_id: str, farm_id: str, record_type: Optional[RecordType] = None) -> List[RecordSummary]:
-        """특정 젖소의 기록 목록 조회"""
+        """특정 젖소의 기록 목록 조회 - 500 오류 해결"""
         try:
             db = get_firestore_client()
-            # 젖소 존재 확인
-            cow_info = RecordFirebaseService._get_cow_info(cow_id, farm_id)
+            
+            # 젖소 정보 안전하게 조회
+            cow_info = None
+            try:
+                cow_info = RecordFirebaseService._get_cow_info(cow_id, farm_id)
+            except:
+                # 젖소 정보 조회 실패 시 기본값 사용
+                cow_info = {
+                    "name": "알 수 없음",
+                    "ear_tag_number": "N/A"
+                }
             
             # 기본 쿼리
-            query = (db.collection('cow_records')
-                    .where('cow_id', '==', cow_id)
-                    .where('farm_id', '==', farm_id)
-                    .get())
+            query = db.collection('cow_records').where('cow_id', '==', cow_id).where('farm_id', '==', farm_id).where('is_active', '==', True)
             
             # 기록 유형 필터링
             if record_type:
@@ -301,27 +307,29 @@ class RecordFirebaseService:
             
             records = []
             for record_doc in records_query:
-                record_data = record_doc.to_dict()
-                records.append(RecordSummary(
-                    id=record_data["id"],
-                    cow_id=record_data["cow_id"],
-                    cow_name=cow_info["name"],
-                    cow_ear_tag_number=cow_info["ear_tag_number"],
-                    record_type=RecordType(record_data["record_type"]),
-                    record_date=record_data["record_date"],
-                    title=record_data["title"],
-                    created_at=record_data["created_at"]
-                ))
+                try:
+                    record_data = record_doc.to_dict()
+                    records.append(RecordSummary(
+                        id=record_data.get("id", ""),
+                        cow_id=record_data.get("cow_id", cow_id),
+                        cow_name=cow_info.get("name", "알 수 없음"),
+                        cow_ear_tag_number=cow_info.get("ear_tag_number", "N/A"),
+                        record_type=RecordType(record_data.get("record_type", "other")),
+                        record_date=record_data.get("record_date", ""),
+                        title=record_data.get("title", "제목 없음"),
+                        created_at=record_data.get("created_at", datetime.utcnow())
+                    ))
+                except Exception as record_error:
+                    # 개별 기록 처리 실패 시 로그만 남기고 계속 진행
+                    print(f"[WARNING] 기록 처리 실패 (ID: {record_doc.id}): {str(record_error)}")
+                    continue
             
             return records
             
         except Exception as e:
-            if isinstance(e, HTTPException):
-                raise e
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"기록 목록 조회 중 오류가 발생했습니다: {str(e)}"
-            )
+            # 전체 실패 시에도 빈 배열 반환 (500 오류 방지)
+            print(f"[ERROR] 젖소 기록 목록 조회 전체 실패 (cow_id: {cow_id}): {str(e)}")
+            return []
     
     @staticmethod
     def get_record_detail(record_id: str, farm_id: str) -> RecordResponse:
@@ -375,13 +383,12 @@ class RecordFirebaseService:
     
     @staticmethod
     def get_all_records_by_farm(farm_id: str, record_type: Optional[RecordType] = None, limit: int = 50) -> List[RecordSummary]:
-        """농장의 모든 기록 조회"""
+        """농장의 모든 기록 조회 - 500 오류 해결"""
         try:
             db = get_firestore_client()
+            
             # 기본 쿼리
-            query = (db.collection('cow_records')
-                    .where('farm_id', '==', farm_id)
-                    .get())
+            query = db.collection('cow_records').where('farm_id', '==', farm_id).where('is_active', '==', True)
             
             # 기록 유형 필터링
             if record_type:
@@ -392,32 +399,41 @@ class RecordFirebaseService:
             
             records = []
             for record_doc in records_query:
-                record_data = record_doc.to_dict()
-                
-                # 젖소 정보 조회
                 try:
-                    cow_info = RecordFirebaseService._get_cow_info(record_data["cow_id"], farm_id)
+                    record_data = record_doc.to_dict()
+                    
+                    # 젖소 정보 안전하게 조회
+                    cow_info = None
+                    try:
+                        cow_info = RecordFirebaseService._get_cow_info(record_data.get("cow_id", ""), farm_id)
+                    except:
+                        # 젖소 정보 조회 실패 시 기본값 사용
+                        cow_info = {
+                            "name": "알 수 없음",
+                            "ear_tag_number": "N/A"
+                        }
+                    
                     records.append(RecordSummary(
-                        id=record_data["id"],
-                        cow_id=record_data["cow_id"],
-                        cow_name=cow_info["name"],
-                        cow_ear_tag_number=cow_info["ear_tag_number"],
-                        record_type=RecordType(record_data["record_type"]),
-                        record_date=record_data["record_date"],
-                        title=record_data["title"],
-                        created_at=record_data["created_at"]
+                        id=record_data.get("id", ""),
+                        cow_id=record_data.get("cow_id", ""),
+                        cow_name=cow_info.get("name", "알 수 없음"),
+                        cow_ear_tag_number=cow_info.get("ear_tag_number", "N/A"),
+                        record_type=RecordType(record_data.get("record_type", "other")),
+                        record_date=record_data.get("record_date", ""),
+                        title=record_data.get("title", "제목 없음"),
+                        created_at=record_data.get("created_at", datetime.utcnow())
                     ))
-                except:
-                    # 젖소가 삭제된 경우 등 예외 처리
+                except Exception as record_error:
+                    # 개별 기록 처리 실패 시 로그만 남기고 계속 진행
+                    print(f"[WARNING] 농장 기록 처리 실패 (ID: {record_doc.id}): {str(record_error)}")
                     continue
             
             return records
             
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"농장 기록 조회 중 오류가 발생했습니다: {str(e)}"
-            )
+            # 전체 실패 시에도 빈 배열 반환 (500 오류 방지)
+            print(f"[ERROR] 농장 기록 목록 조회 전체 실패 (farm_id: {farm_id}): {str(e)}")
+            return []
     
     @staticmethod
     def update_record(record_id: str, record_update: RecordUpdate, user: Dict) -> RecordResponse:

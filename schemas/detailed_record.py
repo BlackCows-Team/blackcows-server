@@ -1,3 +1,5 @@
+# schemas/detailed_record.py
+
 from pydantic import BaseModel, validator, Field
 from typing import Optional, Dict, Any, List
 from datetime import datetime, time
@@ -322,16 +324,17 @@ class DetailedRecordResponse(BaseModel):
     updated_at: datetime
     is_active: bool
 
-# 기록 요약 스키마 (목록 조회용)
+# 수정된 기록 요약 스키마 (목록 조회용) - 필수 필드 문제 해결
 class DetailedRecordSummary(BaseModel):
     id: str
     cow_id: str
-    cow_name: str
-    cow_ear_tag_number: str
+    cow_name: Optional[str] = None  # 필수에서 선택으로 변경 + 기본값 제공
+    cow_ear_tag_number: Optional[str] = None  # 필수에서 선택으로 변경 + 기본값 제공
     record_type: DetailedRecordType
     record_date: str
     title: str
-    key_values: Dict[str, Any]  # 주요 수치 정보 (착유량, 체중 등)
+    description: Optional[str] = None  # 설명 필드 추가
+    key_values: Optional[Dict[str, Any]] = {}  # 필수에서 선택으로 변경 + 기본값 제공
     created_at: datetime
 
 # 상세 기록 업데이트 스키마
