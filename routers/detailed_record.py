@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
+from datetime import datetime
 from schemas.detailed_record import (
     MilkingRecordCreate, EstrusRecordCreate, InseminationRecordCreate,
     PregnancyCheckRecordCreate, CalvingRecordCreate, FeedRecordCreate,
