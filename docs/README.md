@@ -50,11 +50,18 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 - ✅ **질병 정보** - 질병유무 상태
 - ✅ **수입축 정보** - 수입국가, 수입경과월
 
-#### 🤖 AI 챗봇 기능 (NEW!)
-- ✅ **소담이 챗봇** - 낙농업 전문 AI 어시스턴트
-- ✅ **질문 분류** - 낙농 지식, 농장 데이터, 일반 대화, 무관한 질문 자동 분류
-- ✅ **LangGraph 기반** - 고도화된 대화 플로우 관리
-- ✅ **OpenAI GPT-4o-mini** - 최신 AI 모델 활용
+#### 🤖 AI 챗봇 기능 "소담이" (NEW!)
+- ✅ **낙농업 전문 AI 어시스턴트** - OpenAI GPT-4o-mini 기반 지능형 대화
+- ✅ **LangGraph 대화 플로우** - 고도화된 질문 분류 및 응답 시스템
+- ✅ **4가지 질문 분류 시스템**:
+  - **낙농 지식 (rag)**: 낙농업 관련 전문 정보 제공
+  - **농장 데이터 (cow_info)**: 사용자 목장의 젖소 정보 및 기록 조회
+  - **일반 대화 (general)**: 인사, 잡담, 챗봇 소개 등
+  - **무관한 질문 (irrelevant)**: 낙농과 무관한 질문에 대한 안내
+- ✅ **한국어 전용 지원** - 낙농업 전문용어에 특화된 한국어 대화
+- ✅ **채팅방 관리** - 개별 대화방 생성, 이력 관리, 자동 정리
+- ✅ **메모리 기반 연속 대화** - 대화 맥락을 유지하는 지능형 응답
+- ✅ **농장 데이터 연동** - 사용자의 젖소 정보와 기록을 바탕으로 한 맞춤형 답변
 
 #### 🔐 보안 및 인증
 - ✅ **JWT 기반 사용자 인증** - Access/Refresh Token
@@ -236,16 +243,76 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 | `GET` | `/api/livestock-trace/test-no-auth/{ear_tag_number}` | 테스트용 축산물이력정보 조회 | 전체 이력정보 (인증 없음) |
 | `GET` | `/api/livestock-trace/test-basic-no-auth/{ear_tag_number}` | 테스트용 기본 정보 조회 | 기본 개체정보 (인증 없음) |
 
-### 🤖 AI 챗봇 API (`/chatbot`) - NEW!
+### 🤖 AI 챗봇 API (`/chatbot`) - ⭐ 핵심 기능
 
 | Method | Endpoint | 설명 | 필수 필드 | 응답 |
 |--------|----------|------|----------|------|
-| `POST`   | `/chatbot/ask`                | 챗봇 질문하기 (LangGraph 실행 + 응답 저장) | `user_id`, `chat_id`, `question` | `answer`                                            |
-| `GET`    | `/chatbot/rooms/{user_id}`    | 사용자의 채팅방 목록 조회                 | 없음 (경로에 `user_id`)               | `chats: [{chat_id, created_at}]`                    |
-| `POST`   | `/chatbot/rooms`              | 새로운 채팅방 생성                     | `user_id`                        | `chats: [{chat_id, created_at}]`                    |
-| `GET`    | `/chatbot/history/{chat_id}`  | 특정 채팅방의 메시지(대화 이력) 조회          | 없음 (경로에 `chat_id`)               | `chat_id`, `messages: [{role, content, timestamp}]` |
-| `DELETE` | `/chatbot/rooms/{chat_id}`    | 특정 채팅방 및 메시지 삭제                | 없음 (경로에 `chat_id`)               | `detail: 삭제 결과 메시지`                                 |
-| `DELETE` | `/chatbot/rooms/expired/auto` | 14일 이상 지난 채팅방 자동 삭제            | 없음                               | `detail: 삭제 결과 메시지`                                 |
+| `POST` | `/chatbot/ask` | **챗봇 질문하기** | `user_id`, `chat_id`, `question` | `answer` |
+| `GET` | `/chatbot/rooms/{user_id}` | **사용자 채팅방 목록 조회** | `user_id` (경로) | `chats: [{chat_id, created_at}]` |
+| `POST` | `/chatbot/rooms` | **새로운 채팅방 생성** | `user_id` | `chats: [{chat_id, created_at}]` |
+| `GET` | `/chatbot/history/{chat_id}` | **채팅방 대화 이력 조회** | `chat_id` (경로) | `chat_id`, `messages: [{role, content, timestamp}]` |
+| `DELETE` | `/chatbot/rooms/{chat_id}` | **채팅방 및 메시지 삭제** | `chat_id` (경로) | `detail: 삭제 결과 메시지` |
+| `DELETE` | `/chatbot/rooms/expired/auto` | **14일 이상된 채팅방 자동 삭제** | 없음 | `detail: 삭제 결과 메시지` |
+
+#### 🤖 AI 챗봇 "소담이" 상세 기능
+
+**소담이의 특징:**
+- **이름**: 소담이 (낙농업 전문 AI 어시스턴트)
+- **AI 엔진**: OpenAI GPT-4o-mini
+- **프레임워크**: LangGraph 기반 고급 대화 플로우 관리
+- **언어 지원**: 한국어 전용 (낙농업 전문용어 특화)
+
+**질문 자동 분류 시스템:**
+
+소담이는 사용자의 질문을 다음 4가지로 자동 분류하여 최적의 응답을 제공합니다:
+
+1. **rag (낙농 지식 질문)**
+   - 낙농업 관련 전문 정보, 기술, 정책, 용어 등
+   - 예시: "젖소의 발정 주기는?", "착유기는 어떻게 작동하나요?", "낙농업 역사 알려줘"
+
+2. **cow_info (농장 데이터 질문)**
+   - 사용자의 농장에 등록된 소 정보나 상태, 기록 등
+   - 예시: "103번 소 상태 알려줘", "어제 분만한 소들 누구야?", "이표번호 002123456789 소 정보"
+
+3. **general (일반 대화)**
+   - 챗봇 자체에 대한 질문, 인사, 감정 표현, 잡담 등
+   - 예시: "안녕", "이전 질문 뭐였지?", "소담이 귀엽다", "고마워", "너 누구야?"
+
+4. **irrelevant (무관한 질문)**
+   - 낙농업 또는 사용자의 목장과 완전히 무관한 질문
+   - 예시: "로또 번호 알려줘", "요즘 주식 어때요?", "오늘 점심 뭐 먹지?"
+
+**AI 챗봇 사용 방법:**
+
+```javascript
+// 1. 새 채팅방 생성
+POST /chatbot/rooms
+{
+  "user_id": "user123"
+}
+
+// 2. 질문하기
+POST /chatbot/ask
+{
+  "user_id": "user123",
+  "chat_id": "chat-uuid-123",
+  "question": "젖소 발정 증상이 뭔가요?"
+}
+
+// 3. 대화 이력 조회
+GET /chatbot/history/chat-uuid-123
+
+// 4. 사용자의 모든 채팅방 조회
+GET /chatbot/rooms/user123
+```
+
+**AI 챗봇 응답 예시:**
+
+- **낙농 지식 질문**: "젖소의 발정 주기는 평균 21일입니다. 발정 증상으로는 다른 소에게 올라타거나, 불안해하며 울음소리를 내는 행동을 보입니다..."
+
+- **농장 데이터 질문**: "꽃분이(002123456789) 소의 최근 착유 기록: 착유량 25.5L, 1회차, 유지방 3.8% (날짜: 2025-06-27)"
+
+- **일반 대화**: "안녕하세요! 저는 낙농업 도우미 소담이예요. 젖소 관리나 낙농업에 관한 궁금한 점이 있으시면 언제든 물어보세요!"
 
 ### 🔧 시스템 정보 API
 
@@ -331,33 +398,53 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 - 브루셀라: 검사일, 결과, 경과일 자동계산
 - 결핵: 검사일, 결과
 
-## 🤖 AI 챗봇 "소담이" 기능 상세
+## 🤖 AI 챗봇 "소담이" 기술 상세
 
-### 챗봇 특징
-- **이름**: 소담소이 (낙농업 전문 AI 어시스턴트)
-- **엔진**: OpenAI GPT-4o-mini
-- **프레임워크**: LangGraph 기반 대화 플로우
-- **언어**: 한국어 지원
+### LangGraph 기반 대화 플로우
+
+소담이는 최신 LangGraph 기술을 사용하여 지능형 대화 플로우를 구현합니다:
+
+```python
+# 대화 플로우 예시
+user_question -> 질문_분류 -> 
+┌─ rag: 낙농 지식 검색 + RAG 응답
+├─ cow_info: 농장 데이터 조회 + 맞춤 응답  
+├─ general: 일반 대화 응답
+└─ irrelevant: 안내 메시지
+```
 
 ### 질문 분류 시스템
-소담이는 사용자의 질문을 다음 4가지로 자동 분류합니다:
 
-1. **rag** - 낙농 지식 질문
-   - 낙농업 관련 전문 정보
-   - 젖소 사육 방법, 질병 관리 등
+**자동 분류 로직:**
+1. **의도 분석**: 사용자 질문의 의도를 파악
+2. **키워드 매칭**: 낙농업 전문용어 및 농장 데이터 키워드 감지
+3. **컨텍스트 이해**: 이전 대화 맥락 고려
+4. **최적 경로 선택**: 4가지 응답 경로 중 최적 선택
 
-2. **cow_info** - 사용자 목장 데이터 질문
-   - 특정 젖소 정보 조회
-   - 농장 기록 및 통계 관련
+### 농장 데이터 연동
 
-3. **general** - 인사/잡담
-   - 일반적인 대화 및 인사
-   - 챗봇 소개 등
+**이표번호 인식:**
+- 12자리 숫자 패턴 자동 인식
+- 사용자 농장의 젖소 정보 실시간 조회
+- 기록 유형별 필터링 (착유, 발정, 건강 등)
 
-4. **irrelevant** - 무관한 질문
-   - 낙농과 관련 없는 질문
-   - 적절한 안내 메시지 제공
+**예시 질문과 응답:**
+```
+사용자: "002123456789번 소 어제 착유량 어땠어?"
+소담이: "꽃분이(002123456789) 소의 최근 착유 기록을 확인해드릴게요. 
+        어제 착유량은 24.2L이고, 유지방 3.9%, 유단백 3.1%였습니다."
+```
 
+### 메모리 관리
+
+**대화 맥락 유지:**
+- 채팅방별 대화 이력 저장
+- 이전 질문-답변 참조 가능
+- 연속적인 대화 플로우 지원
+
+**자동 정리:**
+- 14일 이상된 채팅방 자동 삭제
+- 메모리 최적화 관리
 
 ## 📚 API 문서 및 개발 도구
 
@@ -380,6 +467,36 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 > **⚠️ 중요**: AWS EC2 사용량 절약을 위해 프로덕션에서는 Swagger UI가 비활성화되어 있습니다. curl 명령어나 Postman을 사용하여 API를 테스트하세요.
 
+### AI 챗봇 테스트 예시
+
+```bash
+# 1. 새 채팅방 생성
+curl -X POST "http://localhost:8000/chatbot/rooms" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "test_user"}'
+
+# 2. 낙농 지식 질문
+curl -X POST "http://localhost:8000/chatbot/ask" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "test_user",
+    "chat_id": "chat_uuid_123",
+    "question": "젖소 발정 증상이 뭔가요?"
+  }'
+
+# 3. 농장 데이터 질문 (이표번호 포함)
+curl -X POST "http://localhost:8000/chatbot/ask" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "test_user", 
+    "chat_id": "chat_uuid_123",
+    "question": "002123456789번 소 최근 착유량 알려줘"
+  }'
+
+# 4. 대화 이력 조회
+curl -X GET "http://localhost:8000/chatbot/history/chat_uuid_123"
+```
+
 ## 🔧 설치 및 실행
 
 ### 환경 요구사항
@@ -401,6 +518,17 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 의존성 설치
 pip install -r requirements.txt
+```
+
+### 2️⃣ 환경변수 설정
+
+```bash
+# .env 파일 생성
+JWT_SECRET_KEY=your_secret_key_here
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+LIVESTOCK_TRACE_API_DECODING_KEY=your_livestock_api_key
+OPENAI_API_KEY=your_openai_api_key  # AI 챗봇용
 ```
 
 ### 3️⃣ 서버 실행
@@ -454,6 +582,26 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
   "created_at": "timestamp",
   "updated_at": "timestamp",
   "is_active": true
+}
+```
+
+### 🤖 AI 챗봇 데이터 구조
+
+#### 채팅방 컬렉션: `chat_rooms`
+```json
+{
+  "chat_id": "uuid",
+  "user_id": "user_uuid", 
+  "created_at": "timestamp"
+}
+```
+
+#### 메시지 서브컬렉션: `chat_rooms/{chat_id}/messages`
+```json
+{
+  "role": "user|assistant",
+  "content": "메시지 내용",
+  "timestamp": "timestamp"
 }
 ```
 
@@ -593,7 +741,27 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 
 ## 📈 주요 업데이트 내역
 
-### v2.6.3 (2025-06-25) - NEW!
+### v2.7.0 (2025-06-27) - 🤖 AI 챗봇 "소담이" 완전체 (NEW!)
+#### 🤖 AI 챗봇 기능 완전 구현
+- **LangGraph 기반 지능형 대화 시스템**: 고급 대화 플로우 및 상태 관리
+- **4가지 질문 자동 분류**: 낙농 지식, 농장 데이터, 일반 대화, 무관한 질문
+- **OpenAI GPT-4o-mini 엔진**: 최신 AI 모델로 정확하고 자연스러운 응답
+- **한국어 전용 낙농업 특화**: 낙농업 전문용어와 농장 환경에 최적화
+- **농장 데이터 실시간 연동**: 사용자의 젖소 정보와 기록을 활용한 맞춤형 답변
+- **채팅방 관리 시스템**: 개별 대화방 생성, 이력 관리, 자동 정리
+- **메모리 기반 연속 대화**: 대화 맥락을 유지하는 지능형 응답 시스템
+
+#### 🔗 축산물이력제 연동 고도화
+- **5분 캐싱 시스템**: API 응답 캐시로 성능 최적화
+- **비동기 처리 강화**: 백그라운드 작업으로 사용자 경험 개선
+- **오류 처리 개선**: 일부 API 실패 시에도 가용한 정보 수집 계속
+
+#### 🔐 사용자 관리 기능 확장
+- **목장 이름 수정**: 사용자가 직접 목장 이름 변경 가능
+- **향상된 사용자 검증**: 이름과 이메일 기반 아이디 찾기 정확도 향상
+- **보안 토큰 시스템**: JWT 기반 비밀번호 재설정 보안 강화
+
+### v2.6.3 (2025-06-25)
 #### 🤖 AI 챗봇 "소담이" 추가
 - **LangGraph 기반 대화 시스템**: 고도화된 대화 플로우 관리
 - **질문 자동 분류**: 낙농 지식, 농장 데이터, 일반 대화, 무관한 질문 자동 구분
@@ -637,9 +805,14 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 - **회원탈퇴**: 관련 데이터 완전 삭제
 - **리프레시 토큰 관리**: 보안 강화된 토큰 무효화
 
-### 새로운 엔드포인트 (v2.6.3)
-#### AI 챗봇
-- `POST /chatbot/ask`: 챗봇 질문하기
+### 새로운 엔드포인트 (v2.7.0)
+#### AI 챗봇 완전체
+- `POST /chatbot/ask`: **챗봇 질문하기** (LangGraph + 농장 데이터 연동)
+- `GET /chatbot/rooms/{user_id}`: **사용자 채팅방 목록 조회**
+- `POST /chatbot/rooms`: **새로운 채팅방 생성**
+- `GET /chatbot/history/{chat_id}`: **채팅방 대화 이력 조회**
+- `DELETE /chatbot/rooms/{chat_id}`: **채팅방 및 메시지 삭제**
+- `DELETE /chatbot/rooms/expired/auto`: **14일 이상된 채팅방 자동 삭제**
 
 #### 사용자 관리
 - `PUT /auth/update-farm-name`: 목장 이름 수정
@@ -698,6 +871,8 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 - **AI Framework**: LangGraph (대화 플로우 관리)
 - **LLM**: OpenAI GPT-4o-mini
 - **Natural Language**: 한국어 낙농업 전문 대화 시스템
+- **Vector Database**: Chroma (RAG 기반 지식 검색)
+- **Embedding**: OpenAI Embeddings
 
 ### Infrastructure
 - **Deployment**: AWS EC2 (Ubuntu)
@@ -738,6 +913,8 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 - **질문 언어**: 한국어 권장 (낙농업 전문용어 특화)
 - **응답 시간**: 일반적으로 2-5초 소요
 - **질문 분류**: 시스템이 자동으로 적절한 응답 경로 선택
+- **이표번호 인식**: 12자리 숫자 패턴을 자동으로 감지하여 농장 데이터 조회
+- **메모리 관리**: 채팅방별 대화 맥락 유지, 14일 후 자동 정리
 
 #### 5. 에러 처리
 ```typescript
@@ -747,13 +924,27 @@ interface ApiError {
   status_code: number;
 }
 
-// 에러 처리 예시
+// AI 챗봇 에러 처리 예시
 try {
-  const response = await fetch('/api/endpoint');
+  const response = await fetch('/chatbot/ask', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      user_id: 'user123',
+      chat_id: 'chat-uuid-123', 
+      question: '젖소 발정 증상이 뭔가요?'
+    })
+  });
+  
   if (!response.ok) {
     const error: ApiError = await response.json();
-    console.error('API Error:', error.detail);
+    console.error('Chatbot API Error:', error.detail);
   }
+  
+  const result = await response.json();
+  console.log('AI 응답:', result.answer);
 } catch (error) {
   console.error('Network Error:', error);
 }
@@ -809,11 +1000,47 @@ try {
 ```
 사용자 질문 입력
      ↓
-질문 분류 (낙농지식/농장데이터/일반/무관)
+LangGraph 질문 분류 시스템
      ↓
-적절한 응답 생성
+┌─ 낙농 지식 → RAG 검색 → 전문 답변
+├─ 농장 데이터 → 젖소 정보 조회 → 맞춤 답변  
+├─ 일반 대화 → 메모리 기반 → 자연스러운 응답
+└─ 무관한 질문 → 안내 메시지
      ↓
-결과 반환
+응답 생성 + 대화 이력 저장
+     ↓
+연속 대화 지원 (메모리 유지)
+```
+
+### 4. AI 챗봇 고급 활용
+```javascript
+// 농장 데이터 연동 질문 예시
+const farmDataQuestions = [
+  "002123456789번 소 최근 착유량 어떻게 돼?",
+  "어제 분만한 소들 있어?", 
+  "건강 검진이 필요한 소 알려줘",
+  "발정기인 소들 현황 보여줘"
+];
+
+// 낙농 지식 질문 예시  
+const knowledgeQuestions = [
+  "젖소 발정 주기는 얼마나 돼?",
+  "착유기 청소는 어떻게 해야 해?",
+  "송아지 이유식은 언제부터 줘야 해?",
+  "유방염 증상이 뭐야?"
+];
+
+// 연속 대화 예시
+async function chatWithSodam() {
+  // 1. 첫 번째 질문
+  await askChatbot("젖소 발정 증상이 뭐야?");
+  
+  // 2. 후속 질문 (이전 맥락 유지)
+  await askChatbot("그럼 발정 확인은 어떻게 해?");
+  
+  // 3. 농장 데이터와 연결
+  await askChatbot("우리 농장에서 발정기인 소 있어?");
+}
 ```
 
 ## 📄 라이선스
@@ -843,3 +1070,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+---
+
+**개발팀**: BlackCows Team  
+**버전**: v2.7.0 
+**최종 업데이트**: 2025년 6월 27일
