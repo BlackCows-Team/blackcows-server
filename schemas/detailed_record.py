@@ -1,3 +1,5 @@
+# schemas/detailed_record.py
+
 from pydantic import BaseModel, validator, Field
 from typing import Optional, Dict, Any, List
 from datetime import datetime, time
@@ -322,16 +324,17 @@ class DetailedRecordResponse(BaseModel):
     updated_at: datetime
     is_active: bool
 
-# 기록 요약 스키마 (목록 조회용)
+# 수정된 기록 요약 스키마 (목록 조회용) - 필수 필드 문제 해결
 class DetailedRecordSummary(BaseModel):
     id: str
     cow_id: str
-    cow_name: str
-    cow_ear_tag_number: str
+    cow_name: Optional[str] = None  # 필수에서 선택으로 변경 + 기본값 제공
+    cow_ear_tag_number: Optional[str] = None  # 필수에서 선택으로 변경 + 기본값 제공
     record_type: DetailedRecordType
     record_date: str
     title: str
-    key_values: Dict[str, Any]  # 주요 수치 정보 (착유량, 체중 등)
+    description: Optional[str] = None  # 설명 필드 추가
+    key_values: Optional[Dict[str, Any]] = {}  # 필수에서 선택으로 변경 + 기본값 제공
     created_at: datetime
 
 # 상세 기록 업데이트 스키마
@@ -340,3 +343,32 @@ class DetailedRecordUpdate(BaseModel):
     description: Optional[str] = None
     record_date: Optional[str] = None
     record_data: Optional[Dict[str, Any]] = None
+    
+    @validator('record_date')
+    def validate_record_date(cls, v):
+        if v is not None and len(v.strip()) > 0:
+            try:
+                from datetime import datetime
+                datetime.strptime(v.strip(), '%Y-%m-%d')
+                return v.strip()
+            except ValueError:
+                raise ValueError('기록 날짜는 YYYY-MM-DD 형식으로 입력해주세요')
+        return v
+    
+    @validator('title')
+    def validate_title(cls, v):
+        if v is not None:
+            if len(v.strip()) == 0:
+                raise ValueError('제목은 비어있을 수 없습니다')
+            if len(v) > 200:
+                raise ValueError('제목은 200자 이하여야 합니다')
+            return v.strip()
+        return v
+    
+    @validator('description')
+    def validate_description(cls, v):
+        if v is not None:
+            if len(v) > 1000:
+                raise ValueError('설명은 1000자 이하여야 합니다')
+            return v.strip() if v.strip() else None
+        return v

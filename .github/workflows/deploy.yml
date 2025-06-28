@@ -32,7 +32,7 @@ jobs:
             
             # 추가로 uvicorn 프로세스가 남아있다면 강제 종료
             pkill -f uvicorn || true
-            sleep 2
+            sleep 3
             
           else
             echo "⚠️ tmux session 0 없음 - 새로 생성"
@@ -67,17 +67,39 @@ jobs:
 
           echo "=== 환경변수 파일 생성 ==="
           # 환경변수 파일 생성
+          # JWT 및 인증 관련
           echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" > .env
           echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
           echo "REFRESH_TOKEN_EXPIRE_DAYS=7" >> .env
           echo "ENVIRONMENT=production" >> .env
+
+          # EC2 접속 정보
+          echo "EC2_HOST=${{ secrets.EC2_HOST }}" >> .env
+          echo "EC2_USER=${{ secrets.EC2_USER }}" >> .env
+          echo "EC2_KEY=${{ secrets.EC2_KEY }}" >> .env
+
+          # Firebase 설정
           echo "FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}" >> .env
           echo "FIREBASE_PRIVATE_KEY_ID=${{ secrets.FIREBASE_PRIVATE_KEY_ID }}" >> .env
           echo "FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }}" >> .env
           echo "FIREBASE_CLIENT_ID=${{ secrets.FIREBASE_CLIENT_ID }}" >> .env
           echo "FIREBASE_PRIVATE_KEY=\"${{ secrets.FIREBASE_PRIVATE_KEY }}\"" >> .env
+
+          # Google OAuth 설정
           echo "GOOGLE_APPLICATION_CREDENTIALS=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" >> .env
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> .env
+
+          # Kakao, Naver OAuth
+          echo "KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}" >> .env
+          echo "NAVER_CLIENT_ID=${{ secrets.NAVER_CLIENT_ID }}" >> .env
+          echo "NAVER_CLIENT_SECRET=${{ secrets.NAVER_CLIENT_SECRET }}" >> .env
+
+          # Livestock Trace API
           echo "LIVESTOCK_TRACE_API_DECODING_KEY=${{ secrets.LIVESTOCK_TRACE_API_DECODING_KEY }}" >> .env
+          echo "LIVESTOCK_TRACE_API_ENCODING_KEY=${{ secrets.LIVESTOCK_TRACE_API_ENCODING_KEY }}" >> .env
+
+          # 이메일 설정
           echo "MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
           echo "MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
           echo "MAIL_FROM=${{ secrets.MAIL_FROM }}" >> .env
@@ -85,6 +107,7 @@ jobs:
           echo "MAIL_PORT=587" >> .env
           echo "MAIL_TLS=True" >> .env
           echo "MAIL_SSL=False" >> .env
+
 
           # .env 파일 권한 설정
           chmod 600 .env
@@ -98,7 +121,7 @@ jobs:
       
           # tmux 세션에서 가상환경 활성화
           tmux send-keys -t 0 "source venv/bin/activate" Enter
-          sleep 2
+          sleep 3
       
           echo "=== 패키지 업데이트 ==="
           # tmux 세션에서 패키지 업데이트
@@ -107,7 +130,7 @@ jobs:
           tmux send-keys -t 0 "pip install --upgrade --force-reinstall bcrypt==4.0.1 passlib[bcrypt]==1.7.4" Enter
           sleep 5
           tmux send-keys -t 0 "pip install -r requirements.txt" Enter
-          sleep 8
+          sleep 17
 
           echo "=== 새로운 파일 구조 확인 ==="
           if [ -f "schemas/livestock_cow.py" ]; then

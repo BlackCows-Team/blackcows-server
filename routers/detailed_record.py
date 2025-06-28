@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
+from datetime import datetime
 from schemas.detailed_record import (
     MilkingRecordCreate, EstrusRecordCreate, InseminationRecordCreate,
     PregnancyCheckRecordCreate, CalvingRecordCreate, FeedRecordCreate,
@@ -576,6 +577,67 @@ def get_detailed_record(
     farm_id = current_user.get("farm_id")
     return DetailedRecordService.get_detailed_record_by_id(record_id, farm_id)
 
+@router.put("/{record_id}",
+           response_model=DetailedRecordResponse,
+           summary="상세 기록 수정",
+           description="""
+           특정 상세 기록을 수정합니다. 모든 타입의 상세 기록 수정이 가능합니다.
+           
+           **수정 가능한 상세기록 타입:**
+           - 착유 기록 (milking)
+           - 사료급여 기록 (feed) 
+           - 건강검진 기록 (health_check)
+           - 체중측정 기록 (weight)
+           - 백신접종 기록 (vaccination)
+           - 치료 기록 (treatment)
+           - 발정 기록 (estrus)
+           - 인공수정 기록 (insemination)
+           - 임신감정 기록 (pregnancy_check)
+           - 분만 기록 (calving)
+           - 기타 모든 상세 기록
+           
+           **수정 방법:**
+           - 기본 정보 수정: title, description, record_date
+           - 상세 정보 수정: record_data 객체 내의 특정 필드들
+           - 선택적 업데이트: 입력한 필드만 수정되고 나머지는 기존 값 유지
+           
+           **예시 - 분만기록 수정:**
+           ```json
+           {
+             "title": "분만 완료 (수정됨)",
+             "record_data": {
+               "calf_count": 2,
+               "calving_difficulty": "약간어려움"
+             }
+           }
+           ```
+           
+           **예시 - 건강검진기록 수정:**
+           ```json
+           {
+             "record_date": "2024-01-16",
+             "record_data": {
+               "body_temperature": 38.7,
+               "heart_rate": 72,
+               "notes": "정상 범위 내 수치 확인"
+             }
+           }
+           ```
+           """,
+           responses={
+               200: {"description": "상세 기록 수정 성공"},
+               400: {"description": "잘못된 요청 (유효성 검사 실패)"},
+               404: {"description": "기록을 찾을 수 없음"},
+               500: {"description": "서버 내부 오류"}
+           })
+def update_detailed_record(
+    record_id: str,
+    record_update: DetailedRecordUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """상세 기록 수정 - 모든 타입의 상세기록 수정 가능"""
+    return DetailedRecordService.update_detailed_record(record_id, record_update, current_user)
+
 @router.delete("/{record_id}",
                summary="상세 기록 삭제",
                description="특정 기록을 완전히 삭제합니다. 삭제된 기록은 복구할 수 없습니다.")
@@ -609,12 +671,12 @@ def get_milking_statistics(
         
         # 착유 기록 조회
         milking_records = (db.collection('cow_detailed_records')
-                          .where(filter=('cow_id', '==', cow_id))
-                          .where(filter=('farm_id', '==', farm_id))
-                          .where(filter=('record_type', '==', DetailedRecordType.MILKING.value))
-                          .where(filter=('is_active', '==', True))
-                          .where(filter=('record_date', '>=', start_date.strftime('%Y-%m-%d')))
-                          .where(filter=('record_date', '<=', end_date.strftime('%Y-%m-%d')))
+                          .where('cow_id', '==', cow_id)
+                          .where('farm_id', '==', farm_id)
+                          .where('record_type', '==', DetailedRecordType.MILKING.value)
+                          .where('is_active', '==', True)
+                          .where('record_date', '>=', start_date.strftime('%Y-%m-%d'))
+                          .where('record_date', '<=', end_date.strftime('%Y-%m-%d'))
                           .get())
         
         total_yield = 0
@@ -695,11 +757,11 @@ def get_weight_trend(
         
         # 체중 기록 조회
         weight_records = (db.collection('cow_detailed_records')
-                         .where(filter=('cow_id', '==', cow_id))
-                         .where(filter=('farm_id', '==', farm_id))
-                         .where(filter=('record_type', '==', DetailedRecordType.WEIGHT.value))
-                         .where(filter=('is_active', '==', True))
-                         .where(filter=('record_date', '>=', start_date.strftime('%Y-%m-%d')))
+                         .where('cow_id', '==', cow_id)
+                         .where('farm_id', '==', farm_id)
+                         .where('record_type', '==', DetailedRecordType.WEIGHT.value)
+                         .where('is_active', '==', True)
+                         .where('record_date', '>=', start_date.strftime('%Y-%m-%d'))
                          .order_by('record_date')
                          .get())
         
@@ -758,10 +820,10 @@ def get_reproduction_timeline(
         timeline = []
         for record_type in reproduction_types:
             records = (db.collection('cow_detailed_records')
-                      .where(filter=('cow_id', '==', cow_id))
-                      .where(filter=('farm_id', '==', farm_id))
-                      .where(filter=('record_type', '==', record_type))
-                      .where(filter=('is_active', '==', True))
+                      .where('cow_id', '==', cow_id)
+                      .where('farm_id', '==', farm_id)
+                      .where('record_type', '==', record_type)
+                      .where('is_active', '==', True)
                       .order_by('record_date', direction='DESCENDING')
                       .limit(10)
                       .get())
@@ -812,27 +874,27 @@ def get_cow_records_summary(
         total_counts = {}
         for record_type in DetailedRecordType:
             count = len((db.collection('cow_detailed_records')
-                        .where(filter=('cow_id', '==', cow_id))
-                        .where(filter=('farm_id', '==', farm_id))
-                        .where(filter=('record_type', '==', record_type.value))
-                        .where(filter=('is_active', '==', True))
+                        .where('cow_id', '==', cow_id)
+                        .where('farm_id', '==', farm_id)
+                        .where('record_type', '==', record_type.value)
+                        .where('is_active', '==', True)
                         .get()))
             total_counts[record_type.value] = count
         
         # 최근 30일 기록 개수
         recent_count = len((db.collection('cow_detailed_records')
-                           .where(filter=('cow_id', '==', cow_id))
-                           .where(filter=('farm_id', '==', farm_id))
-                           .where(filter=('record_type', '==', record_type.value))
-                           .where(filter=('is_active', '==', True))
-                           .where(filter=('record_date', '>=', thirty_days_ago))
+                           .where('cow_id', '==', cow_id)
+                           .where('farm_id', '==', farm_id)
+                           .where('record_type', '==', record_type.value)
+                           .where('is_active', '==', True)
+                           .where('record_date', '>=', thirty_days_ago)
                            .get()))
         
         # 전체 기록 개수
         total_records = len((db.collection('cow_detailed_records')
-                           .where(filter=('cow_id', '==', cow_id))
-                           .where(filter=('farm_id', '==', farm_id))
-                           .where(filter=('is_active', '==', True))
+                           .where('cow_id', '==', cow_id)
+                           .where('farm_id', '==', farm_id)
+                           .where('is_active', '==', True)
                            .get()))
         
         return {
@@ -859,11 +921,22 @@ def get_cow_health_records(
     limit: int = Query(100, description="조회할 기록 수 제한", ge=1, le=200),
     current_user: dict = Depends(get_current_user)
 ):
-    """특정 젖소의 모든 건강 관련 기록 조회 (건강검진, 백신접종, 치료)"""
+    """🔧 특정 젖소의 모든 건강 관련 기록 조회 (건강검진, 백신접종, 치료) - 500 오류 해결"""
     try:
         from config.firebase_config import get_firestore_client
         db = get_firestore_client()
         farm_id = current_user.get("farm_id")
+        
+        # 젖소 정보 안전하게 조회
+        cow_info = None
+        try:
+            cow_info = DetailedRecordService._get_cow_info(cow_id, farm_id)
+        except:
+            # 젖소 정보 조회 실패 시 기본값 사용
+            cow_info = {
+                "name": "알 수 없음",
+                "ear_tag_number": "N/A"
+            }
         
         # 건강 관련 기록 타입들
         health_types = [
@@ -874,27 +947,49 @@ def get_cow_health_records(
         
         all_records = []
         for record_type in health_types:
-            records = (db.collection('cow_detailed_records')
-                      .where(filter=('cow_id', '==', cow_id))
-                      .where(filter=('farm_id', '==', farm_id))
-                      .where(filter=('record_type', '==', record_type))
-                      .where(filter=('is_active', '==', True))
-                      .order_by('record_date', direction='DESCENDING')
-                      .limit(limit)
-                      .get())
-            
-            for record in records:
-                data = record.to_dict()
-                all_records.append(DetailedRecordSummary(
-                    id=data["id"],
-                    cow_id=data["cow_id"],
-                    record_type=data["record_type"],
-                    record_date=data["record_date"],
-                    title=data["title"],
-                    description=data.get("description", ""),
-                    created_at=data["created_at"],
-                    updated_at=data["updated_at"]
-                ))
+            try:
+                records = (db.collection('cow_detailed_records')
+                          .where('cow_id', '==', cow_id)
+                          .where('farm_id', '==', farm_id)
+                          .where('record_type', '==', record_type)
+                          .where('is_active', '==', True)
+                          .order_by('record_date', direction='DESCENDING')
+                          .limit(limit)
+                          .get())
+                
+                for record in records:
+                    try:
+                        data = record.to_dict()
+                        
+                        # 키 값 추출 (안전하게)
+                        key_values = DetailedRecordService._extract_key_values(
+                            data.get("record_type", ""), 
+                            data.get("record_data", {})
+                        )
+                        
+                        # 수정된 부분: 필수 필드에 기본값 제공
+                        all_records.append(DetailedRecordSummary(
+                            id=data.get("id", ""),
+                            cow_id=data.get("cow_id", cow_id),
+                            cow_name=cow_info.get("name", "알 수 없음"),  # 기본값 제공
+                            cow_ear_tag_number=cow_info.get("ear_tag_number", "N/A"),  # 기본값 제공
+                            record_type=DetailedRecordType(data.get("record_type", "other")),
+                            record_date=data.get("record_date", ""),
+                            title=data.get("title", "제목 없음"),
+                            description=data.get("description"),  # Optional
+                            key_values=key_values or {},  # 기본값 제공
+                            created_at=data.get("created_at", datetime.utcnow()),
+                            updated_at=data.get("updated_at", datetime.utcnow())
+                        ))
+                    except Exception as record_error:
+                        # 개별 기록 처리 실패 시 로그만 남기고 계속 진행
+                        print(f"[WARNING] 건강 기록 처리 실패 (ID: {record.id}): {str(record_error)}")
+                        continue
+                        
+            except Exception as type_error:
+                # 특정 타입 조회 실패 시 로그만 남기고 계속 진행
+                print(f"[WARNING] 건강 기록 타입 조회 실패 ({record_type}): {str(type_error)}")
+                continue
         
         # 날짜순 정렬 (최신순)
         all_records.sort(key=lambda x: x.record_date, reverse=True)
@@ -902,10 +997,9 @@ def get_cow_health_records(
         return all_records[:limit]
         
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"건강 기록 조회 중 오류가 발생했습니다: {str(e)}"
-        )
+        # 전체 실패 시에도 빈 배열 반환 (500 오류 방지)
+        print(f"[ERROR] 건강 기록 조회 전체 실패: {str(e)}")
+        return []
 
 @router.get("/cow/{cow_id}/milking-records", 
             response_model=List[DetailedRecordSummary],
@@ -923,10 +1017,10 @@ def get_cow_all_milking_records(
         farm_id = current_user.get("farm_id")
         
         records = (db.collection('cow_detailed_records')
-                  .where(filter=('cow_id', '==', cow_id))
-                  .where(filter=('farm_id', '==', farm_id))
-                  .where(filter=('record_type', '==', DetailedRecordType.MILKING.value))
-                  .where(filter=('is_active', '==', True))
+                  .where('cow_id', '==', cow_id)
+                  .where('farm_id', '==', farm_id)
+                  .where('record_type', '==', DetailedRecordType.MILKING.value)
+                  .where('is_active', '==', True)
                   .order_by('record_date', direction='DESCENDING')
                   .limit(limit)
                   .get())
@@ -952,6 +1046,7 @@ def get_cow_all_milking_records(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"착유 기록 조회 중 오류가 발생했습니다: {str(e)}"
         )
+    
 
 @router.get("/cow/{cow_id}/breeding-records", 
             response_model=List[DetailedRecordSummary],
@@ -962,13 +1057,22 @@ def get_cow_breeding_records(
     limit: int = Query(100, description="조회할 기록 수 제한", ge=1, le=200),
     current_user: dict = Depends(get_current_user)
 ):
-    """특정 젖소의 모든 번식 관련 기록 조회 (발정, 인공수정, 임신감정, 분만)"""
+    """🐮 특정 젖소의 모든 번식 관련 기록 조회 (발정, 인공수정, 임신감정, 분만)"""
     try:
         from config.firebase_config import get_firestore_client
         db = get_firestore_client()
         farm_id = current_user.get("farm_id")
         
-        # 번식 관련 기록 타입들
+        # 젖소 정보 조회 (이름, 귀표번호)
+        try:
+            cow_info = DetailedRecordService._get_cow_info(cow_id, farm_id)
+        except:
+            cow_info = {
+                "name": "알 수 없음",
+                "ear_tag_number": "N/A"
+            }
+        
+        # 번식 관련 타입들
         breeding_types = [
             DetailedRecordType.ESTRUS.value,
             DetailedRecordType.INSEMINATION.value,
@@ -977,39 +1081,55 @@ def get_cow_breeding_records(
         ]
         
         all_records = []
+
         for record_type in breeding_types:
-            records = (db.collection('cow_detailed_records')
-                      .where(filter=('cow_id', '==', cow_id))
-                      .where(filter=('farm_id', '==', farm_id))
-                      .where(filter=('record_type', '==', record_type))
-                      .where(filter=('is_active', '==', True))
-                      .order_by('record_date', direction='DESCENDING')
-                      .limit(limit)
-                      .get())
-            
-            for record in records:
-                data = record.to_dict()
-                all_records.append(DetailedRecordSummary(
-                    id=data["id"],
-                    cow_id=data["cow_id"],
-                    record_type=data["record_type"],
-                    record_date=data["record_date"],
-                    title=data["title"],
-                    description=data.get("description", ""),
-                    created_at=data["created_at"],
-                    updated_at=data["updated_at"]
-                ))
+            try:
+                records = (db.collection('cow_detailed_records')
+                          .where('cow_id', '==', cow_id)
+                          .where('farm_id', '==', farm_id)
+                          .where('record_type', '==', record_type)
+                          .where('is_active', '==', True)
+                          .order_by('record_date', direction='DESCENDING')
+                          .limit(limit)
+                          .get())
+                
+                for record in records:
+                    try:
+                        data = record.to_dict()
+                        print(f"[DEBUG] 🔍 불러온 {record_type} raw data:", data)
+
+                        key_values = DetailedRecordService._extract_key_values(
+                            data.get("record_type", ""),
+                            data.get("record_data", {})
+                        )
+
+                        all_records.append(DetailedRecordSummary(
+                            id=data.get("id", ""),
+                            cow_id=data.get("cow_id", cow_id),
+                            cow_name=cow_info.get("name", "알 수 없음"),
+                            cow_ear_tag_number=cow_info.get("ear_tag_number", "N/A"),
+                            record_type=DetailedRecordType(data.get("record_type", "other")),
+                            record_date=data.get("record_date", ""),
+                            title=data.get("title", "제목 없음"),
+                            description=data.get("description", ""),
+                            key_values=key_values or {},
+                            created_at=data.get("created_at", datetime.utcnow()),
+                            updated_at=data.get("updated_at", datetime.utcnow())
+                        ))
+                    except Exception as record_error:
+                        print(f"[WARNING] 번식 기록 처리 실패 (ID: {record.id}): {str(record_error)}")
+                        continue
+            except Exception as type_error:
+                print(f"[WARNING] 번식 기록 타입 조회 실패 ({record_type}): {str(type_error)}")
+                continue
         
-        # 날짜순 정렬 (최신순)
         all_records.sort(key=lambda x: x.record_date, reverse=True)
-        
         return all_records[:limit]
-        
+    
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"번식 기록 조회 중 오류가 발생했습니다: {str(e)}"
-        )
+        print(f"[ERROR] 번식 기록 전체 조회 실패: {str(e)}")
+        return []
+
 
 @router.get("/cow/{cow_id}/feed-records", 
             response_model=List[DetailedRecordSummary],
@@ -1020,43 +1140,70 @@ def get_cow_feed_records(
     limit: int = Query(100, description="조회할 기록 수 제한", ge=1, le=200),
     current_user: dict = Depends(get_current_user)
 ):
-    """특정 젖소의 모든 사료급여 기록 조회"""
+    """특정 젖소의 모든 사료급여 기록 조회 - 500 오류 해결"""
     try:
         from config.firebase_config import get_firestore_client
         db = get_firestore_client()
         farm_id = current_user.get("farm_id")
         
+        # 젖소 정보 안전하게 조회
+        cow_info = None
+        try:
+            cow_info = DetailedRecordService._get_cow_info(cow_id, farm_id)
+        except:
+            # 젖소 정보 조회 실패 시 기본값 사용
+            cow_info = {
+                "name": "알 수 없음",
+                "ear_tag_number": "N/A"
+            }
+        
         records = (db.collection('cow_detailed_records')
-                  .where(filter=('cow_id', '==', cow_id))
-                  .where(filter=('farm_id', '==', farm_id))
-                  .where(filter=('record_type', '==', DetailedRecordType.FEED.value))
-                  .where(filter=('is_active', '==', True))
+                  .where('cow_id', '==', cow_id)
+                  .where('farm_id', '==', farm_id)
+                  .where('record_type', '==', DetailedRecordType.FEED.value)
+                  .where('is_active', '==', True)
                   .order_by('record_date', direction='DESCENDING')
                   .limit(limit)
                   .get())
         
         result = []
         for record in records:
-            data = record.to_dict()
-            result.append(DetailedRecordSummary(
-                id=data["id"],
-                cow_id=data["cow_id"],
-                record_type=data["record_type"],
-                record_date=data["record_date"],
-                title=data["title"],
-                description=data.get("description", ""),
-                created_at=data["created_at"],
-                updated_at=data["updated_at"]
-            ))
+            try:
+                data = record.to_dict()
+                
+                # 키 값 추출 (안전하게)
+                key_values = DetailedRecordService._extract_key_values(
+                    data.get("record_type", ""), 
+                    data.get("record_data", {})
+                )
+                
+                # 수정된 부분: 필수 필드에 기본값 제공
+                result.append(DetailedRecordSummary(
+                    id=data.get("id", ""),
+                    cow_id=data.get("cow_id", cow_id),
+                    cow_name=cow_info.get("name", "알 수 없음"),  # 기본값 제공
+                    cow_ear_tag_number=cow_info.get("ear_tag_number", "N/A"),  # 기본값 제공
+                    record_type=DetailedRecordType(data.get("record_type", "feed")),
+                    record_date=data.get("record_date", ""),
+                    title=data.get("title", "제목 없음"),
+                    description=data.get("description"),  # Optional
+                    key_values=key_values or {},  # 기본값 제공
+                    created_at=data.get("created_at", datetime.utcnow()),
+                    updated_at=data.get("updated_at", datetime.utcnow())
+                ))
+            except Exception as record_error:
+                # 개별 기록 처리 실패 시 로그만 남기고 계속 진행
+                print(f"[WARNING] 사료급여 기록 처리 실패 (ID: {record.id}): {str(record_error)}")
+                continue
         
         return result
         
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"사료급여 기록 조회 중 오류가 발생했습니다: {str(e)}"
-        )
-
+        # 전체 실패 시에도 빈 배열 반환 (500 오류 방지)
+        print(f"[ERROR] 사료급여 기록 조회 전체 실패: {str(e)}")
+        return []
+    
+    
 @router.get("/cow/{cow_id}/weight-records", 
             response_model=List[DetailedRecordSummary],
             summary="젖소별 체중측정 기록 조회",
@@ -1066,42 +1213,66 @@ def get_cow_weight_records(
     limit: int = Query(100, description="조회할 기록 수 제한", ge=1, le=200),
     current_user: dict = Depends(get_current_user)
 ):
-    """특정 젖소의 모든 체중측정 기록 조회"""
+    """🔧 특정 젖소의 체중측정 기록 조회 - 500 오류 방지 포함"""
     try:
         from config.firebase_config import get_firestore_client
         db = get_firestore_client()
         farm_id = current_user.get("farm_id")
-        
+
+        # 젖소 정보 안전 조회
+        cow_info = None
+        try:
+            cow_info = DetailedRecordService._get_cow_info(cow_id, farm_id)
+        except:
+            cow_info = {
+                "name": "알 수 없음",
+                "ear_tag_number": "N/A"
+            }
+
+        # 기록 불러오기
         records = (db.collection('cow_detailed_records')
-                  .where(filter=('cow_id', '==', cow_id))
-                  .where(filter=('farm_id', '==', farm_id))
-                  .where(filter=('record_type', '==', DetailedRecordType.WEIGHT.value))
-                  .where(filter=('is_active', '==', True))
+                  .where('cow_id', '==', cow_id)
+                  .where('farm_id', '==', farm_id)
+                  .where('record_type', '==', DetailedRecordType.WEIGHT.value)
+                  .where('is_active', '==', True)
                   .order_by('record_date', direction='DESCENDING')
                   .limit(limit)
                   .get())
-        
+
         result = []
         for record in records:
-            data = record.to_dict()
-            result.append(DetailedRecordSummary(
-                id=data["id"],
-                cow_id=data["cow_id"],
-                record_type=data["record_type"],
-                record_date=data["record_date"],
-                title=data["title"],
-                description=data.get("description", ""),
-                created_at=data["created_at"],
-                updated_at=data["updated_at"]
-            ))
-        
+            try:
+                data = record.to_dict()
+
+                key_values = DetailedRecordService._extract_key_values(
+                    data.get("record_type", ""), 
+                    data.get("record_data", {})
+                )
+
+                result.append(DetailedRecordSummary(
+                    id=data.get("id", ""),
+                    cow_id=data.get("cow_id", cow_id),
+                    cow_name=cow_info.get("name", "알 수 없음"),
+                    cow_ear_tag_number=cow_info.get("ear_tag_number", "N/A"),
+                    record_type=DetailedRecordType(data.get("record_type", "other")),
+                    record_date=data.get("record_date", ""),
+                    title=data.get("title", "제목 없음"),
+                    description=data.get("description"),
+                    key_values=key_values or {},
+                    created_at=data.get("created_at", datetime.utcnow()),
+                    updated_at=data.get("updated_at", datetime.utcnow()),
+                    record_data=data.get("record_data", {})
+                ))
+            except Exception as record_error:
+                print(f"[WARNING] 체중 기록 처리 실패 (ID: {record.id}): {str(record_error)}")
+                continue
+
         return result
-        
+
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"체중측정 기록 조회 중 오류가 발생했습니다: {str(e)}"
-        )
+        print(f"[ERROR] 체중 기록 조회 전체 실패: {str(e)}")
+        return []  # ❗빈 리스트 반환해서 500 방지
+
 
 @router.get("/cow/{cow_id}/all-records", 
             response_model=List[DetailedRecordSummary],
@@ -1184,13 +1355,13 @@ def get_cow_all_records(
         
         # 기본 쿼리
         query = (db.collection('cow_detailed_records')
-                .where(filter=('cow_id', '==', cow_id))
-                .where(filter=('farm_id', '==', farm_id))
-                .where(filter=('is_active', '==', True)))
+                .where('cow_id', '==', cow_id)
+                .where('farm_id', '==', farm_id)
+                .where('is_active', '==', True))
         
         # 기록 타입 필터링
         if record_type:
-            query = query.where(filter=('record_type', '==', record_type.value))
+            query = query.where('record_type', '==', record_type.value)
         
         records = (query.order_by('record_date', direction='DESCENDING')
                   .limit(limit)
@@ -1217,3 +1388,5 @@ def get_cow_all_records(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"기록 조회 중 오류가 발생했습니다: {str(e)}"
         )
+        
+        

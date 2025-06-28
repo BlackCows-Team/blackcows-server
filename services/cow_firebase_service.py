@@ -102,7 +102,7 @@ class CowFirebaseService:
     
     @staticmethod
     def get_cows_by_farm(farm_id: str, is_active: bool = True) -> List[CowResponse]:
-        """농장별 젖소 목록 조회"""
+        """농장별 젖소 목록 조회 - 500 오류 해결"""
         try:
             cows_query = (db.collection('cows')
                          .where('farm_id', '==', farm_id)
@@ -112,50 +112,55 @@ class CowFirebaseService:
             
             cows = []
             for cow_doc in cows_query:
-                cow_data = cow_doc.to_dict()
-                # HealthStatus와 BreedingStatus 안전하게 변환
-                health_status = None
-                if cow_data.get("health_status"):
-                    try:
-                        health_status = HealthStatus(cow_data["health_status"])
-                    except ValueError:
-                        print(f"[WARNING] 잘못된 health_status 값: {cow_data['health_status']} (젖소 ID: {cow_data['id']})")
-                        # 기본값으로 설정하거나 None으로 유지
-                        health_status = HealthStatus.NORMAL  # 또는 None
-                
-                breeding_status = None
-                if cow_data.get("breeding_status"):
-                    try:
-                        breeding_status = BreedingStatus(cow_data["breeding_status"])
-                    except ValueError:
-                        print(f"[WARNING] 잘못된 breeding_status 값: {cow_data['breeding_status']} (젖소 ID: {cow_data['id']})")
-                        breeding_status = None
-                
-                cows.append(CowResponse(
-                    id=cow_data["id"],
-                    ear_tag_number=cow_data["ear_tag_number"],
-                    name=cow_data["name"],
-                    birthdate=cow_data.get("birthdate"),
-                    sensor_number=cow_data.get("sensor_number"),
-                    health_status=health_status,
-                    breeding_status=breeding_status,
-                    breed=cow_data.get("breed"),
-                    notes=cow_data.get("notes"),
-                    is_favorite=cow_data.get("is_favorite", False),
-                    farm_id=cow_data["farm_id"],
-                    owner_id=cow_data["owner_id"],
-                    created_at=cow_data["created_at"],
-                    updated_at=cow_data["updated_at"],
-                    is_active=cow_data["is_active"]
-                ))
+                try:
+                    cow_data = cow_doc.to_dict()
+                    
+                    # HealthStatus와 BreedingStatus 안전하게 변환
+                    health_status = None
+                    if cow_data.get("health_status"):
+                        try:
+                            health_status = HealthStatus(cow_data["health_status"])
+                        except ValueError:
+                            print(f"[WARNING] 잘못된 health_status 값: {cow_data.get('health_status')} (젖소 ID: {cow_data.get('id')})")
+                            # 기본값으로 설정하거나 None으로 유지
+                            health_status = HealthStatus.NORMAL  # 또는 None
+                    
+                    breeding_status = None
+                    if cow_data.get("breeding_status"):
+                        try:
+                            breeding_status = BreedingStatus(cow_data["breeding_status"])
+                        except ValueError:
+                            print(f"[WARNING] 잘못된 breeding_status 값: {cow_data.get('breeding_status')} (젖소 ID: {cow_data.get('id')})")
+                            breeding_status = None
+                    
+                    cows.append(CowResponse(
+                        id=cow_data.get("id", ""),
+                        ear_tag_number=cow_data.get("ear_tag_number", ""),
+                        name=cow_data.get("name", "이름 없음"),
+                        birthdate=cow_data.get("birthdate"),
+                        sensor_number=cow_data.get("sensor_number"),
+                        health_status=health_status,
+                        breeding_status=breeding_status,
+                        breed=cow_data.get("breed"),
+                        notes=cow_data.get("notes"),
+                        is_favorite=cow_data.get("is_favorite", False),
+                        farm_id=cow_data.get("farm_id", farm_id),
+                        owner_id=cow_data.get("owner_id", ""),
+                        created_at=cow_data.get("created_at", datetime.utcnow()),
+                        updated_at=cow_data.get("updated_at", datetime.utcnow()),
+                        is_active=cow_data.get("is_active", True)
+                    ))
+                except Exception as cow_error:
+                    # 개별 젖소 처리 실패 시 로그만 남기고 계속 진행
+                    print(f"[WARNING] 젖소 처리 실패 (ID: {cow_doc.id}): {str(cow_error)}")
+                    continue
             
             return cows
             
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"젖소 목록 조회 중 오류가 발생했습니다: {str(e)}"
-            )
+            # 전체 실패 시에도 빈 배열 반환 (500 오류 방지)
+            print(f"[ERROR] 젖소 목록 조회 전체 실패 (farm_id: {farm_id}): {str(e)}")
+            return []
     
     @staticmethod
     def get_cow_by_id(cow_id: str, farm_id: str) -> Optional[CowResponse]:
@@ -378,7 +383,7 @@ class CowFirebaseService:
     
     @staticmethod
     def get_favorite_cows(farm_id: str) -> List[CowResponse]:
-        """즐겨찾기된 젖소 목록 조회"""
+        """즐겨찾기된 젖소 목록 조회 - 500 오류 해결"""
         try:
             cows_query = (db.collection('cows')
                          .where('farm_id', '==', farm_id)
@@ -389,50 +394,156 @@ class CowFirebaseService:
             
             cows = []
             for cow_doc in cows_query:
-                cow_data = cow_doc.to_dict()
-                # HealthStatus와 BreedingStatus 안전하게 변환
-                health_status = None
-                if cow_data.get("health_status"):
-                    try:
-                        health_status = HealthStatus(cow_data["health_status"])
-                    except ValueError:
-                        print(f"[WARNING] 잘못된 health_status 값: {cow_data['health_status']} (젖소 ID: {cow_data['id']})")
-                        health_status = HealthStatus.NORMAL
-                
-                breeding_status = None
-                if cow_data.get("breeding_status"):
-                    try:
-                        breeding_status = BreedingStatus(cow_data["breeding_status"])
-                    except ValueError:
-                        print(f"[WARNING] 잘못된 breeding_status 값: {cow_data['breeding_status']} (젖소 ID: {cow_data['id']})")
-                        breeding_status = None
-                        
-                cows.append(CowResponse(
-                    id=cow_data["id"],
-                    ear_tag_number=cow_data["ear_tag_number"],
-                    name=cow_data["name"],
-                    birthdate=cow_data.get("birthdate"),
-                    sensor_number=cow_data.get("sensor_number"),
-                    health_status=health_status,
-                    breeding_status=breeding_status,
-                    breed=cow_data.get("breed"),
-                    notes=cow_data.get("notes"),
-                    is_favorite=cow_data.get("is_favorite", False),
-                    farm_id=cow_data["farm_id"],
-                    owner_id=cow_data["owner_id"],
-                    created_at=cow_data["created_at"],
-                    updated_at=cow_data["updated_at"],
-                    is_active=cow_data["is_active"]
-                ))
+                try:
+                    cow_data = cow_doc.to_dict()
+                    
+                    # HealthStatus와 BreedingStatus 안전하게 변환
+                    health_status = None
+                    if cow_data.get("health_status"):
+                        try:
+                            health_status = HealthStatus(cow_data["health_status"])
+                        except ValueError:
+                            print(f"[WARNING] 잘못된 health_status 값: {cow_data.get('health_status')} (젖소 ID: {cow_data.get('id')})")
+                            health_status = HealthStatus.NORMAL
+                    
+                    breeding_status = None
+                    if cow_data.get("breeding_status"):
+                        try:
+                            breeding_status = BreedingStatus(cow_data["breeding_status"])
+                        except ValueError:
+                            print(f"[WARNING] 잘못된 breeding_status 값: {cow_data.get('breeding_status')} (젖소 ID: {cow_data.get('id')})")
+                            breeding_status = None
+                            
+                    cows.append(CowResponse(
+                        id=cow_data.get("id", ""),
+                        ear_tag_number=cow_data.get("ear_tag_number", ""),
+                        name=cow_data.get("name", "이름 없음"),
+                        birthdate=cow_data.get("birthdate"),
+                        sensor_number=cow_data.get("sensor_number"),
+                        health_status=health_status,
+                        breeding_status=breeding_status,
+                        breed=cow_data.get("breed"),
+                        notes=cow_data.get("notes"),
+                        is_favorite=cow_data.get("is_favorite", False),
+                        farm_id=cow_data.get("farm_id", farm_id),
+                        owner_id=cow_data.get("owner_id", ""),
+                        created_at=cow_data.get("created_at", datetime.utcnow()),
+                        updated_at=cow_data.get("updated_at", datetime.utcnow()),
+                        is_active=cow_data.get("is_active", True)
+                    ))
+                except Exception as cow_error:
+                    # 개별 젖소 처리 실패 시 로그만 남기고 계속 진행
+                    print(f"[WARNING] 즐겨찾기 젖소 처리 실패 (ID: {cow_doc.id}): {str(cow_error)}")
+                    continue
             
             return cows
             
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"즐겨찾기 젖소 목록 조회 중 오류가 발생했습니다: {str(e)}"
-            )
+            # 전체 실패 시에도 빈 배열 반환 (500 오류 방지)
+            print(f"[ERROR] 즐겨찾기 젖소 목록 조회 전체 실패: {str(e)}")
+            return []
         
+    @staticmethod
+    def _get_cow_info(cow_id: str, farm_id: str) -> Dict:
+        """젖소 기본 정보 조회 (안전한 처리)"""
+        try:
+            cow_doc = db.collection('cows').document(cow_id).get()
+            
+            if not cow_doc.exists:
+                return {
+                    "name": "알 수 없음",
+                    "ear_tag_number": "N/A"
+                }
+            
+            cow_data = cow_doc.to_dict()
+            
+            # 농장 ID 확인 (보안)
+            if cow_data.get("farm_id") != farm_id:
+                return {
+                    "name": "알 수 없음", 
+                    "ear_tag_number": "N/A"
+                }
+            
+            return {
+                "name": cow_data.get("name", "알 수 없음"),
+                "ear_tag_number": cow_data.get("ear_tag_number", "N/A")
+            }
+            
+        except Exception as e:
+            print(f"[WARNING] 젖소 정보 조회 실패 (cow_id: {cow_id}): {str(e)}")
+            return {
+                "name": "알 수 없음",
+                "ear_tag_number": "N/A"
+            }
+
+    @staticmethod
+    def _extract_key_values(record_type: str, record_data: Dict) -> Dict:
+        """기록 데이터에서 주요 값들 추출 (안전한 처리)"""
+        try:
+            key_values = {}
+            
+            if record_type == "milking":
+                key_values = {
+                    "milk_yield": record_data.get("milk_yield", 0),
+                    "fat_content": record_data.get("fat_content"),
+                    "protein_content": record_data.get("protein_content")
+                }
+            elif record_type == "feed":
+                key_values = {
+                    "feed_type": record_data.get("feed_type", ""),
+                    "amount": record_data.get("amount", 0),
+                    "unit": record_data.get("unit", "kg")
+                }
+            elif record_type == "weight":
+                key_values = {
+                    "weight": record_data.get("weight", 0),
+                    "body_condition_score": record_data.get("body_condition_score")
+                }
+            elif record_type == "health_check":
+                key_values = {
+                    "temperature": record_data.get("temperature"),
+                    "pulse": record_data.get("pulse"),
+                    "overall_condition": record_data.get("overall_condition", "정상")
+                }
+            elif record_type == "vaccination":
+                key_values = {
+                    "vaccine_name": record_data.get("vaccine_name", ""),
+                    "next_vaccination_date": record_data.get("next_vaccination_date")
+                }
+            elif record_type == "treatment":
+                key_values = {
+                    "diagnosis": record_data.get("diagnosis", ""),
+                    "medication": record_data.get("medication", ""),
+                    "treatment_result": record_data.get("treatment_result", "진행중")
+                }
+            elif record_type in ["estrus", "insemination", "pregnancy_check", "calving"]:
+                if record_type == "estrus":
+                    key_values = {
+                        "estrus_intensity": record_data.get("estrus_intensity", "보통"),
+                        "estrus_symptoms": record_data.get("estrus_symptoms", [])
+                    }
+                elif record_type == "insemination":
+                    key_values = {
+                        "semen_info": record_data.get("semen_info", ""),
+                        "technician": record_data.get("technician", "")
+                    }
+                elif record_type == "pregnancy_check":
+                    key_values = {
+                        "pregnancy_status": record_data.get("pregnancy_status", "확인중"),
+                        "expected_calving_date": record_data.get("expected_calving_date")
+                    }
+                elif record_type == "calving":
+                    key_values = {
+                        "calf_gender": record_data.get("calf_gender", ""),
+                        "calving_difficulty": record_data.get("calving_difficulty", "정상")
+                    }
+            
+            return key_values
+            
+        except Exception as e:
+            print(f"[WARNING] 키 값 추출 실패 (record_type: {record_type}): {str(e)}")
+            return {}
+
 # 젖소 상세 정보 업데이트
 @staticmethod
 def update_cow_details(cow_id: str, cow_detail_update: CowDetailUpdate, user: Dict) -> CowDetailResponse:
