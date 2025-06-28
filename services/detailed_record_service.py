@@ -991,10 +991,31 @@ class DetailedRecordService:
                     key_values["fat"] = f"{record_data['fat_percentage']}%"
             
             elif record_type == DetailedRecordType.WEIGHT.value:
+                print(f"[DEBUG] record_type: {record_type}, record_data: {record_data}")
                 if record_data.get("weight"):
                     key_values["weight"] = f"{record_data['weight']}kg"
                 if record_data.get("body_condition_score"):
                     key_values["bcs"] = f"{record_data['body_condition_score']}"
+                if record_data.get("measurement_method"):
+                    key_values["method"] = record_data["measurement_method"]
+                if record_data.get("measurement_time"):
+                    key_values["time"] = record_data["measurement_time"]
+                if record_data.get("height_withers"):
+                    key_values["height_withers"] = f"{record_data['height_withers']}cm"
+                if record_data.get("body_length"):
+                    key_values["body_length"] = f"{record_data['body_length']}cm"
+                if record_data.get("chest_girth"):
+                    key_values["chest_girth"] = f"{record_data['chest_girth']}cm"
+                if record_data.get("growth_rate"):
+                    key_values["growth_rate"] = f"{record_data['growth_rate']}%"
+                if record_data.get("target_weight"):
+                    key_values["target_weight"] = f"{record_data['target_weight']}kg"
+                if record_data.get("weight_category"):
+                    key_values["category"] = record_data["weight_category"]
+                if record_data.get("measurer"):
+                    key_values["measurer"] = record_data["measurer"]
+                if record_data.get("notes"):
+                    key_values["notes"] = record_data["notes"]
             
             elif record_type == DetailedRecordType.ESTRUS.value:
                 if record_data.get("estrus_intensity"):
@@ -1027,35 +1048,130 @@ class DetailedRecordService:
                     key_values["type"] = record_data["feed_type"]
             
             elif record_type == DetailedRecordType.VACCINATION.value:
+                if record_data.get("vaccination_time"):
+                    key_values["vaccination_time"] = record_data["vaccination_time"]
                 if record_data.get("vaccine_name"):
                     key_values["vaccine"] = record_data["vaccine_name"]
+                if record_data.get("vaccine_type"):
+                    key_values["vaccine_type"] = record_data["vaccine_type"]
+                if record_data.get("vaccine_batch"):
+                    key_values["vaccine_batch"] = record_data["vaccine_batch"]
                 if record_data.get("dosage"):
                     key_values["dosage"] = f"{record_data['dosage']}ml"
+                if record_data.get("injection_site"):
+                    key_values["injection_site"] = record_data["injection_site"]
+                if record_data.get("injection_method"):
+                    key_values["injection_method"] = record_data["injection_method"]
+                if record_data.get("administrator"):
+                    key_values["administrator"] = record_data["administrator"]
+                if record_data.get("vaccine_manufacturer"):
+                    key_values["vaccine_manufacturer"] = record_data["vaccine_manufacturer"]
+                if record_data.get("expiry_date"):
+                    key_values["expiry_date"] = record_data["expiry_date"]
+                if record_data.get("adverse_reaction") is not None:
+                    key_values["adverse_reaction"] = "있음" if record_data["adverse_reaction"] else "없음"
+                if record_data.get("reaction_details"):
+                    key_values["reaction_details"] = record_data["reaction_details"]
+                if record_data.get("next_vaccination_due"):
+                    key_values["next_vaccination_due"] = record_data["next_vaccination_due"]
+                if record_data.get("cost"):
+                    key_values["cost"] = f"{record_data['cost']}원"
+                if record_data.get("notes"):
+                    key_values["notes"] = record_data["notes"]
+
             
             elif record_type == DetailedRecordType.TREATMENT.value:
+                print(f"[DEBUG] record_type: {record_type}, record_data: {record_data}")
                 if record_data.get("diagnosis"):
-                    key_values["diagnosis"] = record_data["diagnosis"]
+                    key_values["진단명"] = record_data["diagnosis"]
                 if record_data.get("treatment_cost"):
-                    key_values["cost"] = f"{record_data['treatment_cost']:,}원"
+                    key_values["비용"] = f"{record_data['treatment_cost']:,}원"
+                if record_data.get("treatment_method"):
+                    key_values["치료 방법"] = record_data["treatment_method"]
+                if record_data.get("veterinarian"):
+                    key_values["수의사"] = record_data["veterinarian"]
+                if record_data.get("medication_used"):
+                    key_values["투여 약물"] = ", ".join(record_data["medication_used"])
+                if record_data.get("treatment_duration"):
+                    key_values["치료 기간"] = f"{record_data['treatment_duration']}일"
+                if record_data.get("follow_up_date"):
+                    key_values["추후 검사일"] = record_data["follow_up_date"]
+                if record_data.get("withdrawal_period"):
+                    key_values["휴약 기간"] = f"{record_data['withdrawal_period']}일"
+                if record_data.get("side_effects"):
+                    key_values["부작용"] = record_data["side_effects"]
+                if record_data.get("treatment_response"):
+                    key_values["치료 반응"] = record_data["treatment_response"]
+                if record_data.get("notes"):
+                    key_values["비고"] = record_data["notes"]
+
             
             elif record_type == DetailedRecordType.HEALTH_CHECK.value:
                 if record_data.get("body_temperature"):
                     key_values["temperature"] = f"{record_data['body_temperature']}°C"
                 if record_data.get("body_condition_score"):
                     key_values["bcs"] = f"{record_data['body_condition_score']}"
+                if record_data.get("heart_rate"):
+                    key_values["heart_rate"] = f"{record_data['heart_rate']}회/분"
+                if record_data.get("respiratory_rate"):
+                    key_values["respiratory_rate"] = f"{record_data['respiratory_rate']}회/분"
+                if record_data.get("mobility_score"):
+                    key_values["mobility"] = f"{record_data['mobility_score']}점"
+                if record_data.get("appetite_level"):
+                    key_values["appetite"] = record_data["appetite_level"]
+                if record_data.get("activity_level"):
+                    key_values["activity"] = record_data["activity_level"]
+                if record_data.get("remarks"):
+                    key_values["remarks"] = record_data["remarks"]
+                if record_data.get("check_time"):
+                    key_values["check_time"] = record_data["check_time"]
+                if record_data.get("examiner"):
+                    key_values["examiner"] = record_data["examiner"]
+                if record_data.get("eye_condition"):
+                    key_values["eye_condition"] = record_data["eye_condition"]
+                if record_data.get("nose_condition"):
+                    key_values["nose_condition"] = record_data["nose_condition"]
+                if record_data.get("coat_condition"):
+                    key_values["coat_condition"] = record_data["coat_condition"]
+                if record_data.get("hoof_condition"):
+                    key_values["hoof_condition"] = record_data["hoof_condition"]
+                if record_data.get("udder_condition"):
+                    key_values["udder_condition"] = record_data["udder_condition"]
+                if record_data.get("abnormal_symptoms"):
+                    key_values["abnormal_symptoms"] = record_data["abnormal_symptoms"]
+                if record_data.get("next_check_date"):
+                    key_values["next_check_date"] = record_data["next_check_date"]
+
+
 
             elif record_type == DetailedRecordType.INSEMINATION.value:
                 print(f"[DEBUG] record_type: {record_type}, record_data: {record_data}")
-                if record_data.get("insemination_method"):
-                    key_values["method"] = record_data["insemination_method"]
-                if record_data.get("semen_quality"):
-                    key_values["quality"] = record_data["semen_quality"]
-                if record_data.get("technician_name"):
-                    key_values["technician"] = record_data["technician_name"]
+
+                if record_data.get("insemination_time"):
+                    key_values["insemination_time"] = record_data["insemination_time"]
+                if record_data.get("bull_id"):
+                    key_values["bull_id"] = record_data["bull_id"]
                 if record_data.get("bull_breed"):
                     key_values["bull"] = record_data["bull_breed"]
+                if record_data.get("semen_batch"):
+                    key_values["semen_batch"] = record_data["semen_batch"]
+                if record_data.get("semen_quality"):
+                    key_values["semen_quality"] = record_data["semen_quality"]
+                if record_data.get("technician_name"):
+                    key_values["technician"] = record_data["technician_name"]
+                if record_data.get("insemination_method"):
+                    key_values["method"] = record_data["insemination_method"]
+                if record_data.get("cervix_condition"):
+                    key_values["cervix_condition"] = record_data["cervix_condition"]
                 if record_data.get("success_probability") is not None:
-                    key_values["success"] = f"{record_data['success_probability']}%"
+                    key_values["success_probability"] = f"{record_data['success_probability']}%"
+                if record_data.get("cost") is not None:
+                    key_values["cost"] = f"{record_data['cost']}원"
+                if record_data.get("pregnancy_check_scheduled"):
+                    key_values["pregnancy_check_scheduled"] = record_data["pregnancy_check_scheduled"]
+                if record_data.get("notes"):
+                    key_values["notes"] = record_data["notes"]
+
             
             return key_values
             
