@@ -183,7 +183,46 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 |--------|----------|------|----------|------|
 | `GET` | `/records/cow/{cow_id}` | 젖소별 전체 기록 조회 | `cow_id` + Bearer Token | 특정 젖소의 모든 기록 목록 |
 | `GET` | `/records/{record_id}` | 기록 상세 조회 | `record_id` + Bearer Token | 특정 기록의 상세 정보 |
+| `PUT` | `/records/{record_id}` | **상세 기록 수정** | `record_id` + Bearer Token + 수정 데이터 | 수정된 상세 기록 정보 |
 | `DELETE` | `/records/{record_id}` | 기록 삭제 | `record_id` + Bearer Token | 삭제 확인 메시지 |
+
+#### 📝 상세 기록 수정 (`PUT /records/{record_id}`)
+
+**모든 타입의 상세기록을 수정할 수 있습니다:**
+- 착유 기록, 사료급여 기록, 건강검진 기록, 체중측정 기록
+- 백신접종 기록, 치료 기록, 발정 기록, 인공수정 기록
+- 임신감정 기록, 분만 기록, 기타 모든 상세 기록
+
+**수정 방법:**
+- **기본 정보 수정**: `title`, `description`, `record_date`
+- **상세 정보 수정**: `record_data` 객체 내의 특정 필드들
+- **선택적 업데이트**: 입력한 필드만 수정되고 나머지는 기존 값 유지
+
+**분만기록 수정 예시:**
+```json
+PUT /records/{record_id}
+{
+  "title": "분만 완료 (수정됨)",
+  "record_data": {
+    "calf_count": 2,
+    "calving_difficulty": "약간어려움",
+    "notes": "수정된 특이사항"
+  }
+}
+```
+
+**건강검진기록 수정 예시:**
+```json
+PUT /records/{record_id}
+{
+  "record_date": "2024-01-16",
+  "record_data": {
+    "body_temperature": 38.7,
+    "heart_rate": 72,
+    "notes": "정상 범위 내 수치 확인"
+  }
+}
+```
 
 ### 📊 통계 및 분석 API
 

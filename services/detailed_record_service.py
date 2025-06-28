@@ -944,6 +944,50 @@ class DetailedRecordService:
             )
     
     @staticmethod
+    def update_detailed_record(record_id: str, record_update: DetailedRecordUpdate, user: Dict) -> DetailedRecordResponse:
+        """상세 기록 업데이트 - 모든 타입의 상세기록 수정 가능"""
+        try:
+            db = get_firestore_client()
+            farm_id = user.get("farm_id")
+            
+            # 기존 기록 조회 및 권한 확인
+            existing_record = DetailedRecordService.get_detailed_record_by_id(record_id, farm_id)
+            
+            # 업데이트할 데이터 구성
+            update_data = {"updated_at": datetime.utcnow()}
+            
+            # 기본 필드 업데이트 (선택적)
+            if record_update.title is not None:
+                update_data["title"] = record_update.title
+            
+            if record_update.description is not None:
+                update_data["description"] = record_update.description
+            
+            if record_update.record_date is not None:
+                update_data["record_date"] = record_update.record_date
+            
+            # 상세 데이터 업데이트 (선택적)
+            if record_update.record_data is not None:
+                # 기존 record_data와 새로운 데이터를 병합
+                existing_record_data = existing_record.record_data or {}
+                updated_record_data = {**existing_record_data, **record_update.record_data}
+                update_data["record_data"] = updated_record_data
+            
+            # Firestore에서 업데이트
+            db.collection('cow_detailed_records').document(record_id).update(update_data)
+            
+            # 업데이트된 기록 반환
+            return DetailedRecordService.get_detailed_record_by_id(record_id, farm_id)
+            
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"상세 기록 업데이트 중 오류가 발생했습니다: {str(e)}"
+            )
+    
+    @staticmethod
     def _get_cow_info(cow_id: str, farm_id: str) -> Dict:
         """젖소 정보 조회 (내부 사용) - 안전한 오류 처리"""
         try:

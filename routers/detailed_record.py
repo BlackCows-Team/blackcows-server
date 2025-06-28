@@ -577,6 +577,67 @@ def get_detailed_record(
     farm_id = current_user.get("farm_id")
     return DetailedRecordService.get_detailed_record_by_id(record_id, farm_id)
 
+@router.put("/{record_id}",
+           response_model=DetailedRecordResponse,
+           summary="상세 기록 수정",
+           description="""
+           특정 상세 기록을 수정합니다. 모든 타입의 상세 기록 수정이 가능합니다.
+           
+           **수정 가능한 상세기록 타입:**
+           - 착유 기록 (milking)
+           - 사료급여 기록 (feed) 
+           - 건강검진 기록 (health_check)
+           - 체중측정 기록 (weight)
+           - 백신접종 기록 (vaccination)
+           - 치료 기록 (treatment)
+           - 발정 기록 (estrus)
+           - 인공수정 기록 (insemination)
+           - 임신감정 기록 (pregnancy_check)
+           - 분만 기록 (calving)
+           - 기타 모든 상세 기록
+           
+           **수정 방법:**
+           - 기본 정보 수정: title, description, record_date
+           - 상세 정보 수정: record_data 객체 내의 특정 필드들
+           - 선택적 업데이트: 입력한 필드만 수정되고 나머지는 기존 값 유지
+           
+           **예시 - 분만기록 수정:**
+           ```json
+           {
+             "title": "분만 완료 (수정됨)",
+             "record_data": {
+               "calf_count": 2,
+               "calving_difficulty": "약간어려움"
+             }
+           }
+           ```
+           
+           **예시 - 건강검진기록 수정:**
+           ```json
+           {
+             "record_date": "2024-01-16",
+             "record_data": {
+               "body_temperature": 38.7,
+               "heart_rate": 72,
+               "notes": "정상 범위 내 수치 확인"
+             }
+           }
+           ```
+           """,
+           responses={
+               200: {"description": "상세 기록 수정 성공"},
+               400: {"description": "잘못된 요청 (유효성 검사 실패)"},
+               404: {"description": "기록을 찾을 수 없음"},
+               500: {"description": "서버 내부 오류"}
+           })
+def update_detailed_record(
+    record_id: str,
+    record_update: DetailedRecordUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """상세 기록 수정 - 모든 타입의 상세기록 수정 가능"""
+    return DetailedRecordService.update_detailed_record(record_id, record_update, current_user)
+
 @router.delete("/{record_id}",
                summary="상세 기록 삭제",
                description="특정 기록을 완전히 삭제합니다. 삭제된 기록은 복구할 수 없습니다.")

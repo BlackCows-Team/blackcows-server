@@ -343,3 +343,32 @@ class DetailedRecordUpdate(BaseModel):
     description: Optional[str] = None
     record_date: Optional[str] = None
     record_data: Optional[Dict[str, Any]] = None
+    
+    @validator('record_date')
+    def validate_record_date(cls, v):
+        if v is not None and len(v.strip()) > 0:
+            try:
+                from datetime import datetime
+                datetime.strptime(v.strip(), '%Y-%m-%d')
+                return v.strip()
+            except ValueError:
+                raise ValueError('기록 날짜는 YYYY-MM-DD 형식으로 입력해주세요')
+        return v
+    
+    @validator('title')
+    def validate_title(cls, v):
+        if v is not None:
+            if len(v.strip()) == 0:
+                raise ValueError('제목은 비어있을 수 없습니다')
+            if len(v) > 200:
+                raise ValueError('제목은 200자 이하여야 합니다')
+            return v.strip()
+        return v
+    
+    @validator('description')
+    def validate_description(cls, v):
+        if v is not None:
+            if len(v) > 1000:
+                raise ValueError('설명은 1000자 이하여야 합니다')
+            return v.strip() if v.strip() else None
+        return v
