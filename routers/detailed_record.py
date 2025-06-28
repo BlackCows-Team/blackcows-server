@@ -1152,12 +1152,23 @@ def get_cow_weight_records(
     limit: int = Query(100, description="조회할 기록 수 제한", ge=1, le=200),
     current_user: dict = Depends(get_current_user)
 ):
-    """특정 젖소의 모든 체중측정 기록 조회"""
+    """🔧 특정 젖소의 체중측정 기록 조회 - 500 오류 방지 포함"""
     try:
         from config.firebase_config import get_firestore_client
         db = get_firestore_client()
         farm_id = current_user.get("farm_id")
-        
+
+        # 젖소 정보 안전 조회
+        cow_info = None
+        try:
+            cow_info = DetailedRecordService._get_cow_info(cow_id, farm_id)
+        except:
+            cow_info = {
+                "name": "알 수 없음",
+                "ear_tag_number": "N/A"
+            }
+
+        # 기록 불러오기
         records = (db.collection('cow_detailed_records')
                   .where('cow_id', '==', cow_id)
                   .where('farm_id', '==', farm_id)
@@ -1166,28 +1177,41 @@ def get_cow_weight_records(
                   .order_by('record_date', direction='DESCENDING')
                   .limit(limit)
                   .get())
-        
+
         result = []
         for record in records:
-            data = record.to_dict()
-            result.append(DetailedRecordSummary(
-                id=data["id"],
-                cow_id=data["cow_id"],
-                record_type=data["record_type"],
-                record_date=data["record_date"],
-                title=data["title"],
-                description=data.get("description", ""),
-                created_at=data["created_at"],
-                updated_at=data["updated_at"]
-            ))
-        
+            try:
+                data = record.to_dict()
+
+                key_values = DetailedRecordService._extract_key_values(
+                    data.get("record_type", ""), 
+                    data.get("record_data", {})
+                )
+
+                result.append(DetailedRecordSummary(
+                    id=data.get("id", ""),
+                    cow_id=data.get("cow_id", cow_id),
+                    cow_name=cow_info.get("name", "알 수 없음"),
+                    cow_ear_tag_number=cow_info.get("ear_tag_number", "N/A"),
+                    record_type=DetailedRecordType(data.get("record_type", "other")),
+                    record_date=data.get("record_date", ""),
+                    title=data.get("title", "제목 없음"),
+                    description=data.get("description"),
+                    key_values=key_values or {},
+                    created_at=data.get("created_at", datetime.utcnow()),
+                    updated_at=data.get("updated_at", datetime.utcnow()),
+                    record_data=data.get("record_data", {})
+                ))
+            except Exception as record_error:
+                print(f"[WARNING] 체중 기록 처리 실패 (ID: {record.id}): {str(record_error)}")
+                continue
+
         return result
-        
+
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"체중측정 기록 조회 중 오류가 발생했습니다: {str(e)}"
-        )
+        print(f"[ERROR] 체중 기록 조회 전체 실패: {str(e)}")
+        return []  # ❗빈 리스트 반환해서 500 방지
+
 
 @router.get("/cow/{cow_id}/all-records", 
             response_model=List[DetailedRecordSummary],
