@@ -46,25 +46,45 @@ def get_user_chat_rooms(user_id: str) -> list[ChatRoom]:
         .stream()
 
     return [
-        ChatRoom(chat_id=room.id, created_at=room.to_dict()["created_at"])
+        ChatRoom(
+            chat_id=room.id, 
+            name=room.to_dict().get("name"),
+            created_at=room.to_dict()["created_at"]
+        )
         for room in rooms
     ]
 
 
 # 3. 새 채팅방 생성
-def create_chat_room(user_id: str) -> ChatRoom:
+def create_chat_room(user_id: str, name: str = None) -> ChatRoom:
     chat_id = str(uuid.uuid4())
     created_at = datetime.utcnow()
 
+    if not name:
+        name = "새로운 대화"
+
     db.collection("chat_rooms").document(chat_id).set({
         "user_id": user_id,
+        "name": name,
         "created_at": created_at
     })
 
-    return ChatRoom(chat_id=chat_id, created_at=created_at)
+    return ChatRoom(chat_id=chat_id, name=name, created_at=created_at)
 
 
-# 4. 특정 채팅방의 메시지 불러오기
+# 4. 채팅방 이름 변경
+def update_chat_room_name(chat_id: str, name: str) -> bool:
+    try:
+        db.collection("chat_rooms").document(chat_id).update({
+            "name": name
+        })
+        return True
+    except Exception as e:
+        print(f"채팅방 이름 변경 실패: {e}")
+        return False
+
+
+# 5. 특정 채팅방의 메시지 불러오기
 def get_chat_history(chat_id: str) -> list[ChatMessage]:
     messages = db.collection("chat_rooms") \
         .document(chat_id) \
@@ -82,22 +102,20 @@ def get_chat_history(chat_id: str) -> list[ChatMessage]:
     ]
 
 
-# 5. 채팅방 및 메시지 삭제
+# 6. 채팅방 및 메시지 삭제
 def delete_chat_room(chat_id: str) -> bool:
     chat_ref = db.collection("chat_rooms").document(chat_id)
 
-    # 메시지 삭제
     messages = chat_ref.collection("messages").stream()
     for msg in messages:
         msg.reference.delete()
 
-    # 채팅방 문서 삭제
     chat_ref.delete()
 
     return True
 
 
-# 6. 14일 지난 채팅방 자동 삭제
+# 7. 14일 지난 채팅방 자동 삭제
 def delete_old_chat_rooms():
     limit_date = datetime.utcnow() - timedelta(days=14)
     old_chats = db.collection("chat_rooms") \

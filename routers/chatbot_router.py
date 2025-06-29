@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from schemas.chatbot_schema import (
     AskRequest, AskResponse,
     CreateChatRoomRequest, ChatRoomList,
-    ChatHistoryResponse
+    ChatHistoryResponse, UpdateChatRoomNameRequest
 )
 from services import chatbot_service
 
@@ -35,13 +35,26 @@ def get_chat_rooms(user_id: str):
 @router.post("/rooms", response_model=ChatRoomList)
 def create_chat_room(data: CreateChatRoomRequest):
     try:
-        room = chatbot_service.create_chat_room(data.user_id)
+        room = chatbot_service.create_chat_room(data.user_id, data.name)
         return ChatRoomList(chats=[room])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 4. 채팅방 내 대화 이력 조회
+# 4. 채팅방 이름 변경
+@router.put("/rooms/{chat_id}/name")
+def update_chat_room_name(chat_id: str, data: UpdateChatRoomNameRequest):
+    try:
+        success = chatbot_service.update_chat_room_name(chat_id, data.name)
+        if success:
+            return {"detail": "채팅방 이름이 성공적으로 변경되었습니다."}
+        else:
+            raise HTTPException(status_code=500, detail="채팅방 이름 변경에 실패했습니다.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 5. 채팅방 내 대화 이력 조회
 @router.get("/history/{chat_id}", response_model=ChatHistoryResponse)
 def get_chat_history(chat_id: str):
     try:
@@ -51,7 +64,7 @@ def get_chat_history(chat_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 5. 채팅방 삭제
+# 6. 채팅방 삭제
 @router.delete("/rooms/{chat_id}")
 def delete_chat_room(chat_id: str):
     try:
@@ -61,11 +74,11 @@ def delete_chat_room(chat_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 6. 14일 이상 지난 채팅방 일괄 삭제
+# 7. 14일 이상 지난 채팅방 일괄 삭제
 @router.delete("/rooms/expired/auto")
 def delete_expired_chat_rooms():
     try:
         chatbot_service.delete_old_chat_rooms()
         return {"detail": "14일 이상된 채팅방이 삭제되었습니다."}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) 

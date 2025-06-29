@@ -1,7 +1,7 @@
 # schemas/chatbot.py
 
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 # 질문 요청
@@ -17,10 +17,16 @@ class AskResponse(BaseModel):
 # 채팅방 생성 요청
 class CreateChatRoomRequest(BaseModel):
     user_id: str
+    name: Optional[str] = None  # 채팅방 이름 (선택사항)
+
+# 채팅방 이름 변경 요청
+class UpdateChatRoomNameRequest(BaseModel):
+    name: str
 
 # 채팅방 정보
 class ChatRoom(BaseModel):
     chat_id: str
+    name: Optional[str] = None  # 채팅방 이름
     created_at: datetime
 
 # 채팅방 목록 응답
