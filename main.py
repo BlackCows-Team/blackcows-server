@@ -21,6 +21,11 @@ if not os.getenv("LIVESTOCK_TRACE_API_DECODING_KEY"):
     print("[WARNING] LIVESTOCK_TRACE_API_DECODING_KEY 환경변수가 설정되지 않았습니다.")
     print("축산물이력제 연동 기능이 제한될 수 있습니다.")
 
+# 네이버 로그인 API 키 검증 (경고만 출력)
+if not os.getenv("NAVER_CLIENT_ID") or not os.getenv("NAVER_CLIENT_SECRET"):
+    print("[WARNING] NAVER_CLIENT_ID 또는 NAVER_CLIENT_SECRET 환경변수가 설정되지 않았습니다.")
+    print("네이버 로그인 회원탈퇴 기능이 제한될 수 있습니다.")
+
 app = FastAPI(
     title="낙농 관리 서버 API",
     version="2.7.0",
@@ -41,11 +46,13 @@ app.add_middleware(
 
 # 라우터 연결
 app.include_router(auth_firebase.router, prefix="/auth", tags=["인증"])
+from routers import sns_auth
+app.include_router(sns_auth.router, prefix="/sns", tags=["SNS 로그인"])
 app.include_router(cow.router, prefix="/cows", tags=["소 관리"])
 app.include_router(record.router, prefix="/basic-records", tags=["기본 기록 관리"])
 app.include_router(detailed_record.router, prefix="/records", tags=["기록 관리"])
 app.include_router(livestock_trace.router, prefix="/api/livestock-trace", tags=["축산물이력조회"])
-app.include_router(chatbot_router.router, tags=["Chatbot"])
+app.include_router(chatbot_router.router, tags=["Chatbot"]) 
 
 
 @app.get("/")
@@ -61,13 +68,19 @@ def health_check():
             "기록 관리",
             "상세 기록 관리 (착유, 발정, 인공수정, 임신감정, 분만, 사료급여, 건강검진, 백신접종, 체중측정, 치료)",
             "축산물 이력정보 조회 (축산물품질평가원 API)",
-            "통계 및 분석"
+            "통계 및 분석",
+            "SNS 로그인 (Google, Kakao, Naver)",
+            "AI 챗봇 '소담이'"
         ],
         "new_endpoints": [
             "GET /cows/registration-status/{ear_tag_number} - 젖소 등록 상태 확인",
             "POST /cows/register-from-livestock-trace - 축산물이력제 정보 기반 젖소 등록",
             "POST /cows/manual - 젖소 수동 등록 (기존 POST /cows/ 경로 변경)",
-            "GET /cows/{cow_id}/livestock-trace-info - 젖소의 축산물이력제 정보 조회"
+            "GET /cows/{cow_id}/livestock-trace-info - 젖소의 축산물이력제 정보 조회",
+            "POST /sns/google/login - 구글 로그인",
+            "POST /sns/kakao/login - 카카오 로그인", 
+            "POST /sns/naver/login - 네이버 로그인",
+            "DELETE /sns/delete-account - SNS 계정 삭제"
         ],
         "livestock_trace_features": [
             "소 기본 개체정보 (이표번호, 출생일, 품종, 성별, 개월령 자동계산)",

@@ -183,13 +183,18 @@ class SNSAuthService:
             elif sns_provider == "naver":
                 # 네이버 계정 연결 해제
                 try:
-                    headers = {"Authorization": f"Bearer {sns_token}"}
-                    response = requests.post("https://nid.naver.com/oauth2.0/token", params={
-                        "grant_type": "delete",
-                        "client_id": "YOUR_NAVER_CLIENT_ID",  # 환경변수에서 가져와야 함
-                        "client_secret": "YOUR_NAVER_CLIENT_SECRET",
-                        "access_token": sns_token
-                    })
+                    import os
+                    naver_client_id = os.getenv("NAVER_CLIENT_ID")
+                    naver_client_secret = os.getenv("NAVER_CLIENT_SECRET")
+                    
+                    if naver_client_id and naver_client_secret:
+                        headers = {"Authorization": f"Bearer {sns_token}"}
+                        response = requests.post("https://nid.naver.com/oauth2.0/token", params={
+                            "grant_type": "delete",
+                            "client_id": naver_client_id,
+                            "client_secret": naver_client_secret,
+                            "access_token": sns_token
+                        })
                 except:
                     pass  # 연결 해제 실패해도 계속 진행
             
