@@ -164,41 +164,76 @@ class FirebaseUserService:
     def authenticate_user(user_id: str, password: str) -> Optional[Dict]:
         """일반 사용자 인증 (이메일 가입 사용자만)"""
         try:
+            print(f"[DEBUG] 인증 시도 - user_id: '{user_id}', password_length: {len(password)}")
+            
             # Firestore에서 사용자 검색
             users_ref = db.collection('users')
             query = users_ref.where('user_id', '==', user_id).limit(1).get()
             
             if not query:
+                print(f"[DEBUG] 인증 실패 - 사용자를 찾을 수 없음: '{user_id}'")
                 return None
             
             user_doc = query[0]
             user_data = user_doc.to_dict()
+            print(f"[DEBUG] 사용자 발견 - auth_type: '{user_data.get('auth_type')}', is_active: {user_data.get('is_active')}")
             
             # 이메일 인증 유형만 비밀번호 확인
-            if user_data.get("auth_type") != AuthType.EMAIL.value:
+            user_auth_type = user_data.get("auth_type")
+            
+            # 기존 사용자 호환성: auth_type이 없거나 null이면 email로 간주
+            if user_auth_type is None or user_auth_type == "":
+                print(f"[DEBUG] 기존 사용자 - auth_type이 없음, email로 간주")
+                user_auth_type = AuthType.EMAIL.value
+                
+                # DB에 auth_type 업데이트 (한 번만)
+                try:
+                    db.collection('users').document(user_data["id"]).update({
+                        "auth_type": AuthType.EMAIL.value,
+                        "updated_at": datetime.utcnow()
+                    })
+                    print(f"[DEBUG] 기존 사용자 auth_type 업데이트 완료")
+                except Exception as update_error:
+                    print(f"[WARNING] auth_type 업데이트 실패: {str(update_error)}")
+            
+            if user_auth_type != AuthType.EMAIL.value:
+                print(f"[DEBUG] 인증 실패 - SNS 로그인 사용자 (auth_type: {user_auth_type})")
                 return None  # SNS 로그인 사용자는 일반 로그인 불가
             
             # 비밀번호 확인
-            if not user_data.get("hashed_password") or not FirebaseUserService.verify_password(password, user_data["hashed_password"]):
-                return None
+            has_password = bool(user_data.get("hashed_password"))
+            print(f"[DEBUG] 비밀번호 체크 - has_hashed_password: {has_password}")
             
+            if not has_password:
+                print(f"[DEBUG] 인증 실패 - 저장된 비밀번호가 없음")
+                return None
+                
+            password_valid = FirebaseUserService.verify_password(password, user_data["hashed_password"])
+            print(f"[DEBUG] 비밀번호 검증 결과: {password_valid}")
+            
+            if not password_valid:
+                print(f"[DEBUG] 인증 실패 - 비밀번호 불일치")
+                return None
+
             # 활성 상태 확인
             if not user_data.get("is_active", True):
+                print(f"[DEBUG] 인증 실패 - 계정 비활성화됨")
                 return None
-            
+
+            print(f"[DEBUG] 인증 성공 - user_id: '{user_id}'")
             # 최근 로그인 시간 업데이트
             current_time = datetime.utcnow()
             db.collection('users').document(user_data["id"]).update({
                 "last_login": current_time,
                 "updated_at": current_time
             })
-            
+
             # 업데이트된 last_login 시간 반영
             user_data["last_login"] = current_time
             user_data["updated_at"] = current_time
-            
+
             return user_data
-            
+
         except Exception as e:
             print(f"[ERROR] 사용자 인증 실패: {str(e)}")
             return None
