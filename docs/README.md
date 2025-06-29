@@ -9,7 +9,7 @@
 
 ## 📋 프로젝트 개요
 
-BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 다양한 상세 기록 관리를 지원하는 RESTful API 서버입니다.
+BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 다양한 상세 기록 관리를 지원하는 RESTful API 서버입니다. Google, Kakao, Naver SNS 로그인을 지원하여 사용자 편의성을 극대화했습니다.
 
 ### 🎯 주요 기능
 
@@ -65,6 +65,8 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 
 #### 🔐 보안 및 인증
 - ✅ **JWT 기반 사용자 인증** - Access/Refresh Token
+- ✅ **SNS 로그인 지원** - Google, Kakao, Naver 3개 플랫폼 지원
+- ✅ **Firebase Admin SDK 연동** - Google 토큰 자동 검증
 - ✅ **농장별 데이터 격리** - 멀티테넌트 지원
 - ✅ **Firebase 보안 규칙** - 데이터 접근 제어
 - ✅ **비밀번호 재설정** - 이메일 기반 토큰 시스템
@@ -89,6 +91,27 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 | `PUT` | `/auth/update-farm-name` | 목장 이름 수정 | `farm_nickname` + Bearer Token | 수정된 사용자 정보 |
 | `DELETE` | `/auth/delete-account` | 회원탈퇴 | `password`, `confirmation` + Bearer Token | 삭제 완료 메시지 |
 | `POST` | `/auth/login-debug` | 로그인 디버깅 | 원시 요청 데이터 | 디버그 정보 |
+
+### 📱 SNS 로그인 API (`/sns`)
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/sns/google/login` | Google 소셜 로그인 | `access_token` | JWT Token + 사용자 정보 + 농장 정보 |
+| `POST` | `/sns/kakao/login` | Kakao 소셜 로그인 | `access_token` | JWT Token + 사용자 정보 + 농장 정보 |
+| `POST` | `/sns/naver/login` | Naver 소셜 로그인 | `access_token` | JWT Token + 사용자 정보 + 농장 정보 |
+| `DELETE` | `/sns/delete-account` | SNS 계정 연동 해제 및 탈퇴 | `provider`, `access_token` | 삭제 완료 메시지 |
+
+#### SNS 로그인 특징
+- ✅ **자동 사용자 생성** - 첫 로그인 시 사용자 및 농장 정보 자동 생성
+- ✅ **토큰 자동 검증** - 각 플랫폼 API를 통한 액세스 토큰 유효성 검증
+- ✅ **JWT 토큰 발급** - Access Token + Refresh Token 자동 발급
+- ✅ **프로필 정보 동기화** - SNS 프로필 정보를 사용자 정보에 자동 반영
+- ✅ **농장 정보 자동 생성** - 첫 로그인 시 기본 농장 정보 자동 설정
+
+**지원 플랫폼:**
+- **Google**: Firebase Admin SDK를 통한 ID Token 검증
+- **Kakao**: Kakao API를 통한 사용자 정보 조회 및 검증
+- **Naver**: Naver API를 통한 사용자 정보 조회 및 검증
 
 ### 🐮 젖소 관리 API (`/cows`)
 
@@ -900,7 +923,8 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ### Backend
 - **Framework**: FastAPI 2.3.1 (Python 3.11+)
 - **Database**: Firebase Firestore (NoSQL)
-- **Authentication**: JWT (JSON Web Tokens)
+- **Authentication**: JWT (JSON Web Tokens) + SNS OAuth 2.0
+- **Social Login**: Google (Firebase Admin SDK), Kakao API, Naver API
 - **Validation**: Pydantic 2.11+ (강화된 필드 검증)
 - **Password Hashing**: bcrypt
 - **Email Service**: AWS SES / Gmail SMTP
@@ -947,7 +971,15 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 - **오류 처리**: 일부 API 실패해도 나머지 정보 수집 계속
 - **캐싱**: 5분간 API 응답 캐시로 불필요한 호출 방지
 
-#### 4. AI 챗봇 사용
+#### 4. SNS 로그인 설정
+- **Google**: Firebase 프로젝트의 Admin SDK 키 파일 (`firebase-adminsdk.json`) 필요
+- **Kakao**: 클라이언트측에서 액세스 토큰 획득 후 서버로 전달
+- **Naver**: 환경변수 필수 - `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`
+- **자동 사용자 생성**: 첫 로그인 시 사용자 및 농장 정보 자동 생성
+- **토큰 검증**: 각 플랫폼의 API를 통해 액세스 토큰 유효성 실시간 검증
+- **JWT 발급**: SNS 로그인 성공 시 자체 JWT 토큰 자동 발급
+
+#### 5. AI 챗봇 사용
 - **OpenAI API 키**: `OPENAI_API_KEY` 환경변수 필수
 - **질문 언어**: 한국어 권장 (낙농업 전문용어 특화)
 - **응답 시간**: 일반적으로 2-5초 소요
@@ -955,12 +987,42 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 - **이표번호 인식**: 12자리 숫자 패턴을 자동으로 감지하여 농장 데이터 조회
 - **메모리 관리**: 채팅방별 대화 맥락 유지, 14일 후 자동 정리
 
-#### 5. 에러 처리
+#### 6. 에러 처리
 ```typescript
 // 표준 에러 응답 형태
 interface ApiError {
   detail: string;
   status_code: number;
+}
+
+// SNS 로그인 에러 처리 예시
+interface SNSLoginError {
+  detail: string;
+  status_code: number;
+  provider: string; // "google" | "kakao" | "naver"
+}
+
+try {
+  const response = await fetch('/sns/google/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      access_token: 'google_access_token_here'
+    })
+  });
+  
+  if (!response.ok) {
+    const error: SNSLoginError = await response.json();
+    console.error('SNS Login Error:', error.detail);
+    // 토큰 만료나 유효하지 않은 토큰 처리
+  }
+  
+  const result = await response.json();
+  console.log('로그인 성공:', result.access_token);
+} catch (error) {
+  console.error('Network Error:', error);
 }
 
 // AI 챗봇 에러 처리 예시
