@@ -6,49 +6,215 @@ from schemas.user import (
     UserCreate, UserLogin, TokenResponse, RefreshTokenRequest, UserResponse,
     FindUserIdRequest, PasswordResetRequest, PasswordResetConfirm,
     TemporaryTokenLogin, ChangePasswordRequest, DeleteAccountRequest,
-    FarmNicknameUpdate
+    FarmNicknameUpdate, SocialLoginRequest, AuthType
 )
 from services.firebase_user_service import FirebaseUserService, ACCESS_TOKEN_EXPIRE_MINUTES
-
-from datetime import timedelta
+from datetime import timedelta, datetime
+from config.firebase_config import get_firestore_client
 
 router = APIRouter()
 security = HTTPBearer()
 
+# Firestore 클라이언트
+db = get_firestore_client()
+
+# (개발용)
+
+@router.post("/mock-social-login",
+            summary="개발용 모의 SNS 로그인",
+            description="실제 SNS 토큰 없이 테스트할 수 있는 모의 엔드포인트")
+async def mock_social_login(mock_request: dict):
+    """개발용 모의 SNS 로그인"""
+    try:
+        auth_type = mock_request.get("auth_type")
+        mock_user_info = mock_request.get("mock_user_info", {})
+        
+        # 모의 사용자 정보 생성
+        from schemas.user import SocialUserInfo, AuthType
+        social_info = SocialUserInfo(
+            social_id=mock_user_info.get("social_id", "mock_id_12345"),
+            email=mock_user_info.get("email", f"mock@{auth_type}.test"),
+            name=mock_user_info.get("name", f"{auth_type.capitalize()} 테스트 사용자"),
+            profile_image=None
+        )
+        
+        # 기존 사용자 확인
+        existing_user = FirebaseUserService._find_user_by_social_id(
+            social_info.social_id, 
+            AuthType(auth_type)
+        )
+        
+        current_time = datetime.utcnow()
+        
+        if existing_user:
+            # 기존 사용자 로그인
+            db.collection('users').document(existing_user["id"]).update({
+                "last_login": current_time,
+                "updated_at": current_time
+            })
+            existing_user["last_login"] = current_time
+            user_data = existing_user
+            is_new_user = False
+        else:
+            # 신규 사용자 생성
+            from services.social_auth_service import SocialAuthService
+            username = social_info.name
+            user_id = SocialAuthService.generate_unique_user_id(social_info, AuthType(auth_type))
+            farm_nickname = f"{username}의 목장 ({auth_type} 테스트)"
+            
+            user_data = FirebaseUserService.create_user(
+                username=username,
+                user_id=user_id,
+                email=social_info.email,
+                password=None,
+                farm_nickname=farm_nickname,
+                auth_type=AuthType(auth_type),
+                social_id=social_info.social_id
+            )
+            is_new_user = True
+        
+        # 토큰 생성
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = FirebaseUserService.create_access_token(
+            data={"sub": user_data["user_id"], "user_uuid": user_data["id"]},
+            expires_delta=access_token_expires
+        )
+        refresh_token = FirebaseUserService.create_refresh_token(user_data["id"])
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            "user": {
+                "id": user_data["id"],
+                "username": user_data["username"],
+                "user_id": user_data["user_id"],
+                "email": user_data["email"],
+                "farm_nickname": user_data["farm_nickname"],
+                "farm_id": user_data["farm_id"],
+                "auth_type": user_data["auth_type"],
+                "created_at": user_data["created_at"].isoformat(),
+                "last_login": user_data["last_login"].isoformat(),
+                "is_active": user_data["is_active"]
+            },
+            "is_new_user": is_new_user,
+            "mock_mode": True
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"모의 로그인 처리 중 오류: {str(e)}"
+        )
+        
+        
+
 @router.post("/register", 
             response_model=dict,
-            summary="회원가입",
-            description="새로운 사용자 계정을 생성합니다. 목장 별명을 포함하여 등록할 수 있습니다.")
+            summary="일반 회원가입",
+            description="새로운 사용자 계정을 생성합니다. 이메일과 비밀번호로 새로운 사용자 계정을 생성합니다.")
+
 async def register_user(user_data: UserCreate):
-    """회원가입 - 목장 별명 포함"""
+    """일반 회원가입 - 이메일 + 비밀번호"""
     user = FirebaseUserService.create_user(
         username=user_data.username,            # 사용자 이름/실명
         user_id=user_data.user_id,              # 로그인용 아이디
         email=user_data.email,                  # 이메일
         password=user_data.password,            # 비밀번호
-        farm_nickname=user_data.farm_nickname   # 목장 별명 (선택)
+        farm_nickname=user_data.farm_nickname,  # 목장 별명
+        auth_type=AuthType.EMAIL                # 명시적으로 이메일 인증 타입 설정
     )
-
     
     return {
         "success": True,
         "message": "회원가입이 완료되었습니다",
         "user": {
-            "id": user["id"],
-            "username": user["username"],       # 사용자 이름/실명
-            "user_id": user["user_id"],         # 로그인용 아이디
-            "email": user["email"],             # 이메일
+            "id": user["id"],                       # UUID
+            "username": user["username"],           # 사용자 이름/실명
+            "user_id": user["user_id"],             # 로그인용 아이디
+            "email": user["email"],                 # 이메일
             "farm_nickname": user["farm_nickname"], # 목장 별명
-            "farm_id": user["farm_id"]          # 농장 ID
+            "farm_id": user["farm_id"],             # 농장 ID
+            "auth_type": user["auth_type"]          # 인증 타입
         }
     }
 
+@router.post("/social-login",
+            response_model=TokenResponse,
+            summary="SNS 로그인/회원가입",
+            description="""
+            소셜 로그인으로 로그인하거나 회원가입합니다.
+            
+            **지원 플랫폼:**
+            - Google: access_token + id_token (선택)
+            - Kakao: access_token
+            - Naver: access_token
+            
+            **처리 과정:**
+            1. 액세스 토큰으로 SNS에서 사용자 정보 조회
+            2. 기존 사용자면 로그인, 신규면 자동 회원가입
+            3. JWT 토큰 발급
+            
+            **주의사항:**
+            - 이메일이 다른 방식으로 이미 가입된 경우 오류 반환
+            """)
+async def social_login(login_request: SocialLoginRequest):
+    """SNS 로그인/회원가입 통합 처리"""
+    try:
+        # SNS 로그인 또는 회원가입 처리
+        user_data, is_new_user = await FirebaseUserService.social_login_or_register(login_request)
+        
+        # 액세스 토큰 생성
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = FirebaseUserService.create_access_token(
+            data={"sub": user_data["user_id"], "user_uuid": user_data["id"]},
+            expires_delta=access_token_expires
+        )
+        
+        # 리프레시 토큰 생성
+        refresh_token = FirebaseUserService.create_refresh_token(user_data["id"])
+        
+        # 사용자 정보 응답 구성
+        user_response = UserResponse(
+            id=user_data["id"],
+            username=user_data["username"],
+            user_id=user_data["user_id"],
+            email=user_data["email"],
+            farm_nickname=user_data["farm_nickname"],
+            farm_id=user_data["farm_id"],
+            auth_type=AuthType(user_data["auth_type"]),
+            created_at=user_data["created_at"],
+            last_login=user_data["last_login"],
+            is_active=user_data["is_active"]
+        )
+        
+        success_message = "회원가입 완료" if is_new_user else "로그인 성공"
+        
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=user_response,
+            is_new_user=is_new_user
+        )
+        
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"소셜 로그인 처리 중 오류가 발생했습니다: {str(e)}"
+        )
+        
+
 @router.post("/login", 
             response_model=TokenResponse,
-            summary="로그인",
-            description="사용자 아이디와 비밀번호로 로그인하여 액세스 토큰을 발급받습니다.")
+            summary="일반 로그인",
+            description="이메일 회원가입한 사용자의 아이디와 비밀번호로 로그인합니다. 액세스 토큰을 발급받습니다.")
 def login_user(user_data: UserLogin):
-    """로그인 - user_id로 로그인"""
+    """일반 로그인 - user_id로 로그인"""
     # 디버깅을 위한 로그 추가
     print(f"[DEBUG] 로그인 요청 데이터: {user_data.dict()}")
     print(f"[DEBUG] user_id: '{user_data.user_id}', password: '{user_data.password}'")
@@ -81,7 +247,9 @@ def login_user(user_data: UserLogin):
         email=user["email"],                    # 이메일
         farm_nickname=user["farm_nickname"],    # 목장 별명
         farm_id=user["farm_id"],                # 농장 ID
+        auth_type=AuthType(user["auth_type"]),  # 인증 타입
         created_at=user["created_at"],          # 가입일
+        last_login=user["last_login"],          # 최근 로그인 시간
         is_active=user["is_active"]             # 활성 상태
     )
     
@@ -110,25 +278,63 @@ def get_current_user_info(credentials: HTTPAuthorizationCredentials = Depends(se
     user = FirebaseUserService.verify_access_token(token)
     
     return UserResponse(
-        id=user["id"],
-        username=user["username"],              # 사용자 이름/실명
-        user_id=user["user_id"],                # 로그인용 아이디
-        email=user["email"],                    # 이메일
-        farm_nickname=user["farm_nickname"],    # 목장 별명
-        farm_id=user["farm_id"],                # 농장 ID
-        created_at=user["created_at"],          # 가입일
-        is_active=user["is_active"]             # 활성 상태
+        id=user["id"],                   # UUID
+        username=user["username"],       # 사용자 이름/실명
+        user_id=user["user_id"],         # 로그인용 아이디
+        email=user["email"],             # 이메일
+        farm_nickname=user["farm_nickname"], # 목장 별명
+        farm_id=user["farm_id"],            # 농장 ID
+        auth_type=AuthType(user["auth_type"]), # 인증 타입
+        created_at=user["created_at"],      # 가입일
+        last_login=user["last_login"],
+        is_active=user["is_active"]
     )
+
+# ===== 계정 연동 관련 API =====
+
+@router.post("/link-social-account",
+            summary="소셜 계정 연동",
+            description="""
+            기존 이메일 계정에 소셜 계정을 연동합니다.
+            
+            **주의사항:**
+            - 이메일 계정으로 가입한 사용자만 가능
+            - 연동하려는 소셜 계정이 다른 계정에 이미 연동되어 있으면 안됨
+            """)
+async def link_social_account(
+    link_request: SocialLoginRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """소셜 계정 연동 (향후 구현)"""
+    # TODO: 계정 연동 로직 구현
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="계정 연동 기능은 향후 구현 예정입니다"
+    )
+
+@router.delete("/unlink-social-account",
+              summary="소셜 계정 연동 해제",
+              description="연동된 소셜 계정을 해제합니다.")
+async def unlink_social_account(
+    auth_type: AuthType,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """소셜 계정 연동 해제 (향후 구현)"""
+    # TODO: 계정 연동 해제 로직 구현
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="계정 연동 해제 기능은 향후 구현 예정입니다"
+    )
+
 
 # ============= 아이디/비밀번호 찾기 API =============
 
 @router.post("/find-user-id",
             summary="아이디 찾기",
-            description="사용자 이름과 이메일을 통해 아이디를 찾습니다.")
+            description="사용자 이름과 이메일을 통해 아이디를 찾습니다. (이메일 계정만 가능)")
 def find_user_id_by_name_and_email(request: FindUserIdRequest):
-    """이름과 이메일로 아이디 찾기 - Flutter 앱에서 바로 표시"""
+    """이름과 이메일로 아이디 찾기 - 이메일 계정만"""
     try:
-        # Firebase에서 이름과 이메일로 사용자 검색
         user = FirebaseUserService.find_user_id_by_name_and_email(request.username, request.email)
         
         if not user:
@@ -137,7 +343,20 @@ def find_user_id_by_name_and_email(request: FindUserIdRequest):
                 detail="입력하신 이름과 이메일에 일치하는 계정을 찾을 수 없습니다"
             )
         
-        # 찾은 아이디를 Flutter 앱에서 바로 표시
+        # SNS 로그인 사용자는 아이디 찾기 불가
+        if user.get("auth_type") != AuthType.EMAIL.value:
+            auth_type_names = {
+                "google": "구글",
+                "kakao": "카카오",
+                "naver": "네이버"
+            }
+            platform_name = auth_type_names.get(user["auth_type"], "소셜")
+            
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"해당 이메일은 {platform_name} 로그인으로 가입된 계정입니다. {platform_name} 로그인을 이용해주세요."
+            )
+        
         return {
             "success": True,
             "message": "아이디를 찾았습니다",
@@ -157,11 +376,10 @@ def find_user_id_by_name_and_email(request: FindUserIdRequest):
 
 @router.post("/request-password-reset",
             summary="비밀번호 재설정 요청",
-            description="이름, 아이디, 이메일 확인 후 비밀번호 재설정 토큰을 이메일로 전송합니다.")
+            description="이름, 아이디, 이메일 확인 후 비밀번호 재설정 토큰을 발급합니다. (이메일 계정만 가능)")
 async def request_password_reset(request: PasswordResetRequest):
-    """비밀번호 재설정 요청 - 이름, 아이디, 이메일 모두 확인"""
+    """비밀번호 재설정 요청 - 이메일 계정만"""
     try:
-        # 이름, user_id, 이메일이 모두 일치하는 사용자 확인
         user = FirebaseUserService.verify_user_for_password_reset(
             request.username, 
             request.user_id, 
@@ -174,17 +392,30 @@ async def request_password_reset(request: PasswordResetRequest):
                 detail="입력하신 이름, 아이디, 이메일이 모두 일치하는 계정을 찾을 수 없습니다"
             )
         
-        # JWT 기반 비밀번호 재설정 토큰 생성 (1시간 유효)
+        # SNS 로그인 사용자는 비밀번호 재설정 불가
+        if user.get("auth_type") != AuthType.EMAIL.value:
+            auth_type_names = {
+                "google": "구글",
+                "kakao": "카카오",
+                "naver": "네이버"
+            }
+            platform_name = auth_type_names.get(user["auth_type"], "소셜")
+            
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"해당 계정은 {platform_name} 로그인으로 가입된 계정입니다. 비밀번호 재설정이 불가능합니다."
+            )
+        
+        # JWT 기반 비밀번호 재설정 토큰 생성
         reset_token = FirebaseUserService.create_password_reset_token(user)
-
         
         return {
             "success": True,
             "message": f"{user['username']}님의 비밀번호 재설정 요청이 완료되었습니다",
-            "username": user["username"],               # 사용자 이름/실명
-            "user_id": request.user_id,                 # 로그인용 아이디
-            "email": request.email,                     # 이메일
-            "reset_token": reset_token,                 # 임시 토큰 (개발용)
+            "username": user["username"],
+            "user_id": request.user_id,
+            "email": request.email,
+            "reset_token": reset_token,
             "expires_in": "1시간"
         }
             
@@ -195,7 +426,7 @@ async def request_password_reset(request: PasswordResetRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"비밀번호 재설정 요청 중 오류가 발생했습니다: {str(e)}"
         )
-
+        
 @router.post("/verify-reset-token",
             summary="재설정 토큰 확인",
             description="비밀번호 재설정 토큰의 유효성을 확인합니다.")
