@@ -2,18 +2,50 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2025, 7, 9);
+    // 사용자 문서 접근 규칙
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.token.user_uuid == userId;
     }
+    
+    // 농장 문서 접근 규칙
+    match /farms/{farmId} {
+      allow read, write: if request.auth != null && 
+        resource.data.owner_id == request.auth.token.user_uuid;
+    }
+    
+    // 젖소 문서 접근 규칙
+    match /cows/{cowId} {
+      allow read, write: if request.auth != null && 
+        resource.data.farm_id == request.auth.token.farm_id;
+    }
+    
+    // 기본 기록 접근 규칙
+    match /cow_records/{recordId} {
+      allow read, write: if request.auth != null && 
+        resource.data.farm_id == request.auth.token.farm_id;
+    }
+    
+    // 상세 기록 접근 규칙
+    match /cow_detailed_records/{recordId} {
+      allow read, write: if request.auth != null && 
+        resource.data.farm_id == request.auth.token.farm_id;
+    }
+    
+    // 리프레시 토큰 접근 규칙
+    match /refresh_tokens/{tokenId} {
+      allow read, write: if request.auth != null && 
+        resource.data.user_id == request.auth.token.user_uuid;
+    }
+    
+    // 채팅룸 접근 규칙
+    match /chat_rooms/{roomId} {
+      allow read, write: if request.auth != null && 
+        resource.data.user_id == request.auth.token.user_uuid;
+    }
+    
+    // 임시 개발용 규칙 (필요시 주석 해제)
+    // match /{document=**} {
+    //   allow read, write: if request.time < timestamp.date(2025, 7, 9);
+    // }
   }
 }

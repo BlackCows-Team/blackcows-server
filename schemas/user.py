@@ -14,6 +14,15 @@ class AuthType(str, Enum):
     KAKAO = "kakao"          # 카카오 로그인
     NAVER = "naver"          # 네이버 로그인
 
+# LoginType은 AuthType과 동일하지만 호환성을 위해 별칭으로 추가
+LoginType = AuthType
+
+class SNSProvider(str, Enum):
+    """SNS 제공자 열거형"""
+    GOOGLE = "google"
+    KAKAO = "kakao"
+    NAVER = "naver"
+
 # ===== 회원가입 관련 스키마 =====
 
 class UserCreate(BaseModel):
@@ -404,3 +413,16 @@ class MockSocialLoginRequest(BaseModel):
         if v == AuthType.EMAIL:
             raise ValueError('이메일 인증은 모의 로그인에서 지원하지 않습니다')
         return v
+
+# ===== SNS 회원탈퇴 관련 스키마 =====
+
+class SNSDeleteAccountRequest(BaseModel):
+    """SNS 계정 삭제 요청 스키마"""
+    sns_provider: SNSProvider = Field(..., description="SNS 제공자 (google, kakao, naver)")
+    sns_token: str = Field(..., description="SNS 액세스 토큰 (계정 연결 해제용)")
+    
+    @validator('sns_token')
+    def validate_sns_token(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('SNS 토큰은 필수입니다')
+        return v.strip()
