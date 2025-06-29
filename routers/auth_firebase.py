@@ -253,7 +253,7 @@ def login_user(user_data: UserLogin):
         created_at=user["created_at"],          # 가입일
         last_login=user["last_login"],          # 최근 로그인 시간
         is_active=user["is_active"],            # 활성 상태
-        login_type=LoginType(user.get("auth_type", "email")),  # auth_type을 login_type으로 변환
+        auth_type=AuthType(user.get("auth_type", "email")),  # 기본값 email
         sns_provider=user.get("sns_provider"),   # SNS 제공자
         sns_user_id=user.get("sns_user_id")      # SNS 사용자 ID
     )
@@ -292,7 +292,7 @@ def get_current_user_info(credentials: HTTPAuthorizationCredentials = Depends(se
         created_at=user["created_at"],          # 가입일
         last_login=user["last_login"],          # 최근 로그인 시간
         is_active=user["is_active"],            # 활성 상태
-        login_type=LoginType(user.get("auth_type", "email")),  # auth_type을 login_type으로 변환
+        auth_type=AuthType(user.get("auth_type", "email")),  # 기본값 email
         sns_provider=user.get("sns_provider"),   # SNS 제공자
         sns_user_id=user.get("sns_user_id")      # SNS 사용자 ID
     )

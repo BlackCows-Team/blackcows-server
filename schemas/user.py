@@ -160,10 +160,13 @@ class UserResponse(BaseModel):
     email: str = Field(..., description="이메일 주소")
     farm_nickname: Optional[str] = Field(None, description="목장 별명")
     farm_id: str = Field(..., description="농장 ID")
-    auth_type: AuthType = Field(..., description="인증 타입")
+    auth_type: AuthType = Field(AuthType.EMAIL, description="인증 타입 (기본값: email)")
     created_at: datetime = Field(..., description="계정 생성일")
     last_login: datetime = Field(..., description="최근 로그인 시간")
     is_active: bool = Field(..., description="계정 활성 상태")
+    # SNS 로그인 관련 필드들 (옵셔널)
+    sns_provider: Optional[str] = Field(None, description="SNS 제공자")
+    sns_user_id: Optional[str] = Field(None, description="SNS 사용자 ID")
 
 class TokenResponse(BaseModel):
     """로그인 성공시 토큰 응답 스키마"""
