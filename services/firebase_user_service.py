@@ -121,6 +121,24 @@ class FirebaseUserService:
             if not user_data.get("is_active", True):
                 return None
             
+            # 기존 사용자 호환성: auth_type이 없거나 null이면 email로 간주
+            if user_data.get("auth_type") is None or user_data.get("auth_type") == "":
+                print(f"[DEBUG] 기존 사용자 - auth_type이 없음, email로 간주")
+                user_data["auth_type"] = "email"
+                
+                # DB에 auth_type 업데이트 (한 번만)
+                try:
+                    db.collection('users').document(user_data["id"]).update({
+                        "auth_type": "email",
+                        "updated_at": datetime.utcnow()
+                    })
+                    print(f"[DEBUG] 기존 사용자 auth_type 업데이트 완료")
+                    
+                except Exception as update_error:
+                    print(f"[WARNING] auth_type 업데이트 실패: {str(update_error)}")
+                    # 업데이트 실패해도 메모리상에서는 처리
+                    user_data["auth_type"] = "email"
+            
             return user_data
             
         except Exception as e:

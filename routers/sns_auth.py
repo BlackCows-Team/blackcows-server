@@ -46,7 +46,7 @@ async def google_login(id_token: str, farm_nickname: str = None):
             farm_id=user["farm_id"],
             created_at=user["created_at"],
             is_active=user["is_active"],
-            login_type=LoginType(user.get("login_type", "google")),
+            login_type=LoginType(user.get("auth_type") or user.get("login_type", "google")),
             sns_provider=user.get("sns_provider"),
             sns_user_id=user.get("sns_user_id")
         )
@@ -100,7 +100,7 @@ async def kakao_login(access_token: str, farm_nickname: str = None):
             farm_id=user["farm_id"],
             created_at=user["created_at"],
             is_active=user["is_active"],
-            login_type=LoginType(user.get("login_type", "kakao")),
+            login_type=LoginType(user.get("auth_type") or user.get("login_type", "kakao")),
             sns_provider=user.get("sns_provider"),
             sns_user_id=user.get("sns_user_id")
         )
@@ -154,7 +154,7 @@ async def naver_login(access_token: str, farm_nickname: str = None):
             farm_id=user["farm_id"],
             created_at=user["created_at"],
             is_active=user["is_active"],
-            login_type=LoginType(user.get("login_type", "naver")),
+            login_type=LoginType(user.get("auth_type") or user.get("login_type", "naver")),
             sns_provider=user.get("sns_provider"),
             sns_user_id=user.get("sns_user_id")
         )

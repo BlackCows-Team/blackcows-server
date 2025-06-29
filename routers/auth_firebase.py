@@ -6,7 +6,7 @@ from schemas.user import (
     UserCreate, UserLogin, TokenResponse, RefreshTokenRequest, UserResponse,
     FindUserIdRequest, PasswordResetRequest, PasswordResetConfirm,
     TemporaryTokenLogin, ChangePasswordRequest, DeleteAccountRequest,
-    FarmNicknameUpdate
+    FarmNicknameUpdate, LoginType
 )
 from services.firebase_user_service import FirebaseUserService, ACCESS_TOKEN_EXPIRE_MINUTES
 
@@ -82,7 +82,10 @@ def login_user(user_data: UserLogin):
         farm_nickname=user["farm_nickname"],    # 목장 별명
         farm_id=user["farm_id"],                # 농장 ID
         created_at=user["created_at"],          # 가입일
-        is_active=user["is_active"]             # 활성 상태
+        is_active=user["is_active"],            # 활성 상태
+        login_type=LoginType(user.get("auth_type", "email")),  # auth_type을 login_type으로 변환
+        sns_provider=user.get("sns_provider"),   # SNS 제공자
+        sns_user_id=user.get("sns_user_id")      # SNS 사용자 ID
     )
     
     return TokenResponse(
@@ -117,7 +120,10 @@ def get_current_user_info(credentials: HTTPAuthorizationCredentials = Depends(se
         farm_nickname=user["farm_nickname"],    # 목장 별명
         farm_id=user["farm_id"],                # 농장 ID
         created_at=user["created_at"],          # 가입일
-        is_active=user["is_active"]             # 활성 상태
+        is_active=user["is_active"],            # 활성 상태
+        login_type=LoginType(user.get("auth_type", "email")),  # auth_type을 login_type으로 변환
+        sns_provider=user.get("sns_provider"),   # SNS 제공자
+        sns_user_id=user.get("sns_user_id")      # SNS 사용자 ID
     )
 
 # ============= 아이디/비밀번호 찾기 API =============
@@ -405,7 +411,10 @@ def login_with_reset_token(request: TemporaryTokenLogin):
             farm_nickname=user["farm_nickname"],    # 목장 별명
             farm_id=user["farm_id"],                # 농장 ID
             created_at=user["created_at"],          # 가입일
-            is_active=user["is_active"]             # 활성 상태
+            is_active=user["is_active"],             # 활성 상태
+            login_type=LoginType(user.get("auth_type", "email")),  # auth_type을 login_type으로 변환
+            sns_provider=user.get("sns_provider"),   # SNS 제공자
+            sns_user_id=user.get("sns_user_id")      # SNS 사용자 ID
         )
         
         return {
@@ -532,7 +541,10 @@ def update_farm_name(
             farm_nickname=updated_user_data["farm_nickname"],    # 수정된 목장 별명
             farm_id=updated_user_data["farm_id"],                # 농장 ID
             created_at=updated_user_data["created_at"],          # 가입일
-            is_active=updated_user_data["is_active"]             # 활성 상태
+            is_active=updated_user_data["is_active"],             # 활성 상태
+            login_type=LoginType(updated_user_data.get("auth_type", "email")),  # auth_type을 login_type으로 변환
+            sns_provider=updated_user_data.get("sns_provider"),   # SNS 제공자
+            sns_user_id=updated_user_data.get("sns_user_id")      # SNS 사용자 ID
         )
         
         return {
