@@ -733,37 +733,49 @@ class FirebaseUserService:
             
             # 3. 관련 데이터 삭제 (순서 중요)
             
-            # 3-1. 상세기록 삭제
+            # 3-1. 할일(Tasks) 삭제
+            tasks = db.collection('tasks').where('farm_id', '==', farm_id).get()
+            task_count = len(tasks)
+            for task in tasks:
+                db.collection('tasks').document(task.id).delete()
+            
+            # 3-2. 채팅방 삭제
+            chat_rooms = db.collection('chat_rooms').where('farm_id', '==', farm_id).get()
+            chat_count = len(chat_rooms)
+            for chat in chat_rooms:
+                db.collection('chat_rooms').document(chat.id).delete()
+            
+            # 3-3. 상세기록 삭제
             detailed_records = db.collection('cow_detailed_records').where('farm_id', '==', farm_id).get()
             detailed_count = len(detailed_records)
             for record in detailed_records:
                 db.collection('cow_detailed_records').document(record.id).delete()
             
-            # 3-2. 기록 삭제  
+            # 3-4. 기록 삭제  
             records = db.collection('cow_records').where('farm_id', '==', farm_id).get()
             record_count = len(records)
             for record in records:
                 db.collection('cow_records').document(record.id).delete()
             
-            # 3-3. 소 정보 삭제
+            # 3-5. 소 정보 삭제
             cows = db.collection('cows').where('farm_id', '==', farm_id).get()
             cow_count = len(cows)
             for cow in cows:
                 db.collection('cows').document(cow.id).delete()
             
-            # 3-4. 리프레시 토큰 삭제
+            # 3-6. 리프레시 토큰 삭제 (해당 사용자의 모든 토큰)
             refresh_tokens = db.collection('refresh_tokens').where('user_id', '==', user_uuid).get()
             token_count = len(refresh_tokens)
             for token in refresh_tokens:
                 db.collection('refresh_tokens').document(token.id).delete()
             
-            # 3-5. 농장 정보 삭제
+            # 3-7. 농장 정보 삭제
             db.collection('farms').document(farm_id).delete()
             
-            # 3-6. 사용자 정보 삭제 (마지막)
+            # 3-8. 사용자 정보 삭제 (마지막)
             db.collection('users').document(user_uuid).delete()
             
-            print(f"[INFO] 계정 삭제 완료: 젖소 {cow_count}마리, 기록 {record_count + detailed_count}개, 토큰 {token_count}개")
+            print(f"[INFO] 계정 삭제 완료: 젖소 {cow_count}마리, 기록 {record_count + detailed_count}개, 할일 {task_count}개, 채팅 {chat_count}개, 토큰 {token_count}개")
             
             return {
                 "success": True,
@@ -775,6 +787,8 @@ class FirebaseUserService:
                     "auth_type": user['auth_type'],
                     "deleted_cows": cow_count,
                     "deleted_records": record_count + detailed_count,
+                    "deleted_tasks": task_count,
+                    "deleted_chats": chat_count,
                     "deleted_tokens": token_count,
                     "deleted_at": datetime.utcnow().isoformat()
                 }
@@ -958,15 +972,20 @@ class FirebaseUserService:
         try:
             current_time = datetime.utcnow()
             
-            # 만료된 토큰 조회
+            # 만료된 토큰 조회 (단순 쿼리)
             expired_tokens = db.collection('refresh_tokens')\
                 .where('expires_at', '<', current_time)\
                 .get()
             
             deleted_count = 0
+            
+            # 배치 삭제 (효율성을 위해)
             for token in expired_tokens:
-                db.collection('refresh_tokens').document(token.id).delete()
-                deleted_count += 1
+                try:
+                    db.collection('refresh_tokens').document(token.id).delete()
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"[WARNING] 토큰 삭제 실패 (ID: {token.id}): {str(e)}")
             
             print(f"[INFO] 만료된 토큰 {deleted_count}개 정리 완료")
             return deleted_count
@@ -974,6 +993,110 @@ class FirebaseUserService:
         except Exception as e:
             print(f"[ERROR] 토큰 정리 실패: {str(e)}")
             return 0
+    
+    @staticmethod
+    def cleanup_old_tokens_by_count():
+        """사용자별 오래된 토큰 정리 (각 사용자당 최대 5개만 유지)"""
+        try:
+            # 모든 활성 사용자 조회
+            users = db.collection('users').where('is_active', '==', True).get()
+            total_deleted = 0
+            
+            for user_doc in users:
+                user_id = user_doc.id
+                
+                try:
+                    # 사용자의 모든 토큰 조회 (간단한 쿼리)
+                    user_tokens = db.collection('refresh_tokens')\
+                        .where('user_id', '==', user_id)\
+                        .get()
+                    
+                    # 토큰을 생성일 기준으로 정렬 (메모리에서)
+                    token_list = []
+                    for token_doc in user_tokens:
+                        token_data = token_doc.to_dict()
+                        token_data['doc_id'] = token_doc.id
+                        if token_data.get('is_active', True):  # 활성 토큰만
+                            token_list.append(token_data)
+                    
+                    # 생성일 기준 내림차순 정렬
+                    token_list.sort(key=lambda x: x.get('created_at', datetime.min), reverse=True)
+                    
+                    # 5개 이상이면 오래된 것들 삭제
+                    if len(token_list) > 5:
+                        tokens_to_delete = token_list[5:]  # 6번째부터 끝까지
+                        
+                        for token in tokens_to_delete:
+                            try:
+                                db.collection('refresh_tokens').document(token['doc_id']).delete()
+                                total_deleted += 1
+                            except Exception as e:
+                                print(f"[WARNING] 토큰 삭제 실패: {str(e)}")
+                                
+                except Exception as e:
+                    print(f"[WARNING] 사용자 {user_id} 토큰 정리 실패: {str(e)}")
+                    continue
+            
+            print(f"[INFO] 오래된 토큰 {total_deleted}개 정리 완료 (사용자당 최대 5개 유지)")
+            return total_deleted
+            
+        except Exception as e:
+            print(f"[ERROR] 오래된 토큰 정리 실패: {str(e)}")
+            return 0
+    
+    @staticmethod
+    def auto_cleanup_tokens():
+        """자동 토큰 정리 (만료된 것 + 개수 제한)"""
+        try:
+            expired_deleted = FirebaseUserService.cleanup_expired_tokens()
+            old_deleted = FirebaseUserService.cleanup_old_tokens_by_count()
+            
+            total_deleted = expired_deleted + old_deleted
+            print(f"[INFO] 자동 토큰 정리 완료: 총 {total_deleted}개 삭제")
+            
+            return {
+                "total_deleted": total_deleted,
+                "expired_deleted": expired_deleted,
+                "old_deleted": old_deleted,
+                "cleanup_time": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            print(f"[ERROR] 자동 토큰 정리 실패: {str(e)}")
+            return {"error": str(e)}
+    
+    @staticmethod
+    def get_token_statistics():
+        """토큰 통계 조회"""
+        try:
+            current_time = datetime.utcnow()
+            
+            # 전체 토큰 수
+            all_tokens = db.collection('refresh_tokens').get()
+            total_count = len(all_tokens)
+            
+            # 활성 토큰 수
+            active_tokens = db.collection('refresh_tokens').where('is_active', '==', True).get()
+            active_count = len(active_tokens)
+            
+            # 만료된 토큰 수
+            expired_tokens = db.collection('refresh_tokens')\
+                .where('expires_at', '<', current_time)\
+                .get()
+            expired_count = len(expired_tokens)
+            
+            return {
+                "total_tokens": total_count,
+                "active_tokens": active_count,
+                "expired_tokens": expired_count,
+                "inactive_tokens": total_count - active_count,
+                "cleanup_needed": expired_count > 0,
+                "statistics_time": current_time.isoformat()
+            }
+            
+        except Exception as e:
+            print(f"[ERROR] 토큰 통계 조회 실패: {str(e)}")
+            return {"error": str(e)}
     
     @staticmethod
     def revoke_all_user_tokens(user_id: str):

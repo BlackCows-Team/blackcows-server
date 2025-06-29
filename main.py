@@ -1,15 +1,21 @@
 import os
 import warnings
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from routers import chatbot_router, cow, record, detailed_record, livestock_trace
 from routers import auth_firebase
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import logging
+from dotenv import load_dotenv
+import uvicorn
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+import atexit
 
 # Firestore positional arguments 경고 무시
 warnings.filterwarnings("ignore", message="Detected filter using positional arguments*")
 
 # .env 파일 로드
-from dotenv import load_dotenv
 load_dotenv()
 
 # JWT 시크릿 키 검증
@@ -103,3 +109,75 @@ def health_check():
 @app.get("/health")
 def health_status():
     return {"status": "healthy", "version": "2.7.0"}
+
+# 환경변수 확인 함수들
+def check_naver_credentials():
+    """네이버 로그인 인증 정보 확인"""
+    naver_client_id = os.getenv("NAVER_CLIENT_ID")
+    naver_client_secret = os.getenv("NAVER_CLIENT_SECRET")
+    
+    if not naver_client_id or not naver_client_secret:
+        print("⚠️  WARNING: 네이버 로그인 인증 정보가 설정되지 않았습니다.")
+        print("   NAVER_CLIENT_ID와 NAVER_CLIENT_SECRET 환경변수를 설정해주세요.")
+        return False
+    return True
+
+# 토큰 관리 API 엔드포인트들
+@app.get("/admin/token-stats", summary="토큰 통계 조회")
+def get_token_statistics():
+    """리프레시 토큰 통계 조회 (관리자용)"""
+    from services.firebase_user_service import FirebaseUserService
+    return FirebaseUserService.get_token_statistics()
+
+@app.post("/admin/cleanup-tokens", summary="토큰 정리 실행")
+def cleanup_tokens():
+    """만료된/오래된 토큰 정리 실행 (관리자용)"""
+    from services.firebase_user_service import FirebaseUserService
+    return FirebaseUserService.auto_cleanup_tokens()
+
+@app.delete("/admin/revoke-user-tokens/{user_id}", summary="사용자 토큰 무효화")
+def revoke_user_tokens(user_id: str):
+    """특정 사용자의 모든 토큰 무효화 (관리자용)"""
+    from services.firebase_user_service import FirebaseUserService
+    revoked_count = FirebaseUserService.revoke_all_user_tokens(user_id)
+    return {
+        "success": True,
+        "message": f"사용자 {user_id}의 토큰 {revoked_count}개가 무효화되었습니다",
+        "revoked_count": revoked_count
+    }
+
+# 자동 토큰 정리를 위한 스케줄러 설정
+def auto_cleanup_tokens_scheduled():
+    """스케줄러용 자동 토큰 정리 함수"""
+    try:
+        from services.firebase_user_service import FirebaseUserService
+        result = FirebaseUserService.auto_cleanup_tokens()
+        print(f"[SCHEDULER] 자동 토큰 정리 완료: {result}")
+    except Exception as e:
+        print(f"[SCHEDULER ERROR] 자동 토큰 정리 실패: {str(e)}")
+
+def setup_scheduler():
+    """토큰 정리 스케줄러 설정"""
+    scheduler = BackgroundScheduler()
+    # 매일 자정에 토큰 정리 실행
+    scheduler.add_job(
+        auto_cleanup_tokens_scheduled, 
+        CronTrigger(hour=0, minute=0),
+        id='token_cleanup',
+        name='자동 토큰 정리'
+    )
+    scheduler.start()
+    print("🕰️ 자동 토큰 정리 스케줄러 시작됨 (매일 자정 실행)")
+    atexit.register(lambda: scheduler.shutdown())
+
+@app.on_event("startup")
+async def startup_event():
+    """앱 시작 시 실행되는 이벤트"""
+    print("🚀 BlackCows 백엔드 서버 시작 중...")
+    setup_scheduler()
+    print("✅ 서버 초기화 완료!")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """앱 종료 시 실행되는 이벤트"""
+    print("🛑 BlackCows 백엔드 서버 종료 중...")

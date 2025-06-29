@@ -6,11 +6,14 @@ from schemas.user import (
     UserCreate, UserLogin, TokenResponse, RefreshTokenRequest, UserResponse,
     FindUserIdRequest, PasswordResetRequest, PasswordResetConfirm,
     TemporaryTokenLogin, ChangePasswordRequest, DeleteAccountRequest,
-    FarmNicknameUpdate, LoginType
+    FarmNicknameUpdate, LoginType, SocialLoginRequest, AuthType
 )
 from services.firebase_user_service import FirebaseUserService, ACCESS_TOKEN_EXPIRE_MINUTES
 from datetime import timedelta, datetime
 from config.firebase_config import get_firestore_client
+from pydantic import BaseModel
+from typing import Optional
+import traceback
 
 router = APIRouter()
 security = HTTPBearer()
