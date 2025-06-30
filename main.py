@@ -41,17 +41,9 @@ app = FastAPI(
 # CORS 설정 (Flutter 연결을 위해)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://blackcowsdairy.com",  # 메인 웹사이트
-        "https://blackcows-b20c8.web.app",
-        "https://blackcows-b20c8.firebaseapp.com", 
-        "https://blackcowsdairy-38075085.ap-northeast-2.elb.amazonaws.com",
-        "http://localhost:3000",  # 개발용
-        "http://localhost:8080",  # 개발용
-        "http://localhost:8000",  # 개발용 (FastAPI 기본 포트)
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # OPTIONS 명시적 추가
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
