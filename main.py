@@ -42,16 +42,56 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://blackcowsdairy.com",  # 메인 웹사이트
         "https://blackcows-b20c8.web.app",
         "https://blackcows-b20c8.firebaseapp.com", 
         "https://blackcowsdairy-38075085.ap-northeast-2.elb.amazonaws.com",
         "http://localhost:3000",  # 개발용
         "http://localhost:8080",  # 개발용
+        "http://localhost:8000",  # 개발용 (FastAPI 기본 포트)
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # OPTIONS 명시적 추가
     allow_headers=["*"],
 )
+
+# Flutter 모바일 앱 및 CORS 디버깅 미들웨어
+@app.middleware("http")
+async def handle_mobile_cors(request: Request, call_next):
+    """Flutter 모바일 앱 CORS 처리 및 요청 로깅"""
+    origin = request.headers.get("origin")
+    user_agent = request.headers.get("user-agent", "")
+    
+    # Flutter 앱 감지 조건 확장
+    is_flutter_app = any([
+        "flutter" in user_agent.lower(),
+        "dart" in user_agent.lower(), 
+        "blackcows" in user_agent.lower(),  # 앱 이름 포함시
+        origin is None or origin == "null",  # 모바일 앱 특성
+    ])
+    
+    # CORS 요청 로깅 (디버깅용)
+    if request.method == "OPTIONS":
+        app_type = "Flutter 모바일 앱" if is_flutter_app else "웹 브라우저"
+        print(f"[CORS] {app_type} OPTIONS 요청")
+        print(f"[CORS] Origin: {origin}")
+        print(f"[CORS] User-Agent: {user_agent[:100]}...")
+        print(f"[CORS] 요청 경로: {request.url.path}")
+    
+    response = await call_next(request)
+    
+    # Flutter 모바일 앱에 대한 CORS 헤더 처리
+    if is_flutter_app:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Max-Age"] = "86400"  # 24시간 캐시
+        
+        if request.method == "OPTIONS":
+            print(f"[CORS] ✅ Flutter 앱 CORS 헤더 적용 완료")
+    
+    return response
 
 # # cow 라우터 연결
 # app.include_router(cow.router, prefix="/cows", tags=["Cows"])
