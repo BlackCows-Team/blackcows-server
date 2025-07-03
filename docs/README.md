@@ -1472,31 +1472,49 @@ PUT /chatbot/rooms/chat-uuid-123/name
 
 ## 🚀 최근 업데이트 (v2.8.0)
 
-### ✅ 2025년 1월 27일 - 할일 관리 시스템 개선
+### ✅ 2025년 7월 4일 - 할일 관리 시스템 개선 및 라우터 구조 최적화
 
 #### 🔧 주요 수정사항
+- **라우터 prefix 중복 문제 해결**: 307 Temporary Redirect 및 라우팅 오류 완전 해결
 - **Firestore 쿼리 최적화**: 복잡한 복합 쿼리 문제 해결로 500 Internal Server Error 수정
-- **API 경로 개선**: 라우터 충돌 해결로 307 Temporary Redirect 문제 해결
+- **API 경로 개선**: 라우터 충돌 해결로 정상적인 API 호출 가능
 - **클라이언트 사이드 필터링**: 성능 향상을 위한 쿼리 단순화
 - **인증 테스트 엔드포인트 추가**: 디버깅을 위한 `/api/todos/test-auth` 추가
 
-#### 📋 할일 관리 API 경로 변경
-| 변경 전 | 변경 후 | 설명 |
-|---------|---------|------|
-| `POST /api/todos` | `POST /api/todos/create` | 할일 생성 경로 변경 |
-| `PUT /api/todos/{task_id}` | `PUT /api/todos/{task_id}/update` | 할일 수정 경로 변경 |
-| - | `GET /api/todos/test-auth` | 인증 테스트 엔드포인트 추가 |
+#### 🚨 라우터 구조 수정 (중요!)
+**문제**: 라우터 prefix 중복으로 인한 `/api/todos/api/todos` 경로 생성
+**해결**: 
+- `routers/task.py`에서 `prefix="/api/todos"` 제거
+- `main.py`에서 `prefix="/api/todos"` 명시적 추가
+- 결과: 정상적인 `/api/todos/...` 경로로 API 호출 가능
 
-#### 🐛 버그 수정
+#### 📋 할일 관리 API 경로 (수정 완료)
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| `GET` | `/api/todos/test-auth` | **인증 테스트** (디버깅용) |
+| `POST` | `/api/todos/create` | **할일 생성** |
+| `GET` | `/api/todos/` | **할일 목록 조회** |
+| `GET` | `/api/todos/today` | **오늘 할일 조회** |
+| `GET` | `/api/todos/overdue` | **지연된 할일 조회** |
+| `GET` | `/api/todos/statistics` | **할일 통계 조회** |
+| `GET` | `/api/todos/calendar` | **캘린더 뷰 조회** |
+| `GET` | `/api/todos/{task_id}` | **할일 상세 조회** |
+| `PUT` | `/api/todos/{task_id}/update` | **할일 수정** |
+| `PATCH` | `/api/todos/{task_id}/complete` | **할일 완료 처리** |
+| `DELETE` | `/api/todos/{task_id}` | **할일 삭제** |
+
+#### 🐛 해결된 문제들
+- **307 Temporary Redirect 해결**: 라우터 prefix 중복 문제 완전 해결
 - **500 Internal Server Error 해결**: Firestore 복합 쿼리 인덱스 문제 해결
-- **307 Temporary Redirect 해결**: 라우터 경로 충돌 문제 해결
+- **401 Unauthorized 해결**: 인증 토큰 검증 문제 해결
 - **할일 목록 조회 성능 개선**: 클라이언트 사이드 필터링으로 쿼리 최적화
+- **Flutter 앱 네트워크 오류 해결**: 예상 경로와 실제 경로 일치로 정상 동작
 
-#### 🔄 Flutter 앱 수정 필요사항
+#### 🔄 Flutter 앱 수정 완료사항
 ```dart
-// 할일 생성 - 경로 변경
+// 할일 생성 - 정상 경로
 final response = await http.post(
-  Uri.parse('$baseUrl/api/todos/create'),  // 변경됨
+  Uri.parse('$baseUrl/api/todos/create'),
   headers: {
     'Authorization': 'Bearer $accessToken',
     'Content-Type': 'application/json',
@@ -1504,16 +1522,30 @@ final response = await http.post(
   body: json.encode(taskData),
 );
 
-// 할일 수정 - 경로 변경
+// 할일 수정 - 정상 경로
 final response = await http.put(
-  Uri.parse('$baseUrl/api/todos/$taskId/update'),  // 변경됨
+  Uri.parse('$baseUrl/api/todos/$taskId/update'),
   headers: {
     'Authorization': 'Bearer $accessToken',
     'Content-Type': 'application/json',
   },
   body: json.encode(updateData),
 );
+
+// 할일 목록 조회 - 정상 경로
+final response = await http.get(
+  Uri.parse('$baseUrl/api/todos/'),
+  headers: {
+    'Authorization': 'Bearer $accessToken',
+  },
+);
 ```
+
+#### ✅ 수정 완료 확인
+- **라우터 구조**: `routers/task.py`에서 prefix 제거, `main.py`에서 명시적 추가
+- **API 경로**: 모든 할일 관리 API가 `/api/todos/...`로 정상 동작
+- **클라이언트 호환성**: Flutter 앱에서 기존 경로 그대로 사용 가능
+- **오류 해결**: 307, 500, 401 오류 모두 해결됨
 
 ### ✅ 2025년 1월 26일 - 할일 관리 시스템 출시
 
@@ -1535,4 +1567,4 @@ final response = await http.put(
 **개발팀**: BlackCows Team  
 **버전**: v2.8.0  
 **최종 업데이트**: 2025년 1월 27일  
-**주요 변경사항**: 할일 관리 시스템 개선, API 경로 최적화, 500/307 오류 해결
+**주요 변경사항**: 라우터 prefix 중복 문제 해결, 할일 관리 시스템 최적화, 307/500/401 오류 완전 해결

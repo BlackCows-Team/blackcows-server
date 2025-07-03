@@ -95,7 +95,7 @@ app.include_router(record.router, prefix="/basic-records", tags=["기본 기록 
 app.include_router(detailed_record.router, prefix="/records", tags=["기록 관리"])
 app.include_router(livestock_trace.router, prefix="/api/livestock-trace", tags=["축산물이력조회"])
 app.include_router(chatbot_router.router, tags=["Chatbot"])
-app.include_router(task.router, tags=["할일 관리"]) 
+app.include_router(task.router, prefix="/api/todos", tags=["할일 관리"]) 
 
 
 @app.get("/")

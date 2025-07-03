@@ -7,7 +7,7 @@ from schemas.task import *
 from services.task_service import TaskService
 from routers.auth_firebase import get_current_user
 
-router = APIRouter(prefix="/api/todos", tags=["할일 관리"])
+router = APIRouter(tags=["할일 관리"])
 
 # 디버깅용 테스트 엔드포인트
 @router.get("/test-auth", summary="인증 테스트")
