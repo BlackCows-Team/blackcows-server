@@ -93,30 +93,29 @@ class TaskService:
             db = get_firestore_client()
             farm_id = user.get("farm_id")
             
-            # 기본 쿼리
+            # 기본 쿼리 - 단순화
             query = (db.collection('tasks')
                     .where('farm_id', '==', farm_id)
                     .where('is_active', '==', True)
+                    .order_by('created_at', direction='DESCENDING')
+                    .limit(limit)
                     .get())
-            
-            # 필터 적용
-            if status_filter:
-                query = query.where('status', '==', status_filter.value)
-            if priority_filter:
-                query = query.where('priority', '==', priority_filter.value)
-            if category_filter:
-                query = query.where('category', '==', category_filter.value)
-            if cow_id_filter:
-                query = query.where('related_cow_id', '==', cow_id_filter)
-            
-            # 정렬 및 제한
-            tasks_query = query.order_by('created_at', direction='DESCENDING').limit(limit).get()
             
             tasks = []
             current_time = datetime.utcnow()
             
-            for task_doc in tasks_query:
+            for task_doc in query:
                 task_data = task_doc.to_dict()
+                
+                # 필터링 - 클라이언트 사이드에서 처리
+                if status_filter and task_data['status'] != status_filter.value:
+                    continue
+                if priority_filter and task_data['priority'] != priority_filter.value:
+                    continue
+                if category_filter and task_data['category'] != category_filter.value:
+                    continue
+                if cow_id_filter and task_data.get('related_cow_id') != cow_id_filter:
+                    continue
                 
                 # 지연 상태 체크
                 is_overdue = False
@@ -171,18 +170,20 @@ class TaskService:
             farm_id = user.get("farm_id")
             today = date.today().strftime('%Y-%m-%d')
             
-            # 오늘 마감인 할일들 조회
+            # 오늘 마감인 할일들 조회 - 단순화된 쿼리
             tasks_query = (db.collection('tasks')
                           .where('farm_id', '==', farm_id)
                           .where('due_date', '==', today)
                           .where('is_active', '==', True)
-                          .where('status', 'in', [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value])
-                          .order_by('due_time')
                           .get())
             
             tasks = []
             for task_doc in tasks_query:
                 task_data = task_doc.to_dict()
+                
+                # 상태 필터링 - 클라이언트 사이드에서 처리
+                if task_data['status'] not in [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value]:
+                    continue
                 
                 # 젖소 정보 조회
                 cow_name = None
@@ -207,6 +208,8 @@ class TaskService:
                     created_at=task_data["created_at"]
                 ))
             
+            # 마감 시간 순으로 정렬
+            tasks.sort(key=lambda x: x.due_time or "23:59")
             return tasks
             
         except Exception as e:
@@ -223,21 +226,20 @@ class TaskService:
             farm_id = user.get("farm_id")
             current_time = datetime.utcnow()
             
-            # 지연된 할일들 조회
+            # 지연된 할일들 조회 - 단순화된 쿼리
             tasks_query = (db.collection('tasks')
                           .where('farm_id', '==', farm_id)
                           .where('is_active', '==', True)
-                          .where('status', 'in', [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value, TaskStatus.OVERDUE.value])
-                          .order_by('due_datetime')
                           .get())
             
             overdue_tasks = []
             for task_doc in tasks_query:
                 task_data = task_doc.to_dict()
                 
-                # 지연 체크
+                # 지연 체크 - 클라이언트 사이드에서 필터링
                 if (task_data.get('due_datetime') and 
-                    task_data['due_datetime'] < current_time):
+                    task_data['due_datetime'] < current_time and
+                    task_data['status'] in [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value, TaskStatus.OVERDUE.value]):
                     
                     # 상태 업데이트
                     if task_data['status'] != TaskStatus.OVERDUE.value:
@@ -269,6 +271,8 @@ class TaskService:
                         created_at=task_data["created_at"]
                     ))
             
+            # 마감일시 순으로 정렬
+            overdue_tasks.sort(key=lambda x: x.due_date or "9999-12-31")
             return overdue_tasks
             
         except Exception as e:
