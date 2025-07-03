@@ -9,7 +9,21 @@ from routers.auth_firebase import get_current_user
 
 router = APIRouter(prefix="/api/todos", tags=["할일 관리"])
 
-@router.post("/", 
+# 디버깅용 테스트 엔드포인트
+@router.get("/test-auth", summary="인증 테스트")
+def test_authentication(current_user: dict = Depends(get_current_user)):
+    """인증 상태를 테스트하는 엔드포인트"""
+    return {
+        "success": True,
+        "message": "인증 성공",
+        "user": {
+            "id": current_user.get("id"),
+            "username": current_user.get("username"),
+            "farm_id": current_user.get("farm_id")
+        }
+    }
+
+@router.post("/create", 
              response_model=TaskResponse, 
              status_code=status.HTTP_201_CREATED,
              summary="할일 생성",
@@ -145,7 +159,7 @@ def get_task(
     farm_id = current_user.get("farm_id")
     return TaskService.get_task_by_id(task_id, farm_id)
 
-@router.put("/{task_id}",
+@router.put("/{task_id}/update",
            response_model=TaskResponse,
            summary="할일 수정",
            description="""

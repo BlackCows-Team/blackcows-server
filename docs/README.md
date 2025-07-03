@@ -13,16 +13,18 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 
 ### 🎯 주요 기능
 
-#### 📋 작업 관리 시스템 (NEW!)
-- ✅ **작업 생성 및 관리** - 제목, 설명, 마감일, 우선순위 설정
-- ✅ **작업 할당** - 여러 사용자에게 작업 할당 가능
-- ✅ **젖소 연결** - 작업과 관련된 젖소 연결 기능
-- ✅ **상태 관리** - 대기중, 진행중, 완료, 취소 등 상태 추적
-- ✅ **우선순위 설정** - 높음, 중간, 낮음 우선순위 지정
-- ✅ **카테고리 분류** - 건강검진, 착유, 사료급여 등 작업 유형 분류
-- ✅ **첨부파일 지원** - 문서, 이미지 등 파일 첨부 기능
-- ✅ **태그 시스템** - 작업 분류 및 검색을 위한 태그 지원
-- ✅ **필터링 및 검색** - 상태, 우선순위, 카테고리별 필터링
+#### 📋 할일 관리 시스템 (NEW!)
+- ✅ **할일 생성 및 관리** - 제목, 설명, 마감일, 우선순위 설정
+- ✅ **할일 유형 분류** - 개인/젖소별/농장 전체 할일
+- ✅ **젖소 연결** - 할일과 관련된 젖소 연결 기능
+- ✅ **상태 관리** - 대기중, 진행중, 완료, 취소, 지연 등 상태 추적
+- ✅ **우선순위 설정** - 낮음, 보통, 높음, 긴급 우선순위 지정
+- ✅ **카테고리 분류** - 착유, 치료, 백신, 검진, 번식, 사료, 시설관리 등
+- ✅ **반복 일정** - 매일/주/월/년 반복 할일 설정
+- ✅ **마감일/시간** - 정확한 마감일시 설정 및 지연 자동 감지
+- ✅ **통계 및 분석** - 완료율, 카테고리별 분포, 우선순위별 분석
+- ✅ **캘린더 뷰** - 날짜별 할일 그룹화 및 시각화
+- ✅ **자동 지연 감지** - 마감일 지난 할일 자동 상태 변경
 
 #### 🐮 젖소 기본 관리
 - ✅ **젖소 등록/수정/삭제** - 이표번호, 센서번호, 기본 정보 관리
@@ -84,6 +86,74 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 - ✅ **회원탈퇴** - 모든 관련 데이터 완전 삭제
 
 ## 📡 전체 API 엔드포인트
+
+### 📋 할일 관리 API (`/api/todos`) - ⭐ NEW!
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `GET` | `/api/todos/test-auth` | **인증 테스트** | Bearer Token | 인증 상태 확인 |
+| `POST` | `/api/todos/create` | **할일 생성** | `title`, `task_type`, `priority`, `category` + Bearer Token | 생성된 할일 정보 |
+| `GET` | `/api/todos/` | **할일 목록 조회** | Bearer Token | 필터링된 할일 목록 |
+| `GET` | `/api/todos/today` | **오늘 할일 조회** | Bearer Token | 오늘 마감인 할일 목록 |
+| `GET` | `/api/todos/overdue` | **지연된 할일 조회** | Bearer Token | 마감일 지난 할일 목록 |
+| `GET` | `/api/todos/statistics` | **할일 통계 조회** | Bearer Token | 통계 정보 (완료율, 분포 등) |
+| `GET` | `/api/todos/calendar` | **캘린더 뷰 조회** | `start_date`, `end_date` + Bearer Token | 날짜별 할일 그룹 |
+| `GET` | `/api/todos/{task_id}` | **할일 상세 조회** | `task_id` + Bearer Token | 특정 할일 상세 정보 |
+| `PUT` | `/api/todos/{task_id}/update` | **할일 수정** | `task_id` + Bearer Token | 수정된 할일 정보 |
+| `PATCH` | `/api/todos/{task_id}/complete` | **할일 완료 처리** | `task_id` + Bearer Token | 완료된 할일 정보 |
+| `DELETE` | `/api/todos/{task_id}` | **할일 삭제** | `task_id` + Bearer Token | 삭제 확인 메시지 |
+
+#### 할일 관리 특징
+- ✅ **개인/젖소별/농장 전체 할일** - 할일 유형별 분류
+- ✅ **우선순위 시스템** - 낮음/보통/높음/긴급
+- ✅ **카테고리 분류** - 착유, 치료, 백신, 검진, 번식, 사료, 시설관리, 일반, 기타
+- ✅ **반복 일정** - 매일/주/월/년 반복 설정
+- ✅ **자동 지연 감지** - 마감일 지난 할일 자동 상태 변경
+- ✅ **젖소 연결** - 특정 젖소와 연관된 할일 설정
+- ✅ **통계 및 분석** - 완료율, 카테고리별 분포, 우선순위별 분석
+- ✅ **캘린더 뷰** - 날짜별 할일 그룹화 및 시각화
+
+#### 할일 생성 예시
+```json
+POST /api/todos/create
+{
+  "title": "103번 소 착유 체크",
+  "description": "오전 6시 착유량 확인",
+  "task_type": "cow_specific",
+  "priority": "high",
+  "due_date": "2024-01-20",
+  "due_time": "06:00",
+  "category": "milking",
+  "related_cow_id": "cow-uuid-123",
+  "recurrence": "daily",
+  "notes": "매일 정기 착유 체크"
+}
+```
+
+#### 할일 통계 응답 예시
+```json
+{
+  "total_tasks": 25,
+  "pending_tasks": 8,
+  "completed_tasks": 15,
+  "overdue_tasks": 2,
+  "today_tasks": 3,
+  "high_priority_tasks": 5,
+  "completion_rate": 60.0,
+  "by_category": {
+    "milking": 10,
+    "treatment": 5,
+    "vaccination": 3,
+    "general": 7
+  },
+  "by_priority": {
+    "low": 5,
+    "medium": 12,
+    "high": 6,
+    "urgent": 2
+  }
+}
+```
 
 ### 🔐 인증 관리 API (`/auth`)
 
@@ -1317,53 +1387,7 @@ async function chatWithSodam() {
 
 이 프로젝트는 [MIT 라이선스](LICENSE) 하에 배포됩니다.
 
-### 📋 할일 관리 API (`/api/todos`)
 
-| Method | Endpoint | 설명 | 필수 필드 | 응답 |
-|--------|----------|------|----------|------|
-| `POST` | `/api/todos` | **할일 생성** | `title`, `description`, `due_date`, `priority`, `category` | 생성된 할일 정보 |
-| `GET` | `/api/todos` | **할일 목록 조회** (필터링 지원) | Bearer Token | 할일 목록 |
-| `GET` | `/api/todos/today` | **오늘 할일 조회** | Bearer Token | 오늘 마감인 할일 목록 |
-| `GET` | `/api/todos/overdue` | **지연된 할일 조회** | Bearer Token | 마감일 지난 할일 목록 |
-| `GET` | `/api/todos/statistics` | **할일 통계 조회** | Bearer Token | 통계 정보 |
-| `GET` | `/api/todos/calendar` | **캘린더 뷰용 할일 조회** | `start_date`, `end_date` | 날짜별 할일 목록 |
-| `GET` | `/api/todos/{task_id}` | **할일 상세 조회** | `task_id` | 할일 상세 정보 |
-| `PUT` | `/api/todos/{task_id}` | **할일 수정** | `task_id` + 수정 데이터 | 수정된 할일 정보 |
-| `PATCH` | `/api/todos/{task_id}/complete` | **할일 완료 처리** | `task_id` | 완료 처리된 할일 정보 |
-| `DELETE` | `/api/todos/{task_id}` | **할일 삭제** | `task_id` | 삭제 확인 메시지 |
-
-#### 할일 관리 특징
-- **개인/젖소별/농장 전체 할일 분류**
-- **우선순위 설정**: 낮음/보통/높음/긴급
-- **카테고리별 관리**: 착유, 치료, 백신, 검진, 번식, 사료, 시설관리 등
-- **반복 일정 설정**: 매일/주/월/년
-- **마감일/시간 설정**
-- **할일 상태 관리**: 대기중, 진행중, 완료, 취소, 지연
-- **젖소별 할일 연결**
-- **통계 및 완료율 추적**
-- **캘린더 뷰 지원**
-- **자동 반복 할일 생성**
-
-#### 할일 생성 예시
-```json
-POST /api/todos
-{
-  "title": "착유 체크",
-  "description": "오전 착유 확인",
-  "due_date": "2024-01-20",
-  "due_time": "06:00:00",
-  "priority": "high",
-  "category": "milking",
-  "cow_id": "cow_123",  // 선택적
-  "repeat_type": "daily",
-  "repeat_end_date": "2024-12-31"
-}
-```
-
-#### 할일 필터링 예시
-```
-GET /api/todos?status_filter=pending&priority_filter=high&category_filter=milking&cow_id_filter=cow_123
-```
 
 ### 🤖 AI 챗봇 API (`/chatbot`) - ⭐ 핵심 기능
 
@@ -1444,72 +1468,71 @@ PUT /chatbot/rooms/chat-uuid-123/name
 
 - **일반 대화**: "안녕하세요! 저는 낙농업 도우미 소담이예요. 젖소 관리나 낙농업에 관한 궁금한 점이 있으시면 언제든 물어보세요!"
 
-### 📋 Task Management API (`/api/todos`)
 
-| Method | Endpoint | 설명 | 필수 필드 | 응답 |
-|--------|----------|------|----------|------|
-| `POST` | `/api/todos` | 새로운 작업 생성 | `title`, `description`, `due_date` | 생성된 작업 정보 |
-| `GET` | `/api/todos` | 작업 목록 조회 | Bearer Token | 작업 목록 |
-| `GET` | `/api/todos/{task_id}` | 작업 상세 조회 | `task_id` + Bearer Token | 작업 상세 정보 |
-| `PUT` | `/api/todos/{task_id}` | 작업 수정 | `task_id` + Bearer Token | 수정된 작업 정보 |
-| `DELETE` | `/api/todos/{task_id}` | 작업 삭제 | `task_id` + Bearer Token | 삭제 확인 메시지 |
-| `PATCH` | `/api/todos/{task_id}/status` | 작업 상태 변경 | `task_id`, `status` + Bearer Token | 변경된 상태 정보 |
-| `GET` | `/api/todos/filter` | 작업 필터링 | `status`, `priority` (선택) + Bearer Token | 필터링된 작업 목록 |
 
-#### Task 생성 예시
+## 🚀 최근 업데이트 (v2.8.0)
 
-```json
-POST /api/todos
-{
-  "title": "젖소 건강검진",
-  "description": "전체 젖소 대상 정기 건강검진 실시",
-  "due_date": "2024-02-15",
-  "priority": "high",
-  "category": "health_check",
-  "assigned_to": ["user123", "user456"],
-  "related_cows": ["cow123", "cow456"]
-}
+### ✅ 2025년 1월 27일 - 할일 관리 시스템 개선
+
+#### 🔧 주요 수정사항
+- **Firestore 쿼리 최적화**: 복잡한 복합 쿼리 문제 해결로 500 Internal Server Error 수정
+- **API 경로 개선**: 라우터 충돌 해결로 307 Temporary Redirect 문제 해결
+- **클라이언트 사이드 필터링**: 성능 향상을 위한 쿼리 단순화
+- **인증 테스트 엔드포인트 추가**: 디버깅을 위한 `/api/todos/test-auth` 추가
+
+#### 📋 할일 관리 API 경로 변경
+| 변경 전 | 변경 후 | 설명 |
+|---------|---------|------|
+| `POST /api/todos` | `POST /api/todos/create` | 할일 생성 경로 변경 |
+| `PUT /api/todos/{task_id}` | `PUT /api/todos/{task_id}/update` | 할일 수정 경로 변경 |
+| - | `GET /api/todos/test-auth` | 인증 테스트 엔드포인트 추가 |
+
+#### 🐛 버그 수정
+- **500 Internal Server Error 해결**: Firestore 복합 쿼리 인덱스 문제 해결
+- **307 Temporary Redirect 해결**: 라우터 경로 충돌 문제 해결
+- **할일 목록 조회 성능 개선**: 클라이언트 사이드 필터링으로 쿼리 최적화
+
+#### 🔄 Flutter 앱 수정 필요사항
+```dart
+// 할일 생성 - 경로 변경
+final response = await http.post(
+  Uri.parse('$baseUrl/api/todos/create'),  // 변경됨
+  headers: {
+    'Authorization': 'Bearer $accessToken',
+    'Content-Type': 'application/json',
+  },
+  body: json.encode(taskData),
+);
+
+// 할일 수정 - 경로 변경
+final response = await http.put(
+  Uri.parse('$baseUrl/api/todos/$taskId/update'),  // 변경됨
+  headers: {
+    'Authorization': 'Bearer $accessToken',
+    'Content-Type': 'application/json',
+  },
+  body: json.encode(updateData),
+);
 ```
 
-#### Task 필터링 예시
+### ✅ 2025년 1월 26일 - 할일 관리 시스템 출시
 
-```json
-GET /api/todos/filter?status=pending&priority=high
-GET /api/todos/filter?category=health_check&due_before=2024-02-01
-```
+#### 🆕 새로운 기능
+- **할일 관리 시스템**: 개인/젖소별/농장 전체 할일 관리
+- **우선순위 시스템**: 낮음/보통/높음/긴급 4단계 우선순위
+- **카테고리 분류**: 착유, 치료, 백신, 검진, 번식, 사료, 시설관리 등
+- **반복 일정**: 매일/주/월/년 반복 할일 설정
+- **자동 지연 감지**: 마감일 지난 할일 자동 상태 변경
+- **통계 및 분석**: 완료율, 카테고리별 분포, 우선순위별 분석
+- **캘린더 뷰**: 날짜별 할일 그룹화 및 시각화
 
-#### Task 상태 변경 예시
+## 📄 라이선스
 
-```json
-PATCH /api/todos/{task_id}/status
-{
-  "status": "completed",
-  "completion_notes": "모든 젖소 건강검진 완료"
-}
-```
+이 프로젝트는 [MIT 라이선스](LICENSE) 하에 배포됩니다.
 
-#### Task 데이터 구조
+---
 
-```json
-{
-  "id": "task_uuid",
-  "title": "젖소 건강검진",
-  "description": "전체 젖소 대상 정기 건강검진 실시",
-  "status": "pending",
-  "priority": "high",
-  "category": "health_check",
-  "due_date": "2024-02-15",
-  "created_at": "2024-01-27T09:00:00Z",
-  "updated_at": "2024-01-27T09:00:00Z",
-  "created_by": "user_uuid",
-  "assigned_to": ["user123", "user456"],
-  "related_cows": ["cow123", "cow456"],
-  "completion_date": null,
-  "completion_notes": null,
-  "attachments": [],
-  "tags": ["정기검진", "전체"]
-}
-```
 **개발팀**: BlackCows Team  
-**버전**: v2.7.0 
-**최종 업데이트**: 2025년 7월 04일
+**버전**: v2.8.0  
+**최종 업데이트**: 2025년 1월 27일  
+**주요 변경사항**: 할일 관리 시스템 개선, API 경로 최적화, 500/307 오류 해결
