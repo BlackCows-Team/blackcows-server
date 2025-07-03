@@ -13,6 +13,17 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 
 ### 🎯 주요 기능
 
+#### 📋 작업 관리 시스템 (NEW!)
+- ✅ **작업 생성 및 관리** - 제목, 설명, 마감일, 우선순위 설정
+- ✅ **작업 할당** - 여러 사용자에게 작업 할당 가능
+- ✅ **젖소 연결** - 작업과 관련된 젖소 연결 기능
+- ✅ **상태 관리** - 대기중, 진행중, 완료, 취소 등 상태 추적
+- ✅ **우선순위 설정** - 높음, 중간, 낮음 우선순위 지정
+- ✅ **카테고리 분류** - 건강검진, 착유, 사료급여 등 작업 유형 분류
+- ✅ **첨부파일 지원** - 문서, 이미지 등 파일 첨부 기능
+- ✅ **태그 시스템** - 작업 분류 및 검색을 위한 태그 지원
+- ✅ **필터링 및 검색** - 상태, 우선순위, 카테고리별 필터링
+
 #### 🐮 젖소 기본 관리
 - ✅ **젖소 등록/수정/삭제** - 이표번호, 센서번호, 기본 정보 관리
 - ✅ **축산물이력제 연동** - 이표번호로 축산물품질평가원 API 조회 및 자동 등록
@@ -299,11 +310,103 @@ PUT /records/{record_id}
 
 | Method | Endpoint | 설명 | 응답 |
 |--------|----------|------|------|
-| `GET` | `/api/livestock-trace/test-quick-check-no-auth/{ear_tag_number}` | 테스트용 빠른 기본정보 확인 | 기본 개체정보 (인증 없음) |
-| `POST` | `/api/livestock-trace/test-async-no-auth/{ear_tag_number}` | 테스트용 비동기 전체 조회 | task_id 반환 (인증 없음) |
-| `GET` | `/api/livestock-trace/test-status-no-auth/{task_id}` | 테스트용 작업 상태 확인 | 진행상황 및 결과 (인증 없음) |
-| `GET` | `/api/livestock-trace/test-no-auth/{ear_tag_number}` | 테스트용 축산물이력정보 조회 | 전체 이력정보 (인증 없음) |
-| `GET` | `/api/livestock-trace/test-basic-no-auth/{ear_tag_number}` | 테스트용 기본 정보 조회 | 기본 개체정보 (인증 없음) |
+| `GET` | `/api/livestock-trace/test-quick-check-no-auth/{ear_tag_number}` | **테스트용 빠른 기본정보 확인** | 기본 개체정보 |
+| `POST` | `/api/livestock-trace/test-async-no-auth/{ear_tag_number}` | **테스트용 비동기 전체 조회** | task_id |
+| `GET` | `/api/livestock-trace/test-status-no-auth/{task_id}` | **테스트용 작업 상태 확인** | 진행상황 및 결과 |
+| `GET` | `/api/livestock-trace/test-no-auth/{ear_tag_number}` | **테스트용 축산물이력정보 조회** | 전체 이력정보 |
+| `GET` | `/api/livestock-trace/test-basic-no-auth/{ear_tag_number}` | **테스트용 기본 정보 조회** | 기본 개체정보 |
+
+#### 축산물이력제 조회 정보
+
+**기본 개체정보 (optionNo=1)**
+- 개체번호, 이표번호, 출생일, 품종, 성별
+- 개월령 자동계산, 수입경과월, 수입국가
+- 농장식별번호, 농장번호
+- 럼피스킨 최종접종일
+
+**농장 등록 정보 (optionNo=2)**
+- 사육지 주소, 농장경영자명
+- 신고구분, 신고년월일, 농장번호
+- 여러 농장 이동 이력 추적
+
+**도축 정보 (optionNo=3)**
+- 도축장 주소/명, 도축일자
+- 등급, 근내지방도, 위생검사 결과
+
+**포장 정보 (optionNo=4)**
+- 포장처리업소 주소/명
+
+**구제역 백신 정보 (optionNo=5)**
+- 구제역 백신접종경과일/접종일/접종차수
+
+**질병 정보 (optionNo=6)**
+- 질병유무 상태
+
+**브루셀라/결핵 검사 정보 (optionNo=7)**
+- 브루셀라: 검사일, 결과, 경과일 자동계산
+- 결핵: 검사일, 결과
+
+#### 축산물이력제 연동 예시
+
+```javascript
+// 1. 기본정보 빠른 확인
+GET /api/livestock-trace/livestock-quick-check/002123456789
+
+// 2. 전체 이력정보 비동기 조회
+POST /api/livestock-trace/livestock-trace-async/002123456789
+// 응답: { "task_id": "task-uuid-123" }
+
+// 3. 조회 상태 확인
+GET /api/livestock-trace/livestock-trace-status/task-uuid-123
+// 응답: {
+//   "status": "processing",  // "processing" | "completed" | "failed"
+//   "progress": 57,         // 0-100
+//   "data": { ... }        // 완료 시 전체 데이터
+// }
+
+// 4. 전체 이력정보 동기 조회 (대기 시간 길어질 수 있음)
+GET /api/livestock-trace/livestock-trace/002123456789
+```
+
+#### 응답 데이터 예시
+
+```json
+{
+  "success": true,
+  "message": "축산물이력정보 조회 완료",
+  "ear_tag_number": "002123456789",
+  "basic_info": {
+    "cattle_no": "KR123456789",
+    "ear_tag_number": "002123456789",
+    "birth_date": "2022-03-15",
+    "age_months": 22,
+    "breed": "홀스타인",
+    "gender": "암",
+    "farm_unique_no": "1234567",
+    "farm_no": "12345",
+    "lumpy_skin_last_vaccination": "2024-01-15"
+  },
+  "farm_registrations": [
+    {
+      "farm_address": "경기도 OO시 XX구",
+      "farmer_name": "홍길동",
+      "registration_type": "출생",
+      "registration_date": "2022-03-15",
+      "farm_no": "12345"
+    }
+  ],
+  "vaccination_info": {
+    "fmd_injection_days": "45",
+    "fmd_injection_date": "2023-12-01",
+    "fmd_vaccine_order": "3"
+  },
+  "brucella_info": {
+    "brucella_inspection_date": "2024-01-10",
+    "brucella_result": "음성",
+    "brucella_days_elapsed": 17
+  }
+}
+```
 
 ### 🤖 AI 챗봇 API (`/chatbot`) - ⭐ 핵심 기능
 
@@ -559,6 +662,41 @@ curl -X POST "http://localhost:8000/chatbot/ask" \
 curl -X GET "http://localhost:8000/chatbot/history/chat_uuid_123"
 ```
 
+### Task Management API 테스트 예시
+
+```bash
+# 1. 새 작업 생성
+curl -X POST "http://localhost:8000/api/todos" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "title": "젖소 건강검진",
+    "description": "전체 젖소 대상 정기 건강검진 실시",
+    "due_date": "2024-02-15",
+    "priority": "high",
+    "category": "health_check",
+    "assigned_to": ["user123", "user456"],
+    "related_cows": ["cow123", "cow456"]
+  }'
+
+# 2. 작업 목록 필터링
+curl -X GET "http://localhost:8000/api/todos/filter?status=pending&priority=high" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# 3. 작업 상태 변경
+curl -X PATCH "http://localhost:8000/api/todos/task_123/status" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "status": "completed",
+    "completion_notes": "모든 젖소 건강검진 완료"
+  }'
+
+# 4. 작업 상세 조회
+curl -X GET "http://localhost:8000/api/todos/task_123" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
 ## 🔧 설치 및 실행
 
 ### 환경 요구사항
@@ -754,6 +892,37 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
   "owner_name": "홍길동",
   "owner_user_id": "admin123",
   "created_at": "timestamp",
+  "is_active": true
+}
+```
+
+### 📋 작업 관리 컬렉션: `tasks`
+```json
+{
+  "id": "task_uuid",
+  "title": "젖소 건강검진",
+  "description": "전체 젖소 대상 정기 건강검진 실시",
+  "status": "pending",
+  "priority": "high",
+  "category": "health_check",
+  "due_date": "2024-02-15",
+  "created_at": "2024-01-27T09:00:00Z",
+  "updated_at": "2024-01-27T09:00:00Z",
+  "created_by": "user_uuid",
+  "farm_id": "farm_uuid",
+  "assigned_to": ["user123", "user456"],
+  "related_cows": ["cow123", "cow456"],
+  "completion_date": null,
+  "completion_notes": null,
+  "attachments": [
+    {
+      "id": "attachment_uuid",
+      "filename": "health_report.pdf",
+      "url": "https://storage.example.com/files/health_report.pdf",
+      "uploaded_at": "2024-01-27T09:05:00Z"
+    }
+  ],
+  "tags": ["정기검진", "전체"],
   "is_active": true
 }
 ```
@@ -1148,32 +1317,199 @@ async function chatWithSodam() {
 
 이 프로젝트는 [MIT 라이선스](LICENSE) 하에 배포됩니다.
 
+### 📋 할일 관리 API (`/api/todos`)
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/api/todos` | **할일 생성** | `title`, `description`, `due_date`, `priority`, `category` | 생성된 할일 정보 |
+| `GET` | `/api/todos` | **할일 목록 조회** (필터링 지원) | Bearer Token | 할일 목록 |
+| `GET` | `/api/todos/today` | **오늘 할일 조회** | Bearer Token | 오늘 마감인 할일 목록 |
+| `GET` | `/api/todos/overdue` | **지연된 할일 조회** | Bearer Token | 마감일 지난 할일 목록 |
+| `GET` | `/api/todos/statistics` | **할일 통계 조회** | Bearer Token | 통계 정보 |
+| `GET` | `/api/todos/calendar` | **캘린더 뷰용 할일 조회** | `start_date`, `end_date` | 날짜별 할일 목록 |
+| `GET` | `/api/todos/{task_id}` | **할일 상세 조회** | `task_id` | 할일 상세 정보 |
+| `PUT` | `/api/todos/{task_id}` | **할일 수정** | `task_id` + 수정 데이터 | 수정된 할일 정보 |
+| `PATCH` | `/api/todos/{task_id}/complete` | **할일 완료 처리** | `task_id` | 완료 처리된 할일 정보 |
+| `DELETE` | `/api/todos/{task_id}` | **할일 삭제** | `task_id` | 삭제 확인 메시지 |
+
+#### 할일 관리 특징
+- **개인/젖소별/농장 전체 할일 분류**
+- **우선순위 설정**: 낮음/보통/높음/긴급
+- **카테고리별 관리**: 착유, 치료, 백신, 검진, 번식, 사료, 시설관리 등
+- **반복 일정 설정**: 매일/주/월/년
+- **마감일/시간 설정**
+- **할일 상태 관리**: 대기중, 진행중, 완료, 취소, 지연
+- **젖소별 할일 연결**
+- **통계 및 완료율 추적**
+- **캘린더 뷰 지원**
+- **자동 반복 할일 생성**
+
+#### 할일 생성 예시
+```json
+POST /api/todos
+{
+  "title": "착유 체크",
+  "description": "오전 착유 확인",
+  "due_date": "2024-01-20",
+  "due_time": "06:00:00",
+  "priority": "high",
+  "category": "milking",
+  "cow_id": "cow_123",  // 선택적
+  "repeat_type": "daily",
+  "repeat_end_date": "2024-12-31"
+}
 ```
-MIT License
 
-Copyright (c) 2025 BlackCows Team
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+#### 할일 필터링 예시
+```
+GET /api/todos?status_filter=pending&priority_filter=high&category_filter=milking&cow_id_filter=cow_123
 ```
 
----
+### 🤖 AI 챗봇 API (`/chatbot`) - ⭐ 핵심 기능
 
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/chatbot/ask` | **챗봇 질문하기** | `user_id`, `chat_id`, `question` | `answer` |
+| `GET` | `/chatbot/rooms/{user_id}` | **사용자 채팅방 목록 조회** | `user_id` (경로) | `chats: [{chat_id, created_at}]` |
+| `POST` | `/chatbot/rooms` | **새로운 채팅방 생성** | `user_id`, `name` | `chats: [{chat_id, created_at}]` |
+| `PUT` | `/chatbot/rooms/{chat_id}/name` | **채팅방 이름 변경** | `chat_id`, `name` | 변경 확인 메시지 |
+| `GET` | `/chatbot/history/{chat_id}` | **채팅방 대화 이력 조회** | `chat_id` (경로) | `chat_id`, `messages: [{role, content, timestamp}]` |
+| `DELETE` | `/chatbot/rooms/{chat_id}` | **채팅방 및 메시지 삭제** | `chat_id` (경로) | `detail: 삭제 결과 메시지` |
+| `DELETE` | `/chatbot/rooms/expired/auto` | **14일 이상된 채팅방 자동 삭제** | 없음 | `detail: 삭제 결과 메시지` |
+
+#### 🤖 AI 챗봇 "소담이" 상세 기능
+
+**소담이의 특징:**
+- **이름**: 소담이 (낙농업 전문 AI 어시스턴트)
+- **AI 엔진**: OpenAI GPT-4o-mini
+- **프레임워크**: LangGraph 기반 고급 대화 플로우 관리
+- **언어 지원**: 한국어 전용 (낙농업 전문용어 특화)
+
+**질문 자동 분류 시스템:**
+
+소담이는 사용자의 질문을 다음 4가지로 자동 분류하여 최적의 응답을 제공합니다:
+
+1. **rag (낙농 지식 질문)**
+   - 낙농업 관련 전문 정보, 기술, 정책, 용어 등
+   - 예시: "젖소의 발정 주기는?", "착유기는 어떻게 작동하나요?", "낙농업 역사 알려줘"
+
+2. **cow_info (농장 데이터 질문)**
+   - 사용자의 농장에 등록된 소 정보나 상태, 기록 등
+   - 예시: "103번 소 상태 알려줘", "어제 분만한 소들 누구야?", "이표번호 002123456789 소 정보"
+
+3. **general (일반 대화)**
+   - 챗봇 자체에 대한 질문, 인사, 감정 표현, 잡담 등
+   - 예시: "안녕", "이전 질문 뭐였지?", "소담이 귀엽다", "고마워", "너 누구야?"
+
+4. **irrelevant (무관한 질문)**
+   - 낙농업 또는 사용자의 목장과 완전히 무관한 질문
+   - 예시: "로또 번호 알려줘", "요즘 주식 어때요?", "오늘 점심 뭐 먹지?"
+
+**AI 챗봇 사용 방법:**
+
+```javascript
+// 1. 새 채팅방 생성
+POST /chatbot/rooms
+{
+  "user_id": "user123",
+  "name": "새로운 대화"  // 선택적
+}
+
+// 2. 질문하기
+POST /chatbot/ask
+{
+  "user_id": "user123",
+  "chat_id": "chat-uuid-123",
+  "question": "젖소 발정 증상이 뭔가요?"
+}
+
+// 3. 대화 이력 조회
+GET /chatbot/history/chat-uuid-123
+
+// 4. 사용자의 모든 채팅방 조회
+GET /chatbot/rooms/user123
+
+// 5. 채팅방 이름 변경
+PUT /chatbot/rooms/chat-uuid-123/name
+{
+  "name": "발정 관련 상담"
+}
+```
+
+**AI 챗봇 응답 예시:**
+
+- **낙농 지식 질문**: "젖소의 발정 주기는 평균 21일입니다. 발정 증상으로는 다른 소에게 올라타거나, 불안해하며 울음소리를 내는 행동을 보입니다..."
+
+- **농장 데이터 질문**: "꽃분이(002123456789) 소의 최근 착유 기록: 착유량 25.5L, 1회차, 유지방 3.8% (날짜: 2025-06-27)"
+
+- **일반 대화**: "안녕하세요! 저는 낙농업 도우미 소담이예요. 젖소 관리나 낙농업에 관한 궁금한 점이 있으시면 언제든 물어보세요!"
+
+### 📋 Task Management API (`/api/todos`)
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/api/todos` | 새로운 작업 생성 | `title`, `description`, `due_date` | 생성된 작업 정보 |
+| `GET` | `/api/todos` | 작업 목록 조회 | Bearer Token | 작업 목록 |
+| `GET` | `/api/todos/{task_id}` | 작업 상세 조회 | `task_id` + Bearer Token | 작업 상세 정보 |
+| `PUT` | `/api/todos/{task_id}` | 작업 수정 | `task_id` + Bearer Token | 수정된 작업 정보 |
+| `DELETE` | `/api/todos/{task_id}` | 작업 삭제 | `task_id` + Bearer Token | 삭제 확인 메시지 |
+| `PATCH` | `/api/todos/{task_id}/status` | 작업 상태 변경 | `task_id`, `status` + Bearer Token | 변경된 상태 정보 |
+| `GET` | `/api/todos/filter` | 작업 필터링 | `status`, `priority` (선택) + Bearer Token | 필터링된 작업 목록 |
+
+#### Task 생성 예시
+
+```json
+POST /api/todos
+{
+  "title": "젖소 건강검진",
+  "description": "전체 젖소 대상 정기 건강검진 실시",
+  "due_date": "2024-02-15",
+  "priority": "high",
+  "category": "health_check",
+  "assigned_to": ["user123", "user456"],
+  "related_cows": ["cow123", "cow456"]
+}
+```
+
+#### Task 필터링 예시
+
+```json
+GET /api/todos/filter?status=pending&priority=high
+GET /api/todos/filter?category=health_check&due_before=2024-02-01
+```
+
+#### Task 상태 변경 예시
+
+```json
+PATCH /api/todos/{task_id}/status
+{
+  "status": "completed",
+  "completion_notes": "모든 젖소 건강검진 완료"
+}
+```
+
+#### Task 데이터 구조
+
+```json
+{
+  "id": "task_uuid",
+  "title": "젖소 건강검진",
+  "description": "전체 젖소 대상 정기 건강검진 실시",
+  "status": "pending",
+  "priority": "high",
+  "category": "health_check",
+  "due_date": "2024-02-15",
+  "created_at": "2024-01-27T09:00:00Z",
+  "updated_at": "2024-01-27T09:00:00Z",
+  "created_by": "user_uuid",
+  "assigned_to": ["user123", "user456"],
+  "related_cows": ["cow123", "cow456"],
+  "completion_date": null,
+  "completion_notes": null,
+  "attachments": [],
+  "tags": ["정기검진", "전체"]
+}
+```
 **개발팀**: BlackCows Team  
 **버전**: v2.7.0 
-**최종 업데이트**: 2025년 6월 27일
+**최종 업데이트**: 2025년 7월 04일

@@ -31,7 +31,7 @@ if not os.getenv("LIVESTOCK_TRACE_API_DECODING_KEY"):
 
 app = FastAPI(
     title="낙농 관리 서버 API",
-    version="2.7.0",
+    version="2.8.0",
     description="낙농 관리 시스템",
 )
 
@@ -103,7 +103,7 @@ def health_check():
     return {
         "status": "success",
         "message": "낙농 관리 서버가 정상 작동 중입니다!!!",
-        "version": "2.7.0",
+        "version": "2.8.0",
         "features": [
             "젖소 기본 관리",
             "축산물이력제 연동 젖소 등록",
@@ -163,7 +163,7 @@ def health_check():
     }
 @app.get("/health")
 def health_status():
-    return {"status": "healthy", "version": "2.7.0"}
+    return {"status": "healthy", "version": "2.8.0"}
 
 # 환경변수 확인 함수들
 
