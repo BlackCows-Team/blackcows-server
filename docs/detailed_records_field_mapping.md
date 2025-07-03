@@ -374,3 +374,192 @@ AI 챗봇에서 사용자 질문을 해석할 때 유용한 키워드 매핑:
 - **객체**: 키-값 쌍의 구조화된 데이터
 
 ---
+
+## 📡 현재 구현된 API 엔드포인트 목록
+
+### 🔐 인증 관련 엔드포인트
+
+#### 일반 인증
+- `POST /auth/register` - 일반 회원가입
+- `POST /auth/login` - 일반 로그인
+- `POST /auth/refresh` - 토큰 갱신
+- `GET /auth/me` - 현재 사용자 정보 조회
+
+#### SNS 로그인 (Google 지원)
+- `POST /auth/social-login` - SNS 로그인/회원가입
+- `POST /sns/google/login` - 구글 로그인
+- `DELETE /sns/delete-account` - SNS 계정 삭제
+
+#### 아이디/비밀번호 찾기
+- `POST /auth/find-user-id` - 아이디 찾기
+- `POST /auth/request-password-reset` - 비밀번호 재설정 요청
+- `POST /auth/verify-reset-token` - 재설정 토큰 확인
+- `POST /auth/reset-password` - 비밀번호 재설정
+
+#### 계정 관리
+- `PUT /auth/update-farm-name` - 목장 이름 수정
+- `DELETE /auth/delete-account` - 회원탈퇴
+
+---
+
+### 🐄 젖소 관리 엔드포인트
+
+#### 기본 관리
+- `GET /cows/` - 젖소 목록 조회
+- `POST /cows/manual` - 젖소 수동 등록
+- `GET /cows/{cow_id}` - 젖소 상세 조회
+- `PUT /cows/{cow_id}` - 젖소 정보 수정
+- `DELETE /cows/{cow_id}` - 젖소 삭제
+
+#### 축산물이력제 연동
+- `GET /cows/registration-status/{ear_tag_number}` - 젖소 등록 상태 확인
+- `POST /cows/register-from-livestock-trace` - 축산물이력제 정보 기반 젖소 등록
+- `GET /cows/{cow_id}/livestock-trace-info` - 젖소의 축산물이력제 정보 조회
+
+#### 통계 및 분석
+- `GET /cows/statistics` - 젖소 통계 조회
+- `GET /cows/health-summary` - 건강 상태 요약
+
+---
+
+### 📋 기록 관리 엔드포인트
+
+#### 기본 기록 관리
+- `GET /basic-records/` - 기본 기록 목록 조회
+- `POST /basic-records/` - 기본 기록 생성
+- `GET /basic-records/{record_id}` - 기본 기록 상세 조회
+- `PUT /basic-records/{record_id}` - 기본 기록 수정
+- `DELETE /basic-records/{record_id}` - 기본 기록 삭제
+
+#### 상세 기록 관리 (10가지 유형)
+- `GET /records/` - 상세 기록 목록 조회
+- `POST /records/` - 상세 기록 생성
+- `GET /records/{record_id}` - 상세 기록 상세 조회
+- `PUT /records/{record_id}` - 상세 기록 수정
+- `DELETE /records/{record_id}` - 상세 기록 삭제
+
+#### 상세 기록 유형별 조회
+- `GET /records/milking/{cow_id}` - 특정 젖소 착유 기록
+- `GET /records/health/{cow_id}` - 특정 젖소 건강 기록
+- `GET /records/breeding/{cow_id}` - 특정 젖소 번식 기록
+- `GET /records/vaccination/{cow_id}` - 특정 젖소 백신 기록
+- `GET /records/treatment/{cow_id}` - 특정 젖소 치료 기록
+
+#### 통계 및 분석
+- `GET /records/statistics` - 기록 통계 조회
+- `GET /records/monthly-summary/{year}/{month}` - 월별 요약
+- `GET /records/daily-milk-production` - 일별 착유량 통계
+
+---
+
+### ✅ 할일 관리 엔드포인트
+
+#### 기본 CRUD
+- `POST /api/todos/` - 할일 생성
+- `GET /api/todos/` - 할일 목록 조회 (필터링 지원)
+- `GET /api/todos/{task_id}` - 할일 상세 조회
+- `PUT /api/todos/{task_id}` - 할일 수정
+- `DELETE /api/todos/{task_id}` - 할일 삭제
+
+#### 특수 기능
+- `GET /api/todos/today` - 오늘 할일 조회
+- `GET /api/todos/overdue` - 지연된 할일 조회
+- `PATCH /api/todos/{task_id}/complete` - 할일 완료 처리
+
+#### 통계 및 캘린더
+- `GET /api/todos/statistics` - 할일 통계 조회
+- `GET /api/todos/calendar` - 캘린더 뷰용 할일 조회
+
+---
+
+### 🔍 축산물이력제 조회 엔드포인트
+
+#### 개체 정보 조회
+- `GET /api/livestock-trace/info/{ear_tag_number}` - 개체 기본 정보
+- `GET /api/livestock-trace/farm-history/{ear_tag_number}` - 농장 등록 이력
+- `GET /api/livestock-trace/slaughter/{ear_tag_number}` - 도축 정보
+- `GET /api/livestock-trace/vaccination/{ear_tag_number}` - 백신 접종 정보
+- `GET /api/livestock-trace/disease/{ear_tag_number}` - 질병 정보
+
+#### 검사 정보 조회
+- `GET /api/livestock-trace/brucellosis/{ear_tag_number}` - 브루셀라 검사
+- `GET /api/livestock-trace/tuberculosis/{ear_tag_number}` - 결핵 검사
+
+#### 통합 조회
+- `GET /api/livestock-trace/all/{ear_tag_number}` - 모든 정보 통합 조회
+
+---
+
+### 🤖 AI 챗봇 엔드포인트
+
+#### 챗봇 상호작용
+- `POST /chatbot/ask` - 챗봇에게 질문하기
+- `GET /chatbot/history` - 챗봇 대화 이력 조회
+- `DELETE /chatbot/history` - 챗봇 대화 이력 삭제
+
+---
+
+### 🏥 건강 상태 확인 엔드포인트
+
+#### 서버 상태
+- `GET /` - 서버 상태 및 기능 목록 조회
+- `GET /health` - 서버 건강 상태 확인
+
+#### 관리자 기능
+- `GET /admin/token-stats` - 토큰 통계 조회
+- `POST /admin/cleanup-tokens` - 토큰 정리 실행
+- `DELETE /admin/revoke-user-tokens/{user_id}` - 사용자 토큰 무효화
+
+---
+
+## 🚀 주요 기능 특징
+
+### 인증 시스템
+- JWT 기반 액세스/리프레시 토큰
+- 구글 OAuth 2.0 연동
+- 농장별 데이터 격리 (farm_id 기반)
+- 자동 토큰 정리 스케줄러
+
+### 젖소 관리
+- 축산물이력제 API 연동 자동 등록
+- 3단계 등록 플로우
+- 포괄적인 건강 및 번식 관리
+- 이표번호 기반 검색 및 관리
+
+### 기록 관리
+- 10가지 상세 기록 유형 지원
+- 각 기록 유형별 맞춤 필드
+- 자동 통계 계산
+- 월별/일별 집계 기능
+
+### 할일 관리
+- 개인/젖소별/농장 전체 할일 분류
+- 반복 일정 자동 생성
+- 우선순위 및 카테고리 관리
+- 캘린더 뷰 지원
+
+### AI 챗봇
+- 농장 데이터 기반 질의응답
+- 실시간 데이터 분석
+- 자연어 처리를 통한 직관적 상호작용
+
+---
+
+## 📊 데이터 모델 요약
+
+### 핵심 컬렉션
+- `users` - 사용자 정보
+- `farms` - 농장 정보  
+- `cows` - 젖소 정보
+- `cow_detailed_records` - 상세 기록 (10가지 유형)
+- `basic_records` - 기본 기록
+- `tasks` - 할일 관리
+- `refresh_tokens` - 리프레시 토큰 관리
+
+### 주요 인덱스
+- 농장별 데이터 조회 최적화
+- 날짜 범위 검색 최적화
+- 젖소별 기록 조회 최적화
+- 할일 상태 및 우선순위별 조회 최적화
+
+---

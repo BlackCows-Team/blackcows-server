@@ -643,3 +643,57 @@ class TaskService:
             return current_due.replace(year=current_due.year + 1)
         
         return None
+    
+    @staticmethod
+    def get_calendar_tasks(user: Dict, start_date: date, end_date: date):
+        """캘린더 뷰용 할일 조회"""
+        try:
+            db = get_firestore_client()
+            farm_id = user.get("farm_id")
+            
+            # 날짜 범위 제한 (최대 3개월)
+            if (end_date - start_date).days > 90:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="날짜 범위는 최대 3개월로 제한됩니다"
+                )
+            
+            start_date_str = start_date.strftime('%Y-%m-%d')
+            end_date_str = end_date.strftime('%Y-%m-%d')
+            
+            # 날짜 범위 내 할일 조회
+            tasks_query = (db.collection('tasks')
+                          .where('farm_id', '==', farm_id)
+                          .where('is_active', '==', True)
+                          .where('due_date', '>=', start_date_str)
+                          .where('due_date', '<=', end_date_str)
+                          .get())
+            
+            # 날짜별로 그룹화
+            calendar_data = {}
+            for task_doc in tasks_query:
+                task_data = task_doc.to_dict()
+                due_date = task_data.get("due_date")
+                
+                if due_date:
+                    if due_date not in calendar_data:
+                        calendar_data[due_date] = []
+                    
+                    calendar_data[due_date].append({
+                        "id": task_data["id"],
+                        "title": task_data["title"],
+                        "status": task_data["status"],
+                        "category": task_data["category"],
+                        "priority": task_data["priority"],
+                        "due_time": task_data.get("due_time")
+                    })
+            
+            return {"dates": calendar_data}
+            
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"캘린더 할일 조회 중 오류가 발생했습니다: {str(e)}"
+            )

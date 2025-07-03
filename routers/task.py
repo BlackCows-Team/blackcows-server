@@ -2,11 +2,12 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
+from datetime import date
 from schemas.task import *
 from services.task_service import TaskService
 from routers.auth_firebase import get_current_user
 
-router = APIRouter(prefix="/tasks", tags=["할일 관리"])
+router = APIRouter(prefix="/api/todos", tags=["할일 관리"])
 
 @router.post("/", 
              response_model=TaskResponse, 
@@ -112,6 +113,25 @@ def get_overdue_tasks(current_user: dict = Depends(get_current_user)):
 def get_task_statistics(current_user: dict = Depends(get_current_user)):
     """할일 통계 조회"""
     return TaskService.get_task_statistics(current_user)
+
+@router.get("/calendar",
+           response_model=CalendarResponse,
+           summary="캘린더 뷰용 할일 조회",
+           description="""
+           캘린더 뷰용 할일 데이터를 조회합니다.
+           
+           **특징:**
+           - 날짜별로 그룹화된 할일 목록
+           - 최대 3개월 범위 제한
+           - 할일 상태, 카테고리, 우선순위 정보 포함
+           """)
+def get_calendar_tasks(
+    start_date: date = Query(..., description="시작 날짜 (YYYY-MM-DD)"),
+    end_date: date = Query(..., description="종료 날짜 (YYYY-MM-DD)"),
+    current_user: dict = Depends(get_current_user)
+):
+    """캘린더 뷰용 할일 조회"""
+    return TaskService.get_calendar_tasks(current_user, start_date, end_date)
 
 @router.get("/{task_id}",
            response_model=TaskResponse,

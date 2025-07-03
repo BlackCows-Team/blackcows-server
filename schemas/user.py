@@ -11,8 +11,6 @@ class AuthType(str, Enum):
     """인증 타입 열거형"""
     EMAIL = "email"          # 일반 이메일 회원가입
     GOOGLE = "google"        # 구글 로그인
-    KAKAO = "kakao"          # 카카오 로그인
-    NAVER = "naver"          # 네이버 로그인
 
 # LoginType은 AuthType과 동일하지만 호환성을 위해 별칭으로 추가
 LoginType = AuthType
@@ -20,8 +18,6 @@ LoginType = AuthType
 class SNSProvider(str, Enum):
     """SNS 제공자 열거형"""
     GOOGLE = "google"
-    KAKAO = "kakao"
-    NAVER = "naver"
 
 # ===== 회원가입 관련 스키마 =====
 

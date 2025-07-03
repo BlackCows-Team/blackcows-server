@@ -33,63 +33,7 @@ class SNSAuthService:
                 detail=f"구글 토큰 검증 실패: {str(e)}"
             )
     
-    @staticmethod
-    def verify_kakao_token(access_token: str) -> Dict[str, Any]:
-        """카카오 액세스 토큰 검증"""
-        try:
-            # 카카오 사용자 정보 조회
-            headers = {"Authorization": f"Bearer {access_token}"}
-            response = requests.get("https://kapi.kakao.com/v2/user/me", headers=headers)
-            
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="카카오 토큰 검증 실패"
-                )
-            
-            user_data = response.json()
-            
-            return {
-                "sns_user_id": str(user_data.get("id")),
-                "email": user_data.get("kakao_account", {}).get("email"),
-                "name": user_data.get("properties", {}).get("nickname"),
-                "picture": user_data.get("properties", {}).get("profile_image"),
-                "provider": "kakao"
-            }
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"카카오 토큰 검증 실패: {str(e)}"
-            )
-    
-    @staticmethod
-    def verify_naver_token(access_token: str) -> Dict[str, Any]:
-        """네이버 액세스 토큰 검증"""
-        try:
-            # 네이버 사용자 정보 조회
-            headers = {"Authorization": f"Bearer {access_token}"}
-            response = requests.get("https://openapi.naver.com/v1/nid/me", headers=headers)
-            
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="네이버 토큰 검증 실패"
-                )
-            
-            user_data = response.json().get("response", {})
-            
-            return {
-                "sns_user_id": user_data.get("id"),
-                "email": user_data.get("email"),
-                "name": user_data.get("name"),
-                "picture": user_data.get("profile_image"),
-                "provider": "naver"
-            }
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"네이버 토큰 검증 실패: {str(e)}"
-            )
+
     
     @staticmethod
     def create_or_get_sns_user(sns_data: Dict[str, Any], farm_nickname: Optional[str] = None) -> Dict[str, Any]:
@@ -163,40 +107,13 @@ class SNSAuthService:
             user_id = user["id"]
             farm_id = user["farm_id"]
             
-            # 1. SNS 제공자별 계정 연결 해제
+            # 1. 구글 계정 연결 해제 (Firebase Auth에서 삭제)
             if sns_provider == "google":
-                # 구글 계정 연결 해제 (Firebase Auth에서 삭제)
                 try:
                     firebase_user = auth.get_user_by_email(user["email"])
                     auth.delete_user(firebase_user.uid)
                 except:
                     pass  # Firebase Auth에 없는 경우 무시
-            
-            elif sns_provider == "kakao":
-                # 카카오 계정 연결 해제
-                try:
-                    headers = {"Authorization": f"Bearer {sns_token}"}
-                    response = requests.post("https://kapi.kakao.com/v1/user/unlink", headers=headers)
-                except:
-                    pass  # 연결 해제 실패해도 계속 진행
-            
-            elif sns_provider == "naver":
-                # 네이버 계정 연결 해제
-                try:
-                    import os
-                    naver_client_id = os.getenv("NAVER_CLIENT_ID")
-                    naver_client_secret = os.getenv("NAVER_CLIENT_SECRET")
-                    
-                    if naver_client_id and naver_client_secret:
-                        headers = {"Authorization": f"Bearer {sns_token}"}
-                        response = requests.post("https://nid.naver.com/oauth2.0/token", params={
-                            "grant_type": "delete",
-                            "client_id": naver_client_id,
-                            "client_secret": naver_client_secret,
-                            "access_token": sns_token
-                        })
-                except:
-                    pass  # 연결 해제 실패해도 계속 진행
             
             # 2. 관련 데이터 삭제
             # 사용자 관련 모든 데이터 삭제

@@ -81,9 +81,7 @@ class FirebaseUserService:
                     .get()
                 if social_query:
                     auth_type_names = {
-                        AuthType.GOOGLE: "구글",
-                        AuthType.KAKAO: "카카오", 
-                        AuthType.NAVER: "네이버"
+                        AuthType.GOOGLE: "구글"
                     }
                     platform_name = auth_type_names.get(auth_type, auth_type.value)
                     raise HTTPException(
@@ -107,9 +105,7 @@ class FirebaseUserService:
                     farm_nickname = f"{username}님의 목장"
                 else:
                     auth_type_names = {
-                        AuthType.GOOGLE: "구글",
-                        AuthType.KAKAO: "카카오",
-                        AuthType.NAVER: "네이버"
+                        AuthType.GOOGLE: "구글"
                     }
                     platform_name = auth_type_names.get(auth_type, "소셜")
                     farm_nickname = f"{username}님의 목장 ({platform_name} 로그인)"

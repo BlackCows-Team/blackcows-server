@@ -151,8 +151,6 @@ async def register_user(user_data: UserCreate):
             
             **지원 플랫폼:**
             - Google: access_token + id_token (선택)
-            - Kakao: access_token
-            - Naver: access_token
             
             **처리 과정:**
             1. 액세스 토큰으로 SNS에서 사용자 정보 조회
@@ -353,9 +351,7 @@ def find_user_id_by_name_and_email(request: FindUserIdRequest):
         # SNS 로그인 사용자는 아이디 찾기 불가
         if user.get("auth_type") != AuthType.EMAIL.value:
             auth_type_names = {
-                "google": "구글",
-                "kakao": "카카오",
-                "naver": "네이버"
+                "google": "구글"
             }
             platform_name = auth_type_names.get(user["auth_type"], "소셜")
             
@@ -402,9 +398,7 @@ async def request_password_reset(request: PasswordResetRequest):
         # SNS 로그인 사용자는 비밀번호 재설정 불가
         if user.get("auth_type") != AuthType.EMAIL.value:
             auth_type_names = {
-                "google": "구글",
-                "kakao": "카카오",
-                "naver": "네이버"
+                "google": "구글"
             }
             platform_name = auth_type_names.get(user["auth_type"], "소셜")
             

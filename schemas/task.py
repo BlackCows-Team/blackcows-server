@@ -162,3 +162,16 @@ class TaskStatistics(BaseModel):
     by_category: dict
     by_priority: dict
     completion_rate: float
+
+# 캘린더 뷰용 할일 아이템 스키마
+class CalendarTaskItem(BaseModel):
+    id: str
+    title: str
+    status: TaskStatus
+    category: TaskCategory
+    priority: TaskPriority
+    due_time: Optional[str]
+
+# 캘린더 뷰 응답 스키마
+class CalendarResponse(BaseModel):
+    dates: dict  # "YYYY-MM-DD": List[CalendarTaskItem]
