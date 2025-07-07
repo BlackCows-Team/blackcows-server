@@ -1,5 +1,9 @@
 # services/chatbot_runner.py
 
+import os
+# protobuf 호환성 설정 (Python 3.12 대응)
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
+
 from typing import TypedDict, Literal, Dict, List, Tuple
 from langgraph.graph import StateGraph, START, END
 from langchain.prompts import PromptTemplate
@@ -10,7 +14,6 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader
-import os
 from services.detailed_record_service import DetailedRecordService
 from config.firebase_config import get_firestore_client
 import re
@@ -343,6 +346,9 @@ sodamsodam_graph = builder.compile()
 # === 외부에서 호출되는 비동기 메인 함수 ===
 async def run_chatbot_graph(user_id: str, chat_id: str, question: str) -> str:
     try:
+        # protobuf 환경변수 재설정 (안전장치)
+        os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
+        
         state = DairyChatState(
             user_id=user_id,
             chat_id=chat_id,
@@ -354,4 +360,13 @@ async def run_chatbot_graph(user_id: str, chat_id: str, question: str) -> str:
         return result["current_answer"]
     except Exception as e:
         print(f"챗봇 그래프 실행 오류: {e}")
+        print(f"오류 타입: {type(e).__name__}")
+        print(f"오류 상세: {str(e)}")
+        
+        # protobuf 관련 에러인지 확인
+        if "Descriptors cannot be created directly" in str(e):
+            print("⚠️ protobuf 호환성 문제 감지 - 환경변수 재설정 시도")
+            os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
+            return "죄송합니다. 시스템 설정 문제로 일시적으로 답변을 생성할 수 없습니다. 잠시 후 다시 시도해주세요."
+        
         return "죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요."
