@@ -233,22 +233,30 @@ def extract_record_type(question: str) -> str | None:
     return None
 
 def get_farm_id_by_user_id(user_id: str) -> str | None:
-    db = get_firestore_client()
-    users = db.collection('users').where('user_id', '==', user_id).get()
-    if not users:
+    try:
+        db = get_firestore_client()
+        users = db.collection('users').where('user_id', '==', user_id).get()
+        if not users:
+            return None
+        return users[0].to_dict().get("farm_id")
+    except Exception as e:
+        print(f"사용자 정보 조회 오류: {e}")
         return None
-    return users[0].to_dict().get("farm_id")
 
 def get_cow_by_ear_tag(farm_id: str, ear_tag_number: str) -> dict | None:
-    db = get_firestore_client()
-    cows = db.collection('cows')\
-        .where('farm_id', '==', farm_id)\
-        .where('ear_tag_number', '==', ear_tag_number)\
-        .where('is_active', '==', True)\
-        .get()
-    if not cows:
+    try:
+        db = get_firestore_client()
+        cows = db.collection('cows')\
+            .where('farm_id', '==', farm_id)\
+            .where('ear_tag_number', '==', ear_tag_number)\
+            .where('is_active', '==', True)\
+            .get()
+        if not cows:
+            return None
+        return cows[0].to_dict()
+    except Exception as e:
+        print(f"소 정보 조회 오류: {e}")
         return None
-    return cows[0].to_dict()
 
 def generate_farmdata_response(state: DairyChatState) -> DairyChatState:
     question = state["current_question"]
@@ -334,12 +342,16 @@ sodamsodam_graph = builder.compile()
 
 # === 외부에서 호출되는 비동기 메인 함수 ===
 async def run_chatbot_graph(user_id: str, chat_id: str, question: str) -> str:
-    state = DairyChatState(
-        user_id=user_id,
-        chat_id=chat_id,
-        current_question=question,
-        current_answer="",
-        answer_route=""
-    )
-    result = await sodamsodam_graph.ainvoke(state)
-    return result["current_answer"]
+    try:
+        state = DairyChatState(
+            user_id=user_id,
+            chat_id=chat_id,
+            current_question=question,
+            current_answer="",
+            answer_route=""
+        )
+        result = await sodamsodam_graph.ainvoke(state)
+        return result["current_answer"]
+    except Exception as e:
+        print(f"챗봇 그래프 실행 오류: {e}")
+        return "죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요."
