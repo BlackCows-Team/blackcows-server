@@ -1,5 +1,7 @@
 import os
 import warnings
+# protobuf 호환성 설정 (Python 3.12 대응)
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
 from fastapi import FastAPI, Request, HTTPException
 from routers import chatbot_router, cow, record, detailed_record, livestock_trace
 from routers import auth_firebase
