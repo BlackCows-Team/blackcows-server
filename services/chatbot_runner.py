@@ -1,7 +1,19 @@
 # services/chatbot_runner.py
 
 import os
+import sys
 from typing import TypedDict, Literal, Dict, List, Tuple
+
+# protobuf 호환성 문제 해결을 위한 강제 설정
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
+os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION_VERSION'] = '2'
+
+# protobuf 관련 모듈 재로드
+if 'google.protobuf' in sys.modules:
+    del sys.modules['google.protobuf']
+if 'google.protobuf.internal' in sys.modules:
+    del sys.modules['google.protobuf.internal']
+
 from langgraph.graph import StateGraph, START, END
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
