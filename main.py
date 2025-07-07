@@ -1,5 +1,7 @@
 import os
 import warnings
+import time
+from collections import defaultdict
 from fastapi import FastAPI, Request, HTTPException
 from routers import chatbot_router, cow, record, detailed_record, livestock_trace
 from routers import auth_firebase
@@ -43,6 +45,49 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate Limiting을 위한 전역 변수
+request_counts = defaultdict(list)
+BLOCKED_IPS = set()
+
+# Rate Limiting 및 보안 미들웨어
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    client_ip = request.client.host
+    
+    # 차단된 IP 체크
+    if client_ip in BLOCKED_IPS:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Access denied"}
+        )
+    
+    # Rate Limiting (1분에 100개 요청 제한)
+    current_time = time.time()
+    request_counts[client_ip] = [t for t in request_counts[client_ip] if current_time - t < 60]
+    
+    if len(request_counts[client_ip]) >= 100:
+        print(f"🚨 Rate limit exceeded for IP: {client_ip}")
+        BLOCKED_IPS.add(client_ip)
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too many requests"}
+        )
+    
+    request_counts[client_ip].append(current_time)
+    
+    # 의심스러운 요청 패턴 감지
+    path = request.url.path.lower()
+    suspicious_patterns = [
+        '.env', 'phpinfo', 'config', 'admin', 'wp-', 
+        'laravel', 'debug', 'info.php', 'test'
+    ]
+    
+    if any(pattern in path for pattern in suspicious_patterns):
+        print(f"🚨 Suspicious request from {client_ip}: {path}")
+        request_counts[client_ip].append(current_time)  # 추가 카운트
+    
+    return await call_next(request)
 
 # Flutter 모바일 앱 및 CORS 디버깅 미들웨어
 @app.middleware("http")
