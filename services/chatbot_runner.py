@@ -1,9 +1,6 @@
 # services/chatbot_runner.py
 
 import os
-# protobuf 호환성 설정 (Python 3.12 대응)
-os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
-
 from typing import TypedDict, Literal, Dict, List, Tuple
 from langgraph.graph import StateGraph, START, END
 from langchain.prompts import PromptTemplate
