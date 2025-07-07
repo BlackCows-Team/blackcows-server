@@ -346,8 +346,12 @@ sodamsodam_graph = builder.compile()
 # === 외부에서 호출되는 비동기 메인 함수 ===
 async def run_chatbot_graph(user_id: str, chat_id: str, question: str) -> str:
     try:
-        # protobuf 환경변수 재설정 (안전장치)
+        # protobuf 환경변수 강제 재설정
         os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
+        os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION_VERSION'] = '2'
+        
+        # 환경변수 설정 확인
+        print(f"🔧 환경변수 확인: {os.environ.get('PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION')}")
         
         state = DairyChatState(
             user_id=user_id,
@@ -365,8 +369,23 @@ async def run_chatbot_graph(user_id: str, chat_id: str, question: str) -> str:
         
         # protobuf 관련 에러인지 확인
         if "Descriptors cannot be created directly" in str(e):
-            print("⚠️ protobuf 호환성 문제 감지 - 환경변수 재설정 시도")
+            print("⚠️ protobuf 호환성 문제 감지 - 강제 환경변수 재설정")
             os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
-            return "죄송합니다. 시스템 설정 문제로 일시적으로 답변을 생성할 수 없습니다. 잠시 후 다시 시도해주세요."
+            os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION_VERSION'] = '2'
+            
+            # 두 번째 시도
+            try:
+                state = DairyChatState(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    current_question=question,
+                    current_answer="",
+                    answer_route=""
+                )
+                result = await sodamsodam_graph.ainvoke(state)
+                return result["current_answer"]
+            except Exception as e2:
+                print(f"두 번째 시도 실패: {e2}")
+                return "죄송합니다. 시스템 설정 문제로 일시적으로 답변을 생성할 수 없습니다. 잠시 후 다시 시도해주세요."
         
         return "죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요."
