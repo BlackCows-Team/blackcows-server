@@ -14,6 +14,17 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import atexit
 
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/var/log/uvicorn/access.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 # Firestore positional arguments 경고 무시
 warnings.filterwarnings("ignore", message="Detected filter using positional arguments*")
 
@@ -54,38 +65,51 @@ BLOCKED_IPS = set()
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
     client_ip = request.client.host
+    path = request.url.path.lower()
     
     # 차단된 IP 체크
     if client_ip in BLOCKED_IPS:
+        logger.warning(f"🚨 Blocked IP access attempt: {client_ip} -> {path}")
         return JSONResponse(
             status_code=403,
-            content={"detail": "Access denied"}
+            content={
+                "detail": "Access denied",
+                "message": "현재 귀하의 IP는 과도한 요청으로 인해 일시적으로 제한되었습니다. 서비스 정상 이용을 원하신다면 잠시 후 다시 시도하거나 support@blackcowsdairy.com 으로 문의 주세요."
+            }
         )
     
-    # Rate Limiting (1분에 100개 요청 제한)
+    # Rate Limiting (1분에 50개 요청 제한)
     current_time = time.time()
     request_counts[client_ip] = [t for t in request_counts[client_ip] if current_time - t < 60]
     
-    if len(request_counts[client_ip]) >= 100:
-        print(f"🚨 Rate limit exceeded for IP: {client_ip}")
+    if len(request_counts[client_ip]) >= 50:
+        logger.warning(f"🚨 Rate limit exceeded for IP: {client_ip} -> {path}")
         BLOCKED_IPS.add(client_ip)
         return JSONResponse(
             status_code=429,
-            content={"detail": "Too many requests"}
+            content={
+                "detail": "Too many requests",
+                "message": "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."
+            }
         )
     
     request_counts[client_ip].append(current_time)
     
-    # 의심스러운 요청 패턴 감지
-    path = request.url.path.lower()
+    # 의심스러운 요청 패턴 감지 (더 강화)
     suspicious_patterns = [
         '.env', 'phpinfo', 'config', 'admin', 'wp-', 
-        'laravel', 'debug', 'info.php', 'test'
+        'laravel', 'debug', 'info.php', 'test', 'backup',
+        'sql', 'database', 'mysql', 'phpmyadmin', 'cpanel',
+        'wp-admin', 'wp-content', 'wp-includes', 'wordpress'
     ]
     
     if any(pattern in path for pattern in suspicious_patterns):
-        print(f"🚨 Suspicious request from {client_ip}: {path}")
+        logger.warning(f"🚨 Suspicious request from {client_ip}: {path}")
         request_counts[client_ip].append(current_time)  # 추가 카운트
+        request_counts[client_ip].append(current_time)  # 더 강한 제재
+    
+    # 로그 기록 (fail2ban용)
+    logger.info(f'{client_ip} - "{request.method} {path} HTTP/{request.scope.get("http_version", "1.1")}" {200 if client_ip not in BLOCKED_IPS else 403}')
     
     return await call_next(request)
 
