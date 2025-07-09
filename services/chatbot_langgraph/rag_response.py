@@ -1,7 +1,7 @@
 from langchain.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.output_parsers import StrOutputParser
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 import fitz  # PyMuPDF
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_text_splitters import CharacterTextSplitter
@@ -15,7 +15,6 @@ _vectordb = None
 def extract_text_from_pdf(file_path):
     doc = fitz.open(file_path)
     text = "\n".join([page.get_text() for page in doc])
-    print(f"📄 추출된 텍스트 길이: {len(text)}")
 
     doc.close()
     return text
@@ -43,7 +42,6 @@ def extract_texts_from_folder(folder_path):
             # 텍스트를 먼저 나눠서 각 청크에 파일명 metadata 붙임
             split_texts = splitter.split_text(text)
             for i, chunk in enumerate(split_texts):
-                print(f"📑 chunk {i+1} from {file_name} / 길이: {len(chunk)}")
                 documents.append(Document(page_content=chunk, metadata={"source": file_name}))
     return documents
 
@@ -61,11 +59,6 @@ def build_or_load_vectordb(source_folder: str, persist_dir: str = "RAG/chroma"):
         print("🆕 벡터 DB가 존재하지 않아 새로 생성합니다.")
         raw_documents = extract_texts_from_folder(source_folder)
         vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding)
-
-        # 지우기
-        for i, doc in enumerate(raw_documents[210:220]):  # 앞에서 5개만 예시로 확인
-            print(f"\n🔍 청크 {i+1} / source = {doc.metadata['source']}")
-            print(doc.page_content[:500])  # 500자만 미리보기
 
 
         # === [중요] 임베딩 배치 처리 ===
@@ -100,8 +93,8 @@ def generate_rag_response(state: DairyChatState) -> DairyChatState:
         context += f"[출처: {source}]\n{doc.page_content}\n\n"
     context = context.strip() or "※ 참고할 문서가 없습니다."
 
-    print('CHROMA에서 검색한 지식 확인:\n', context)
-    print('--------------------------------')
+    # print('CHROMA에서 검색한 지식 확인:\n', context)
+    # print('--------------------------------')
 
     prompt = PromptTemplate(
         input_variables=["context", "memory", "question"],
