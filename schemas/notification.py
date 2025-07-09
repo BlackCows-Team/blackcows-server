@@ -352,7 +352,7 @@ class NotificationBatchRequest(BaseModel):
     notification_type: NotificationType = Field(..., description="알림 유형")
     title: str = Field(..., description="알림 제목")
     message: str = Field(..., description="알림 내용")
-    priority: NotificationPriority = Field(NotificationPriority.NORMAL, description="우선순위")
+    priority: NotificationPriority = Field(NotificationPriority.MEDIUM, description="우선순위")
     channels: List[NotificationChannel] = Field([NotificationChannel.IN_APP], description="발송 채널")
     
     # 관련 데이터

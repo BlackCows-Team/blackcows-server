@@ -280,7 +280,7 @@ class NotificationScheduler:
                 message += f" (관련 젖소: {cow_name})"
             
             # 우선순위에 따른 알림 우선순위 설정
-            priority = NotificationPriority.NORMAL
+            priority = NotificationPriority.MEDIUM
             if task_data['priority'] in [TaskPriority.HIGH.value, TaskPriority.URGENT.value]:
                 priority = NotificationPriority.HIGH
             

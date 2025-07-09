@@ -229,7 +229,7 @@ def create_batch_notifications(
                 notification_type=batch_data.notification_type,
                 title=batch_data.title,
                 message=batch_data.message,
-                priority=batch_data.priority,
+                priority=NotificationPriority.MEDIUM,
                 channels=batch_data.channels,
                 related_task_id=batch_data.related_task_id,
                 related_cow_id=batch_data.related_cow_id,
@@ -271,7 +271,7 @@ def test_notification(
         notification_type=NotificationType.SYSTEM_MAINTENANCE,
         title="알림 시스템 테스트",
         message="이것은 알림 시스템 테스트 메시지입니다. 정상적으로 작동하고 있습니다!",
-        priority=NotificationPriority.NORMAL,
+        priority=NotificationPriority.MEDIUM,
         channels=[NotificationChannel.IN_APP, NotificationChannel.EMAIL],
         metadata={"test": True}
     )
