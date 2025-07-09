@@ -372,6 +372,9 @@ class TaskService:
             if existing_task.recurrence != TaskRecurrence.NONE:
                 TaskService._create_next_recurring_task(existing_task, user)
             
+            # 할일 완료 알림 생성
+            TaskService._create_task_completed_notification(existing_task, user)
+            
             # 완료된 할일 반환
             return TaskService.get_task_by_id(task_id, farm_id)
             
@@ -554,6 +557,53 @@ class TaskService:
             )
         
         return cow_data
+    
+    @staticmethod
+    def _create_task_completed_notification(task: TaskResponse, user: Dict):
+        """할일 완료 알림 생성"""
+        try:
+            from services.notification_service import NotificationService
+            from schemas.notification import NotificationCreate, NotificationType, NotificationPriority, NotificationChannel
+            
+            # 젖소 이름 조회
+            cow_name = None
+            if task.related_cow_id:
+                try:
+                    cow_info = TaskService._get_cow_info(task.related_cow_id, user.get("farm_id"))
+                    cow_name = cow_info.get('name') if cow_info else None
+                except:
+                    cow_name = "삭제된 젖소"
+            
+            # 알림 메시지 생성
+            title = "할일 완료"
+            message = f"'{task.title}' 할일이 완료되었습니다."
+            
+            if cow_name:
+                message += f" (관련 젖소: {cow_name})"
+            
+            # 우선순위에 따른 알림 우선순위 설정
+            priority = NotificationPriority.NORMAL
+            if task.priority in [TaskPriority.HIGH, TaskPriority.URGENT]:
+                priority = NotificationPriority.HIGH
+            
+            notification_data = NotificationCreate(
+                user_id=user.get("id"),
+                farm_id=user.get("farm_id"),
+                notification_type=NotificationType.TASK_COMPLETED,
+                title=title,
+                message=message,
+                priority=priority,
+                channels=[NotificationChannel.IN_APP],
+                related_task_id=task.id,
+                related_cow_id=task.related_cow_id,
+                metadata={"task_priority": task.priority.value, "completion_time": datetime.utcnow().isoformat()}
+            )
+            
+            NotificationService.create_notification(notification_data)
+            
+        except Exception as e:
+            # 알림 생성 실패는 로그만 남기고 할일 완료는 계속 진행
+            print(f"할일 완료 알림 생성 실패: {str(e)}")
     
     @staticmethod
     def _build_task_response(task_data: Dict, cow_info: Optional[Dict] = None) -> TaskResponse:

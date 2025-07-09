@@ -13,6 +13,31 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 
 ### 🎯 주요 기능
 
+#### 📢 알림 시스템 (NEW!)
+- ✅ **다중 채널 알림** - 앱 내, 이메일, 푸시 알림 지원
+- ✅ **FCM 푸시 알림** - Firebase Cloud Messaging 기반 실시간 푸시
+- ✅ **자동 알림** - 할일 마감, 지연, 일일/주간 요약 자동 발송
+- ✅ **수동 알림** - 관리자가 직접 알림 생성 및 일괄 발송
+- ✅ **알림 설정** - 사용자별 채널/유형/시간대 설정
+- ✅ **통계 및 분석** - 알림 발송 현황 및 사용자 반응 분석
+- ✅ **토픽 구독** - 특정 주제별 알림 구독/해제
+- ✅ **스케줄러** - APScheduler 기반 자동 알림 발송
+
+### 🛠️ 관리자/운영자용 API
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `GET` | `/admin/token-stats` | **토큰 통계 조회** | Bearer Token | 리프레시 토큰 통계 |
+| `POST` | `/admin/cleanup-tokens` | **토큰 정리 실행** | Bearer Token | 정리 결과 |
+| `DELETE` | `/admin/revoke-user-tokens/{user_id}` | **사용자 토큰 무효화** | `user_id` + Bearer Token | 무효화 결과 |
+| `POST` | `/auth/admin/cleanup-temporary-passwords` | **임시 비밀번호 정리** | Bearer Token | 정리 결과 |
+
+#### 관리자 기능 특징
+- ✅ **토큰 관리**: 만료된/오래된 토큰 자동 정리
+- ✅ **보안 관리**: 특정 사용자 토큰 무효화
+- ✅ **시스템 정리**: 임시 비밀번호 등 정리
+- ✅ **모니터링**: 토큰 사용 현황 통계
+
 #### 📋 할일 관리 시스템 (NEW!)
 - ✅ **할일 생성 및 관리** - 제목, 설명, 마감일, 우선순위 설정
 - ✅ **할일 유형 분류** - 개인/젖소별/농장 전체 할일
@@ -178,8 +203,6 @@ POST /api/todos/create
 | Method | Endpoint | 설명 | 필수 필드 | 응답 |
 |--------|----------|------|----------|------|
 | `POST` | `/sns/google/login` | Google 소셜 로그인 | `access_token` | JWT Token + 사용자 정보 + 농장 정보 |
-| `POST` | `/sns/kakao/login` | Kakao 소셜 로그인 | `access_token` | JWT Token + 사용자 정보 + 농장 정보 |
-| `POST` | `/sns/naver/login` | Naver 소셜 로그인 | `access_token` | JWT Token + 사용자 정보 + 농장 정보 |
 | `DELETE` | `/sns/delete-account` | SNS 계정 연동 해제 및 탈퇴 | `provider`, `access_token` | 삭제 완료 메시지 |
 
 #### SNS 로그인 특징
@@ -191,8 +214,7 @@ POST /api/todos/create
 
 **지원 플랫폼:**
 - **Google**: Firebase Admin SDK를 통한 ID Token 검증
-- **Kakao**: Kakao API를 통한 사용자 정보 조회 및 검증
-- **Naver**: Naver API를 통한 사용자 정보 조회 및 검증
+
 
 ### 🐮 젖소 관리 API (`/cows`)
 
@@ -566,6 +588,260 @@ GET /chatbot/rooms/user123
 | `GET` | `/redoc` | ReDoc | 대안 API 문서 |
 | `GET` | `/openapi.json` | OpenAPI 스키마 | JSON 형태의 API 스키마 |
 | `GET` | `/openapi-download` | OpenAPI 다운로드 | 다운로드 가능한 JSON 파일 |
+
+### 📢 알림 시스템 API (`/api/notifications`) - NEW!
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/api/notifications/create` | **알림 생성** | `user_id`, `notification_type`, `title`, `message` + Bearer Token | 생성된 알림 정보 |
+| `GET` | `/api/notifications/` | **알림 목록 조회** | Bearer Token | 필터링된 알림 목록 |
+| `GET` | `/api/notifications/unread` | **읽지 않은 알림 조회** | Bearer Token | 읽지 않은 알림만 |
+| `GET` | `/api/notifications/{id}` | **알림 상세 조회** | `id` + Bearer Token | 특정 알림 상세 정보 |
+| `PATCH` | `/api/notifications/{id}/read` | **알림 읽음 처리** | `id` + Bearer Token | 읽음 처리된 알림 |
+| `PATCH` | `/api/notifications/read-all` | **모든 알림 읽음 처리** | Bearer Token | 처리 결과 |
+| `DELETE` | `/api/notifications/{id}` | **알림 삭제** | `id` + Bearer Token | 삭제 확인 메시지 |
+| `GET` | `/api/notifications/statistics` | **알림 통계 조회** | Bearer Token | 통계 정보 |
+| `GET` | `/api/notifications/settings` | **알림 설정 조회** | Bearer Token | 사용자 알림 설정 |
+| `PUT` | `/api/notifications/settings` | **알림 설정 업데이트** | Bearer Token | 업데이트된 설정 |
+
+#### 🔥 FCM 푸시 알림 API
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/api/notifications/fcm/token` | **FCM 토큰 등록** | `fcm_token` + Bearer Token | 등록 확인 메시지 |
+| `DELETE` | `/api/notifications/fcm/token` | **FCM 토큰 삭제** | Bearer Token | 삭제 확인 메시지 |
+| `POST` | `/api/notifications/fcm/topic/{topic}/subscribe` | **토픽 구독** | `topic` + Bearer Token | 구독 확인 메시지 |
+| `DELETE` | `/api/notifications/fcm/topic/{topic}/unsubscribe` | **토픽 구독 해제** | `topic` + Bearer Token | 해제 확인 메시지 |
+
+#### 📋 관리자용 알림 API
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `POST` | `/api/notifications/batch` | **일괄 알림 발송** | `user_ids`, `notification_type`, `title`, `message` + Bearer Token | 발송 결과 |
+| `POST` | `/api/notifications/test` | **알림 테스트** | Bearer Token | 테스트 알림 |
+
+#### 알림 시스템 특징
+- ✅ **다중 채널 지원** - 앱 내 알림, 이메일, 푸시 알림
+- ✅ **자동 알림** - 할일 마감, 지연, 일일/주간 요약 자동 발송
+- ✅ **수동 알림** - 관리자가 직접 알림 생성 및 일괄 발송
+- ✅ **FCM 푸시 알림** - Firebase Cloud Messaging 기반 실시간 푸시
+- ✅ **알림 설정** - 사용자별 채널/유형/시간대 설정
+- ✅ **통계 및 분석** - 알림 발송 현황 및 사용자 반응 분석
+
+#### 알림 생성 예시
+
+```json
+POST /api/notifications/create
+{
+  "user_id": "user-uuid",
+  "notification_type": "task_due_soon",
+  "title": "할일 마감 임박",
+  "message": "'103번 소 건강검진' 할일이 1시간 후 마감됩니다.",
+  "priority": "high",
+  "channels": ["in_app", "push"],
+  "related_task_id": "task-uuid",
+  "scheduled_at": "2025-07-05T08:00:00Z"
+}
+```
+
+#### FCM 토큰 등록 예시
+
+```json
+POST /api/notifications/fcm/token
+{
+  "fcm_token": "fcm_token_from_flutter_app"
+}
+```
+
+#### 일괄 알림 발송 예시 (관리자용)
+
+```json
+POST /api/notifications/batch
+{
+  "user_ids": ["user1", "user2", "user3"],
+  "farm_id": "farm-uuid",
+  "notification_type": "system_maintenance",
+  "title": "시스템 점검 알림",
+  "message": "오늘 밤 12시부터 2시간 동안 시스템 점검이 예정되어 있습니다.",
+  "priority": "high",
+  "channels": ["in_app", "push", "email"]
+}
+```
+
+#### 알림 통계 응답 예시
+
+```json
+{
+  "total_notifications": 150,
+  "unread_notifications": 25,
+  "read_notifications": 125,
+  "today_notifications": 8,
+  "by_type": {
+    "task_due_soon": 45,
+    "system_maintenance": 12,
+    "cow_registered": 23,
+    "milking_record_created": 70
+  },
+  "by_priority": {
+    "low": 30,
+    "medium": 80,
+    "high": 35,
+    "urgent": 5
+  },
+  "by_status": {
+    "unread": 25,
+    "read": 125
+  }
+}
+```
+
+### 🔥 Firebase Cloud Messaging (FCM) 설정 가이드
+
+#### 1️⃣ Firebase 콘솔 설정
+
+1. **Firebase 프로젝트 설정**
+   - [Firebase Console](https://console.firebase.google.com/) 접속
+   - 기존 프로젝트 선택 또는 새 프로젝트 생성
+   - **Cloud Messaging** 메뉴로 이동
+
+2. **서버 키 생성**
+   - **프로젝트 설정** → **Cloud Messaging** 탭
+   - **서버 키** 생성 (백엔드에서 사용)
+
+3. **서비스 계정 키 파일 다운로드**
+   - **프로젝트 설정** → **서비스 계정** 탭
+   - **새 비공개 키 생성** → JSON 파일 다운로드
+   - 파일을 `backend/firebase-adminsdk.json`으로 저장
+
+#### 2️⃣ 백엔드 환경 설정
+
+```bash
+# 필요한 패키지 설치
+pip install firebase-admin
+
+# .env 파일에 추가
+FIREBASE_ADMIN_SDK_PATH=firebase-adminsdk.json
+```
+
+#### 3️⃣ Flutter 앱에서 FCM 토큰 등록
+
+```dart
+// Flutter 앱에서 FCM 토큰을 백엔드에 등록
+Future<void> registerFCMToken() async {
+  String? fcmToken = await FirebaseMessaging.instance.getToken();
+  
+  if (fcmToken != null) {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/notifications/fcm/token'),
+      headers: {
+        'Authorization': 'Bearer $accessToken',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({'fcm_token': fcmToken}),
+    );
+    
+    if (response.statusCode == 200) {
+      print('FCM 토큰 등록 성공');
+    }
+  }
+}
+```
+
+#### 4️⃣ 알림 유형 (실제 구현된 것만)
+
+##### �� 할일 관련 알림
+- `TASK_DUE_SOON` - 할일 마감 임박 (1시간 전)
+- `TASK_OVERDUE` - 할일 지연
+- `TASK_COMPLETED` - 할일 완료
+- `TASK_CREATED` - 할일 생성
+- `TASK_ASSIGNED` - 할일 배정
+
+##### 🐮 젖소 관리 알림
+- `COW_REGISTERED` - 젖소 등록 완료
+- `COW_UPDATED` - 젖소 정보 수정
+- `COW_DELETED` - 젖소 삭제
+- `COW_FAVORITE_ADDED/REMOVED` - 즐겨찾기 추가/제거
+
+##### 🔗 축산물이력제 알림
+- `LIVESTOCK_TRACE_SUCCESS` - 축산물이력제 조회 성공
+- `LIVESTOCK_TRACE_FAILED` - 축산물이력제 조회 실패
+- `LIVESTOCK_TRACE_ALREADY_REGISTERED` - 이미 등록된 젖소
+
+##### �� 기록 관리 알림
+- `RECORD_CREATED` - 기록 생성
+- `RECORD_UPDATED` - 기록 수정
+- `RECORD_DELETED` - 기록 삭제
+- `RECORD_MISSING` - 기록 누락
+
+##### �� 건강 관리 알림
+- `HEALTH_CHECK_DUE` - 건강검진 예정
+- `HEALTH_CHECK_COMPLETED` - 건강검진 완료
+- `VACCINATION_DUE` - 백신 접종 예정
+- `VACCINATION_COMPLETED` - 백신 접종 완료
+- `TREATMENT_STARTED` - 치료 시작
+- `TREATMENT_COMPLETED` - 치료 완료
+
+##### 🥛 착유 관련 알림
+- `MILKING_RECORD_CREATED` - 착유 기록 생성
+- `MILKING_YIELD_LOW` - 착유량 저하
+- `MILKING_YIELD_HIGH` - 착유량 증가
+- `MILKING_MISSED` - 착유 누락
+- `MILKING_QUALITY_ISSUE` - 착유 품질 문제
+
+##### �� 번식 관리 알림
+- `ESTRUS_DETECTED` - 발정 감지
+- `INSEMINATION_SCHEDULED` - 인공수정 예정
+- `PREGNANCY_CHECK_DUE` - 임신감정 예정
+- `CALVING_PREDICTED` - 분만 예정
+- `CALVING_COMPLETED` - 분만 완료
+
+##### �� 사료 관리 알림
+- `FEED_SCHEDULE_REMINDER` - 사료 급여 일정
+- `FEED_RECORD_CREATED` - 사료 급여 기록
+- `FEED_QUALITY_ISSUE` - 사료 품질 문제
+- `FEED_SHORTAGE` - 사료 부족
+
+##### ⚖️ 체중 관리 알림
+- `WEIGHT_MEASUREMENT_DUE` - 체중 측정 예정
+- `WEIGHT_ABNORMAL` - 체중 이상
+- `WEIGHT_TARGET_REACHED` - 목표 체중 달성
+
+##### 🔍 검사 관련 알림
+- `BRUCELLA_TEST_DUE` - 브루셀라 검사 예정
+- `BRUCELLA_TEST_RESULT` - 브루셀라 검사 결과
+- `TUBERCULOSIS_TEST_DUE` - 결핵 검사 예정
+- `TUBERCULOSIS_TEST_RESULT` - 결핵 검사 결과
+
+##### ��️ 시스템 알림
+- `SYSTEM_MAINTENANCE` - 시스템 점검
+- `SECURITY_ALERT` - 보안 알림
+- `WELCOME` - 환영 알림
+- `ACCOUNT_CREATED/UPDATED` - 계정 생성/수정
+- `PASSWORD_CHANGED` - 비밀번호 변경
+- `LOGIN_ATTEMPT/FAILED/SUCCESS` - 로그인 관련
+
+##### 📊 통계 알림
+- `DAILY_SUMMARY` - 일일 요약
+- `WEEKLY_SUMMARY` - 주간 요약
+- `MONTHLY_SUMMARY` - 월간 요약
+- `PERFORMANCE_ALERT` - 성과 알림
+- `TREND_ANALYSIS` - 트렌드 분석
+
+#### 5️⃣ 자동 알림 스케줄러
+
+- **할일 마감 임박 알림**: 매 30분마다 체크, 마감 1시간 전 발송
+- **지연된 할일 알림**: 매시간 체크, 마감일 지난 할일 발송
+- **일일 요약 알림**: 매일 오전 9시, 오늘 할일 현황 발송
+- **주간 요약 알림**: 매주 월요일 오전 9시, 주간 통계 발송
+
+#### 6️⃣ 알림 설정 관리
+
+사용자는 다음 설정을 개별적으로 관리할 수 있습니다:
+
+- **채널별 설정**: 앱 내, 이메일, 푸시 알림 on/off
+- **유형별 설정**: 할일, 젖소, 기록, 시스템 등 카테고리별 on/off
+- **시간대 설정**: 방해 금지 시간 설정 (예: 22:00~08:00)
+- **우선순위 설정**: 긴급/높음/보통/낮음 알림별 수신 여부
 
 ## 🔗 축산물이력제 연동 등록 플로우
 
@@ -1041,6 +1317,34 @@ ENVIRONMENT=production uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 | 7 | 브루셀라/결핵 | 검사일, 결과, 경과일 |
 
 ## 📈 주요 업데이트 내역
+
+### v2.9.0 (2025-07-10) - 알림 시스템 완전 구현
+
+#### 🔥 FCM 푸시 알림 시스템 출시
+- **Firebase Cloud Messaging 연동**: 실시간 푸시 알림 지원
+- **다중 채널 발송**: 앱 내, 이메일, 푸시 알림 동시 발송
+- **FCM 토큰 관리**: 사용자별 FCM 토큰 등록/삭제/관리
+- **토픽 구독 시스템**: 특정 주제별 알림 구독/해제
+
+#### 📢 알림 시스템 고도화
+- **80개 이상 알림 유형**: 할일, 젖소, 기록, 시스템 등 모든 기능 연동
+- **자동 스케줄러**: 할일 마감, 지연, 요약 알림 자동 발송
+- **관리자 일괄 발송**: 다수 사용자 대상 공지/긴급 알림 발송
+- **알림 설정 관리**: 사용자별 세부 설정 (채널/유형/시간대)
+
+#### 🛠️ 관리자 기능 강화
+- **토큰 관리 시스템**: 만료 토큰 자동 정리, 사용자별 토큰 무효화
+- **시스템 모니터링**: 토큰 사용 현황, 알림 발송 통계
+- **보안 강화**: 임시 비밀번호 정리, 관리자 권한 관리
+
+#### 새로운 엔드포인트
+- `POST /api/notifications/create`: 알림 생성
+- `GET /api/notifications/`: 알림 목록 조회
+- `PATCH /api/notifications/{id}/read`: 알림 읽음 처리
+- `POST /api/notifications/fcm/token`: FCM 토큰 등록
+- `POST /api/notifications/batch`: 일괄 알림 발송 (관리자용)
+- `GET /admin/token-stats`: 토큰 통계 조회
+- `POST /admin/cleanup-tokens`: 토큰 정리 실행
 
 ### v2.7.0 (2025-06-27) - 🤖 AI 챗봇 "소담이" 완전체 (NEW!)
 #### 🤖 AI 챗봇 기능 완전 구현
