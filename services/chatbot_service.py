@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from config.firebase_config import get_firestore_client
 from firebase_admin import firestore
 from langchain_core.runnables import RunnableConfig
-from services.chatbot_runner import run_chatbot_graph
+from services.chatbot_langgraph.graph import run_chatbot_graph
 from schemas.chatbot_schema import AskRequest, ChatMessage, ChatRoom
 import uuid
 
