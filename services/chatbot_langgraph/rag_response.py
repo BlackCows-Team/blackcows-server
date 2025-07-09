@@ -92,6 +92,7 @@ def generate_rag_response(state: DairyChatState) -> DairyChatState:
         source = doc.metadata.get("source", "알 수 없는 문서")
         context += f"[출처: {source}]\n{doc.page_content}\n\n"
     context = context.strip() or "※ 참고할 문서가 없습니다."
+    print('🔍 RAG 참고 자료 확인:\n', context)
 
     # print('CHROMA에서 검색한 지식 확인:\n', context)
     # print('--------------------------------')

@@ -48,6 +48,7 @@ def classify_question_route(state: DairyChatState) -> DairyChatState:
     chain = prompt | llm | StrOutputParser()
     result = chain.invoke({"question": state["current_question"]})
     result = result.replace('"', '').replace("'", '').strip().lower()
+    print('🤖 답변 분류 결과:', result)
 
     if result not in {"rag", "cow_info", "general", "irrelevant"}:
         result = "irrelevant"
