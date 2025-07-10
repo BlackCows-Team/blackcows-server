@@ -82,7 +82,7 @@ packaging==24.2
 passlib==1.7.4
 propcache==0.3.2
 proto-plus==1.26.1
-protobuf==3.19.6
+# protobuf==3.19.6
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycparser==2.22
