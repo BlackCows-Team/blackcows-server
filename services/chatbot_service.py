@@ -1,9 +1,8 @@
 # services/chatbot_service.py
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from config.firebase_config import get_firestore_client
 from firebase_admin import firestore
-from langchain_core.runnables import RunnableConfig
 from services.chatbot_langgraph.graph import run_chatbot_graph
 from schemas.chatbot_schema import AskRequest, ChatMessage, ChatRoom
 import uuid
@@ -27,7 +26,7 @@ async def handle_user_question(data: AskRequest) -> str:
         chat_ref = db.collection("chat_rooms").document(data.chat_id)
         messages_ref = chat_ref.collection("messages")
 
-        now = datetime.utcnow()
+        now = datetime.now()
         messages_ref.add({
             "role": "user",
             "content": data.question,
@@ -75,7 +74,7 @@ def create_chat_room(user_id: str, name: str = None) -> ChatRoom:
         raise ValueError("Firebase가 초기화되지 않았습니다.")
     
     chat_id = str(uuid.uuid4())
-    created_at = datetime.utcnow()
+    created_at = datetime.now()
 
     if not name:
         name = "새로운 대화"
@@ -161,7 +160,7 @@ def delete_old_chat_rooms():
         return
     
     try:
-        limit_date = datetime.utcnow() - timedelta(days=14)
+        limit_date = datetime.now() - timedelta(days=14)
         old_chats = db.collection("chat_rooms") \
             .where("created_at", "<", limit_date) \
             .stream()
