@@ -113,7 +113,7 @@ jobs:
           # 가상환경 생성 (없을 경우에만)
           if [ ! -d "venv" ]; then
             echo "가상환경 생성 중..."
-            python3 -m venv venv
+            python3.11 -m venv venv
           fi
       
           # tmux 세션에서 가상환경 활성화
