@@ -94,16 +94,13 @@ jobs:
           echo "LIVESTOCK_TRACE_API_DECODING_KEY=${{ secrets.LIVESTOCK_TRACE_API_DECODING_KEY }}" >> .env
           echo "LIVESTOCK_TRACE_API_ENCODING_KEY=${{ secrets.LIVESTOCK_TRACE_API_ENCODING_KEY }}" >> .env
 
-          # ===== 이메일 SMTP 설정 추가 =====
-          echo "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" >> .env
+          # ===== 이메일 SMTP 설정 추가 =====              
           echo "SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}" >> .env
-          
-          # 이메일 설정
-          echo "MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}" >> .env
-          echo "MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}" >> .env
-          echo "MAIL_FROM=${{ secrets.MAIL_FROM }}" >> .env
-          echo "MAIL_SERVER=email-smtp.ap-northeast-2.amazonaws.com" >> .env
-          echo "MAIL_PORT=587" >> .env
+          echo "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" >> .env
+          echo "FROM_EMAIL=${{ secrets.FROM_EMAIL }}" >> .env
+          echo "FROM_NAME=${{ secrets.FROM_NAME }}" >> .env
+          echo "SMTP_SERVER=${{ secrets.SMTP_SERVER }}" >> .env
+          echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env
           
           # OpenAI API 키 (AI 챗봇용)
           echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
