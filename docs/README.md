@@ -13,6 +13,21 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 
 ### 🎯 주요 기능
 
+### 🛠️ 관리자/운영자용 API
+
+| Method | Endpoint | 설명 | 필수 필드 | 응답 |
+|--------|----------|------|----------|------|
+| `GET` | `/admin/token-stats` | **토큰 통계 조회** | Bearer Token | 리프레시 토큰 통계 |
+| `POST` | `/admin/cleanup-tokens` | **토큰 정리 실행** | Bearer Token | 정리 결과 |
+| `DELETE` | `/admin/revoke-user-tokens/{user_id}` | **사용자 토큰 무효화** | `user_id` + Bearer Token | 무효화 결과 |
+| `POST` | `/auth/admin/cleanup-temporary-passwords` | **임시 비밀번호 정리** | Bearer Token | 정리 결과 |
+
+#### 관리자 기능 특징
+- ✅ **토큰 관리**: 만료된/오래된 토큰 자동 정리
+- ✅ **보안 관리**: 특정 사용자 토큰 무효화
+- ✅ **시스템 정리**: 임시 비밀번호 등 정리
+- ✅ **모니터링**: 토큰 사용 현황 통계
+
 #### 📢 알림 시스템 (NEW!)
 - ✅ **다중 채널 알림** - 앱 내, 이메일, 푸시 알림 지원
 - ✅ **FCM 푸시 알림** - Firebase Cloud Messaging 기반 실시간 푸시
@@ -197,6 +212,68 @@ POST /api/todos/create
 | `PUT` | `/auth/update-farm-name` | 목장 이름 수정 | `farm_nickname` + Bearer Token | 수정된 사용자 정보 |
 | `DELETE` | `/auth/delete-account` | 회원탈퇴 | `password`, `confirmation` + Bearer Token | 삭제 완료 메시지 |
 | `POST` | `/auth/login-debug` | 로그인 디버깅 | 원시 요청 데이터 | 디버그 정보 |
+
+#### 📧 임시비밀번호 및 이메일 시스템 (업데이트!)
+
+**임시비밀번호 생성 플로우:**
+1. **비밀번호 재설정 요청**: 사용자가 이름, 아이디, 이메일 입력
+2. **사용자 검증**: 서버에서 3개 정보 모두 일치하는지 확인
+3. **JWT 토큰 생성**: 1시간 유효한 재설정 토큰 생성
+4. **이메일 발송**: AWS SES 또는 Gmail SMTP로 재설정 링크 발송
+5. **토큰 검증**: 사용자가 링크 클릭 시 토큰 유효성 검증
+6. **임시 로그인**: 재설정 토큰으로 제한된 권한 로그인
+7. **비밀번호 변경**: 새 비밀번호로 변경 완료
+8. **보안 강화**: 모든 기존 리프레시 토큰 무효화
+
+**이메일 서비스 구성:**
+- **AWS SES**: 프로덕션 환경 이메일 발송
+- **Gmail SMTP**: 개발 환경 및 백업 서비스
+- **템플릿 시스템**: HTML 이메일 템플릿 지원
+- **발송 추적**: 이메일 발송 성공/실패 로그 관리
+
+**비밀번호 재설정 요청 예시:**
+```json
+POST /auth/request-password-reset
+{
+  "username": "홍길동",
+  "user_id": "admin123", 
+  "email": "admin@farm.com"
+}
+```
+
+**응답:**
+```json
+{
+  "success": true,
+  "message": "비밀번호 재설정 이메일이 발송되었습니다.",
+  "reset_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_at": "2025-07-12T15:30:00Z"
+}
+```
+
+**임시 토큰 로그인 예시:**
+```json
+POST /auth/login-with-reset-token
+{
+  "user_id": "admin123",
+  "reset_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**응답:**
+```json
+{
+  "access_token": "temporary_access_token_here",
+  "token_type": "bearer",
+  "expires_in": 1800,
+  "scope": "password_change_only",
+  "user": {
+    "user_id": "admin123",
+    "username": "홍길동",
+    "email": "admin@farm.com"
+  }
+}
+```
 
 ### 📱 SNS 로그인 API (`/sns`)
 
