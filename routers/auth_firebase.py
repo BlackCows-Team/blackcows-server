@@ -180,10 +180,14 @@ def login_user(user_data: UserLogin):
         )
 
     # 2. 임시 비밀번호 검증
-    temp_id = EmailService.verify_temporary_password(user_data.user_id, user_data.password)
+    # user_id(별칭)로 UUID 조회 후, UUID로 임시 비밀번호 검증
+    user_for_temp = FirebaseUserService.get_user_by_user_id(user_data.user_id)
+    temp_id = None
+    if user_for_temp:
+        temp_id = EmailService.verify_temporary_password(user_for_temp["id"], user_data.password)
     if temp_id:
         # 임시 비밀번호 로그인 성공 - 사용자 정보 조회
-        user = FirebaseUserService.get_user_by_user_id(user_data.user_id)
+        user = user_for_temp
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
