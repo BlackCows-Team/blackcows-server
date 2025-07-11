@@ -6,12 +6,15 @@ import string
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, status
 from config.firebase_config import get_firestore_client
 from templates.email_templates import EmailTemplate
 import os
 import uuid
+
+# 한국 시간대 설정
+KST = timezone(timedelta(hours=9))
 
 class EmailService:
     """이메일 발송 서비스 - 구글 SMTP 사용, HTML 템플릿 적용"""
@@ -60,8 +63,8 @@ class EmailService:
             
             # 이메일 헤더 추가
             msg['Message-ID'] = f"<{uuid.uuid4()}@blackcowsdairy.com>"
-            msg['Date'] = datetime.now().strftime('%a, %d %b %Y %H:%M:%S %z')
-            msg['X-Mailer'] = '소담소담 Email Service v2.0'
+            msg['Date'] = datetime.now(KST).strftime('%a, %d %b %Y %H:%M:%S %z')
+            msg['X-Mailer'] = 'BlackCows Dairy Email Service v2.0'
             msg['X-Priority'] = '1'
             
             # 텍스트 버전 자동 생성
@@ -117,9 +120,6 @@ class EmailService:
     @staticmethod
     def _generate_temporary_password(length: int = 12) -> str:
         """강화된 임시 비밀번호 생성"""
-    @staticmethod
-    def _generate_temporary_password(length: int = 12) -> str:
-        """강화된 임시 비밀번호 생성"""
         uppercase = string.ascii_uppercase
         lowercase = string.ascii_lowercase
         digits = string.digits
@@ -147,164 +147,74 @@ class EmailService:
     def send_welcome_email(user_data: Dict):
         """회원가입 축하 이메일 발송"""
         try:
-            subject = f"🐄 소담소담에 오신 것을 환영합니다, {user_data['username']}님!"
+            subject = f"[소담소담🐄] 소담소담에 오신 것을 환영합니다, {user_data['username']}님!"
             html_content = EmailTemplate.get_welcome_template(user_data)
             EmailService._send_email(user_data['email'], subject, html_content)
             print(f"[EMAIL] 🎉 회원가입 환영 이메일 발송 완료: {user_data['email']}")
-            
         except Exception as e:
             print(f"[WARNING] ⚠️ 회원가입 축하 이메일 발송 실패: {str(e)}")
-    
+
     @staticmethod
     def send_user_id_email(user_data: Dict):
         """아이디 찾기 이메일 발송"""
         try:
-            subject = f"🔍 {user_data['username']}님의 소담소담 아이디 안내"
+            subject = f"[소담소담🐄] {user_data['username']}님의 아이디 찾기 결과"
             html_content = EmailTemplate.get_user_id_template(user_data)
             EmailService._send_email(user_data['email'], subject, html_content)
             print(f"[EMAIL] 🔍 아이디 찾기 이메일 발송 완료: {user_data['email']}")
-            
         except Exception as e:
             print(f"[ERROR] ❌ 아이디 찾기 이메일 발송 실패: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="아이디 찾기 이메일 발송에 실패했습니다"
             )
-    
+
     @staticmethod
     def send_temporary_password_email(user_data: Dict, temp_password: str, expire_time: datetime):
         """임시 비밀번호 이메일 발송"""
         try:
-            subject = f"🔐 {user_data['username']}님의 소담소담 임시 비밀번호"
+            subject = f"[소담소담🐄] {user_data['username']}님의 임시 비밀번호 발급"
             html_content = EmailTemplate.get_temp_password_template(user_data, temp_password, expire_time)
             EmailService._send_email(user_data['email'], subject, html_content)
             print(f"[EMAIL] 🔐 임시 비밀번호 이메일 발송 완료: {user_data['email']}")
-            
         except Exception as e:
             print(f"[ERROR] ❌ 임시 비밀번호 이메일 발송 실패: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="임시 비밀번호 이메일 발송에 실패했습니다"
             )
-    
+
     @staticmethod
     def send_password_changed_notification(user_data: Dict):
         """비밀번호 변경 완료 알림 이메일"""
         try:
-            subject = f"🔒 {user_data['username']}님의 비밀번호가 변경되었습니다"
-            
-            content = f"""
-            <div class="greeting">
-                안녕하세요, <span class="highlight">{user_data['username']}</span>님! 🔒
-            </div>
-            
-            <p style="margin-bottom: 25px; font-size: 1.1rem; color: var(--text-secondary);">
-                귀하의 소담소담 계정 비밀번호가 성공적으로 변경되었습니다.
-            </p>
-            
-            <div class="info-card" style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-color: var(--success);">
-                <h4 style="margin-bottom: 15px; color: var(--success);">✅ 변경 완료</h4>
-                <div style="text-align: left;">
-                    <div style="margin: 8px 0;"><strong>변경 시간:</strong> {datetime.now().strftime('%Y년 %m월 %d일 %H시 %M분')}</div>
-                    <div style="margin: 8px 0;"><strong>계정:</strong> {user_data['user_id']}</div>
-                    <div style="margin: 8px 0;"><strong>이메일:</strong> {user_data['email']}</div>
-                </div>
-            </div>
-            
-            <div class="warning-box">
-                <h4 style="margin-bottom: 15px; color: var(--warning);">⚠️ 본인이 변경하지 않았다면?</h4>
-                <p style="text-align: center; margin: 10px 0;">
-                    즉시 <a href="mailto:support@blackcowsdairy.com" style="color: var(--warning); text-decoration: none; font-weight: 600;">support@blackcowsdairy.com</a>으로 연락하여 계정 보안 점검을 받으세요.
-                </p>
-            </div>
-            
-            <div style="text-align: center; margin: 30px 0;">
-                <p style="font-size: 1.1rem; font-weight: 600; color: var(--success);">
-                    안전한 계정 관리를 위해 주기적으로 비밀번호를 변경해 주세요! 🛡️
-                </p>
-            </div>
-            """
-            
-            html_content = EmailTemplate.get_base_template().format(
-                title="소담소담 비밀번호 변경 완료",
-                brand_name="소담소담",
-                header_title="비밀번호 변경 완료 ✅",
-                content=content,
-                year="2025",
-                footer_info=f"발신시간: {datetime.now().strftime('%Y년 %m월 %d일 %H시 %M분')} | 문의: support@blackcowsdairy.com"
-            )
-            
+            subject = f"[소담소담🐄] {user_data['username']}님의 비밀번호 변경 완료"
+            html_content = EmailTemplate.get_password_changed_template(user_data)
             EmailService._send_email(user_data['email'], subject, html_content)
             print(f"[EMAIL] 🔒 비밀번호 변경 알림 이메일 발송 완료: {user_data['email']}")
-            
         except Exception as e:
             print(f"[WARNING] ⚠️ 비밀번호 변경 알림 이메일 발송 실패: {str(e)}")
-    
+
     @staticmethod
     def send_login_alert_email(user_data: Dict, login_info: Dict):
         """의심스러운 로그인 감지 알림"""
         try:
-            subject = f"🚨 {user_data['username']}님 계정에 새로운 로그인이 감지되었습니다"
-            
-            content = f"""
-            <div class="greeting">
-                안녕하세요, <span class="highlight">{user_data['username']}</span>님! 🚨
-            </div>
-            
-            <p style="margin-bottom: 25px; font-size: 1.1rem; color: var(--text-secondary);">
-                귀하의 소담소담 계정에 새로운 로그인이 감지되었습니다.
-            </p>
-            
-            <div class="danger-box">
-                <h4 style="margin-bottom: 15px; color: var(--danger);">🔍 로그인 정보</h4>
-                <div style="background: white; padding: 15px; border-radius: 8px; text-align: left;">
-                    <div style="margin: 8px 0;"><strong>시간:</strong> {login_info.get('timestamp', datetime.now().strftime('%Y년 %m월 %d일 %H시 %M분'))}</div>
-                    <div style="margin: 8px 0;"><strong>IP 주소:</strong> {login_info.get('ip_address', '알 수 없음')}</div>
-                    <div style="margin: 8px 0;"><strong>디바이스:</strong> {login_info.get('device', '알 수 없음')}</div>
-                    <div style="margin: 8px 0;"><strong>위치:</strong> {login_info.get('location', '알 수 없음')}</div>
-                </div>
-            </div>
-            
-            <div class="warning-box">
-                <h4 style="margin-bottom: 15px; color: var(--warning);">⚠️ 본인의 로그인이 아니라면?</h4>
-                <div style="text-align: left;">
-                    <div style="margin: 8px 0;">1. 즉시 비밀번호를 변경하세요</div>
-                    <div style="margin: 8px 0;">2. 다른 기기에서 로그아웃하세요</div>
-                    <div style="margin: 8px 0;">3. <a href="mailto:support@blackcowsdairy.com" style="color: var(--warning); text-decoration: none; font-weight: 600;">support@blackcowsdairy.com</a>으로 신고하세요</div>
-                </div>
-            </div>
-            
-            <div style="text-align: center; margin: 30px 0;">
-                <p style="font-size: 1.1rem; font-weight: 600; color: var(--danger);">
-                    계정 보안을 위해 정기적으로 비밀번호를 변경해 주세요! 🛡️
-                </p>
-            </div>
-            """
-            
-            html_content = EmailTemplate.get_base_template().format(
-                title="소담소담 로그인 알림",
-                brand_name="소담소담",
-                header_title="새로운 로그인 감지 🚨",
-                content=content,
-                year="2025",
-                footer_info=f"발신시간: {datetime.now().strftime('%Y년 %m월 %d일 %H시 %M분')} | 문의: support@blackcowsdairy.com"
-            )
-            
+            subject = f"[소담소담🐄] 로그인 알림"
+            html_content = EmailTemplate.get_login_alert_template(user_data, login_info)
             EmailService._send_email(user_data['email'], subject, html_content)
-            print(f"[EMAIL] 🚨 로그인 알림 이메일 발송 완료: {user_data['email']}")
-            
+            print(f"[EMAIL] 🚨 의심스러운 로그인 알림 이메일 발송 완료: {user_data['email']}")
         except Exception as e:
-            print(f"[WARNING] ⚠️ 로그인 알림 이메일 발송 실패: {str(e)}")
+            print(f"[WARNING] ⚠️ 의심스러운 로그인 알림 이메일 발송 실패: {str(e)}")
     
     @staticmethod
     def store_temporary_password(user_id: str, temp_password: str, expire_minutes: int = 60) -> str:
-        """임시 비밀번호를 Firestore에 저장"""
+        """임시 비밀번호를 Firestore에 저장 (기존 임시 비밀번호는 완전히 삭제)"""
         try:
             from services.firebase_user_service import FirebaseUserService
             
             db = get_firestore_client()
             temp_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now(KST)
             expire_time = current_time + timedelta(minutes=expire_minutes)
             
             # 임시 비밀번호 해시화
@@ -322,14 +232,10 @@ class EmailService:
                 "max_attempts": 5
             }
             
-            # 기존 임시 비밀번호 무효화
-            existing_temps = db.collection('temporary_passwords').where('user_id', '==', user_id).where('is_active', '==', True).get()
+            # 기존 임시 비밀번호 완전 삭제
+            existing_temps = db.collection('temporary_passwords').where('user_id', '==', user_id).get()
             for temp_doc in existing_temps:
-                db.collection('temporary_passwords').document(temp_doc.id).update({
-                    'is_active': False,
-                    'deactivated_at': current_time,
-                    'deactivated_reason': 'new_request'
-                })
+                db.collection('temporary_passwords').document(temp_doc.id).delete()
             
             # 새 임시 비밀번호 저장
             db.collection('temporary_passwords').document(temp_id).set(temp_password_data)
@@ -351,7 +257,7 @@ class EmailService:
             from services.firebase_user_service import FirebaseUserService
             
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            current_time = datetime.now(KST)
             
             # 단순화된 쿼리: user_id만으로 조회 후 메모리에서 필터링
             temp_docs = (db.collection('temporary_passwords')
@@ -366,7 +272,10 @@ class EmailService:
                     continue
                 if temp_data.get('is_used', False):
                     continue
-                if temp_data.get('expires_at') <= current_time:
+                expires_at = temp_data.get('expires_at')
+                if expires_at is not None and expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=KST)
+                if expires_at is not None and expires_at <= current_time:
                     continue
                 
                 # 시도 횟수 확인
@@ -408,7 +317,7 @@ class EmailService:
         """만료된 임시 비밀번호 정리"""
         try:
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            current_time = datetime.now(KST)
             
             # 모든 임시 비밀번호 조회 후 메모리에서 필터링
             all_temps = db.collection('temporary_passwords').get()
@@ -452,7 +361,7 @@ class EmailService:
         """이메일 발송 통계 조회"""
         try:
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            current_time = datetime.now(KST)
             
             analytics = {
                 "today_sent": 0,
