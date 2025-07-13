@@ -73,7 +73,6 @@ mmh3==5.1.0
 msgpack==1.1.0
 multidict==6.5.1
 mypy_extensions==1.1.0
-numpy==2.2.0
 onnxruntime==1.22.0
 openai==1.90.0
 orjson==3.10.18
@@ -121,3 +120,8 @@ watchdog==6.0.0
 xxhash==3.5.0
 yarl==1.20.1
 zstandard==0.23.0
+scikit-learn==1.6.1
+joblib>=1.5.1
+numpy>=1.21.0,<2.0.0
+scipy>=1.7.0
+pandas==2.2.2
