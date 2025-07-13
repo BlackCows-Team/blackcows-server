@@ -569,17 +569,17 @@ class TaskService:
             due_time=task_data.get("due_time"),
             category=TaskCategory(task_data["category"]),
             related_cow_id=task_data.get("related_cow_id"),
-            related_cow_name=cow_info["name"] if cow_info else None,
-            related_cow_ear_tag=cow_info["ear_tag_number"] if cow_info else None,
+            related_cow_name=cow_info.get("name") if cow_info else None,
+            related_cow_ear_tag=cow_info.get("ear_tag_number") if cow_info else None,
             auto_generated=task_data.get("auto_generated", False),
-            recurrence=TaskRecurrence(task_data["recurrence"]),
+            recurrence=TaskRecurrence(task_data.get("recurrence", "none")),
             notes=task_data.get("notes"),
             farm_id=task_data["farm_id"],
             owner_id=task_data["owner_id"],
             completed_at=task_data.get("completed_at"),
             created_at=task_data["created_at"],
             updated_at=task_data["updated_at"],
-            is_active=task_data["is_active"]
+            is_active=task_data.get("is_active", True)
         )
     
     @staticmethod
