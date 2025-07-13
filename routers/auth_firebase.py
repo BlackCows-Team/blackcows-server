@@ -9,109 +9,19 @@ from schemas.user import (
     FarmNicknameUpdate, LoginType, SocialLoginRequest, AuthType
 )
 from services.firebase_user_service import FirebaseUserService, ACCESS_TOKEN_EXPIRE_MINUTES
-from datetime import timedelta, datetime
+from services.email_service import EmailService  # 이메일 서비스 추가
+from datetime import timedelta, datetime, timezone
 from config.firebase_config import get_firestore_client
 from pydantic import BaseModel
 from typing import Optional
 import traceback
+
 
 router = APIRouter()
 security = HTTPBearer()
 
 # Firestore 클라이언트
 db = get_firestore_client()
-
-# (개발용)
-
-@router.post("/mock-social-login",
-            summary="개발용 모의 SNS 로그인",
-            description="실제 SNS 토큰 없이 테스트할 수 있는 모의 엔드포인트")
-async def mock_social_login(mock_request: dict):
-    """개발용 모의 SNS 로그인"""
-    try:
-        auth_type = mock_request.get("auth_type")
-        mock_user_info = mock_request.get("mock_user_info", {})
-        
-        # 모의 사용자 정보 생성
-        from schemas.user import SocialUserInfo, AuthType
-        social_info = SocialUserInfo(
-            social_id=mock_user_info.get("social_id", "mock_id_12345"),
-            email=mock_user_info.get("email", f"mock@{auth_type}.test"),
-            name=mock_user_info.get("name", f"{auth_type.capitalize()} 테스트 사용자"),
-            profile_image=None
-        )
-        
-        # 기존 사용자 확인
-        existing_user = FirebaseUserService._find_user_by_social_id(
-            social_info.social_id, 
-            AuthType(auth_type)
-        )
-        
-        current_time = datetime.utcnow()
-        
-        if existing_user:
-            # 기존 사용자 로그인
-            db.collection('users').document(existing_user["id"]).update({
-                "last_login": current_time,
-                "updated_at": current_time
-            })
-            existing_user["last_login"] = current_time
-            user_data = existing_user
-            is_new_user = False
-        else:
-            # 신규 사용자 생성
-            from services.social_auth_service import SocialAuthService
-            username = social_info.name
-            user_id = SocialAuthService.generate_unique_user_id(social_info, AuthType(auth_type))
-            farm_nickname = f"{username}의 목장 ({auth_type} 테스트)"
-            
-            user_data = FirebaseUserService.create_user(
-                username=username,
-                user_id=user_id,
-                email=social_info.email,
-                password=None,
-                farm_nickname=farm_nickname,
-                auth_type=AuthType(auth_type),
-                social_id=social_info.social_id
-            )
-            is_new_user = True
-        
-        # 토큰 생성
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = FirebaseUserService.create_access_token(
-            data={"sub": user_data["user_id"], "user_uuid": user_data["id"]},
-            expires_delta=access_token_expires
-        )
-        refresh_token = FirebaseUserService.create_refresh_token(user_data["id"])
-        
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-            "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            "user": {
-                "id": user_data["id"],
-                "username": user_data["username"],
-                "user_id": user_data["user_id"],
-                "email": user_data["email"],
-                "farm_nickname": user_data["farm_nickname"],
-                "farm_id": user_data["farm_id"],
-                "auth_type": user_data["auth_type"],
-                "created_at": user_data["created_at"].isoformat(),
-                "last_login": user_data["last_login"].isoformat(),
-                "is_active": user_data["is_active"]
-            },
-            "is_new_user": is_new_user,
-            "mock_mode": True
-        }
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"모의 로그인 처리 중 오류: {str(e)}"
-        )
-        
-        
 
 @router.post("/register", 
             response_model=dict,
@@ -128,6 +38,15 @@ async def register_user(user_data: UserCreate):
         farm_nickname=user_data.farm_nickname,  # 목장 별명
         auth_type=AuthType.EMAIL                # 명시적으로 이메일 인증 타입 설정
     )
+    
+    # 회원가입 축하 이메일 발송 (비동기로 처리, 실패해도 회원가입은 성공)
+    try:
+        EmailService.send_welcome_email(user)
+        print(f"[INFO] {user['username']}님께 환영 이메일 발송 완료")
+    except Exception as e:
+        print(f"[WARNING] 환영 이메일 발송 실패: {str(e)}")
+        # 이메일 발송 실패는 회원가입 성공에 영향주지 않음
+    
     
     return {
         "success": True,
@@ -165,6 +84,14 @@ async def social_login(login_request: SocialLoginRequest):
     try:
         # SNS 로그인 또는 회원가입 처리
         user_data, is_new_user = await FirebaseUserService.social_login_or_register(login_request)
+        
+        # 신규 사용자인 경우 환영 이메일 발송
+        if is_new_user:
+            try:
+                EmailService.send_welcome_email(user_data)
+                print(f"[INFO] SNS 신규 사용자 {user_data['username']}님께 환영 이메일 발송 완료")
+            except Exception as e:
+                print(f"[WARNING] SNS 환영 이메일 발송 실패: {str(e)}")
         
         # 액세스 토큰 생성
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -212,56 +139,103 @@ async def social_login(login_request: SocialLoginRequest):
 
 @router.post("/login", 
             response_model=TokenResponse,
-            summary="일반 로그인",
-            description="이메일 회원가입한 사용자의 아이디와 비밀번호로 로그인합니다. 액세스 토큰을 발급받습니다.")
+            summary="통합 로그인",
+            description="아이디와 비밀번호(또는 임시 비밀번호)로 로그인합니다. 일반 로그인 또는 임시 비밀번호 로그인 모두 지원합니다.")
 def login_user(user_data: UserLogin):
-    """일반 로그인 - user_id로 로그인"""
-    # 디버깅을 위한 로그 추가
+    """통합 로그인 - 일반/임시 비밀번호 모두 지원"""
     print(f"[DEBUG] 로그인 요청 데이터: {user_data.dict()}")
     print(f"[DEBUG] user_id: '{user_data.user_id}', password: '{user_data.password}'")
     print(f"[DEBUG] user_id 타입: {type(user_data.user_id)}, password 타입: {type(user_data.password)}")
-    
+
+    # 1. 일반 비밀번호 검증
     user = FirebaseUserService.authenticate_user(user_data.user_id, user_data.password)
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="잘못된 아이디 또는 비밀번호입니다",
-            headers={"WWW-Authenticate": "Bearer"},
+    if user:
+        # 일반 로그인 성공
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = FirebaseUserService.create_access_token(
+            data={"sub": user["user_id"], "user_uuid": user["id"]},
+            expires_delta=access_token_expires
         )
-    
-    # 액세스 토큰 생성 (user_id를 sub에 저장)
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = FirebaseUserService.create_access_token(
-        data={"sub": user["user_id"], "user_uuid": user["id"]},
-        expires_delta=access_token_expires
+        refresh_token = FirebaseUserService.create_refresh_token(user["id"])
+        user_response = UserResponse(
+            id=user["id"],
+            username=user["username"],
+            user_id=user["user_id"],
+            email=user["email"],
+            farm_nickname=user["farm_nickname"],
+            farm_id=user["farm_id"],
+            created_at=user["created_at"],
+            last_login=user["last_login"],
+            is_active=user["is_active"],
+            auth_type=AuthType(user.get("auth_type", "email")),
+            sns_provider=user.get("sns_provider"),
+            sns_user_id=user.get("sns_user_id")
+        )
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            user=user_response
+        )
+
+    # 2. 임시 비밀번호 검증
+    # user_id(별칭)로 UUID 조회 후, UUID로 임시 비밀번호 검증
+    user_for_temp = FirebaseUserService.get_user_by_user_id(user_data.user_id)
+    temp_id = None
+    if user_for_temp:
+        temp_id = EmailService.verify_temporary_password(user_for_temp["id"], user_data.password)
+    if temp_id:
+        # 임시 비밀번호 로그인 성공 - 사용자 정보 조회
+        user = user_for_temp
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="사용자를 찾을 수 없습니다",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        # 비밀번호 변경 전용 액세스 토큰 생성 (30분 유효)
+        access_token = FirebaseUserService.create_password_reset_access_token(user)
+        user_response = UserResponse(
+            id=user["id"],
+            username=user["username"],
+            user_id=user["user_id"],
+            email=user["email"],
+            farm_nickname=user["farm_nickname"],
+            farm_id=user["farm_id"],
+            created_at=user["created_at"],
+            last_login=user["last_login"],
+            is_active=user["is_active"],
+            auth_type=AuthType(user.get("auth_type", "email")),
+            sns_provider=user.get("sns_provider"),
+            sns_user_id=user.get("sns_user_id")
+        )
+        # 임시 비밀번호 로그인 응답(비밀번호 변경 안내)
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=None,
+            token_type="bearer",
+            expires_in=30 * 60,  # 30분
+            user=user_response,
+            temp_login=True,
+            notice="임시 비밀번호로 로그인되었습니다. 반드시 새 비밀번호로 변경해주세요."
+        )
+
+    # 3. 모두 실패
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="잘못된 아이디 또는 비밀번호입니다",
+        headers={"WWW-Authenticate": "Bearer"},
     )
-    
-    # 리프레시 토큰 생성
-    refresh_token = FirebaseUserService.create_refresh_token(user["id"])
-    
-    # 사용자 정보 (비밀번호 제외)
-    user_response = UserResponse(
-        id=user["id"],
-        username=user["username"],              # 사용자 이름/실명
-        user_id=user["user_id"],                # 로그인용 아이디
-        email=user["email"],                    # 이메일
-        farm_nickname=user["farm_nickname"],    # 목장 별명
-        farm_id=user["farm_id"],                # 농장 ID
-        created_at=user["created_at"],          # 가입일
-        last_login=user["last_login"],          # 최근 로그인 시간
-        is_active=user["is_active"],            # 활성 상태
-        auth_type=AuthType(user.get("auth_type", "email")),  # 기본값 email
-        sns_provider=user.get("sns_provider"),   # SNS 제공자
-        sns_user_id=user.get("sns_user_id")      # SNS 사용자 ID
-    )
-    
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        token_type="bearer",
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        user=user_response
+
+# 기존 임시 비밀번호 로그인 엔드포인트는 deprecated 안내만 남김
+@router.post("/login-with-temporary-password",
+            summary="[DEPRECATED] 임시 비밀번호 로그인",
+            description="더 이상 사용하지 마세요. /login 엔드포인트를 사용하세요.")
+def login_with_temporary_password(request: UserLogin):
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="이 API는 더 이상 지원하지 않습니다. /login 엔드포인트를 사용하세요."
     )
 
 @router.post("/refresh",
@@ -336,9 +310,9 @@ async def unlink_social_account(
 
 @router.post("/find-user-id",
             summary="아이디 찾기",
-            description="사용자 이름과 이메일을 통해 아이디를 찾습니다. (이메일 계정만 가능)")
+            description="사용자 이름과 이메일을 통해 아이디를 찾고 이메일로 발송합니다.")
 def find_user_id_by_name_and_email(request: FindUserIdRequest):
-    """이름과 이메일로 아이디 찾기 - 이메일 계정만"""
+    """이름과 이메일로 아이디 찾기 - 이메일로 발송"""
     try:
         user = FirebaseUserService.find_user_id_by_name_and_email(request.username, request.email)
         
@@ -360,13 +334,22 @@ def find_user_id_by_name_and_email(request: FindUserIdRequest):
                 detail=f"해당 이메일은 {platform_name} 로그인으로 가입된 계정입니다. {platform_name} 로그인을 이용해주세요."
             )
         
+        # 아이디 찾기 이메일 발송
+        try:
+            EmailService.send_user_id_email(user)
+            print(f"[INFO] {user['username']}님께 아이디 찾기 이메일 발송 완료")
+        except Exception as e:
+            print(f"[ERROR] 아이디 찾기 이메일 발송 실패: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="아이디 찾기 이메일 발송에 실패했습니다"
+            )
+        
         return {
             "success": True,
-            "message": "아이디를 찾았습니다",
-            "username": user["username"],               # 사용자 이름/실명
-            "user_id": user["user_id"],                 # 로그인용 아이디
-            "email": request.email,                     # 입력한 이메일
-            "farm_nickname": user.get("farm_nickname", "") # 목장 별명
+            "message": f"{user['username']}님의 아이디를 이메일로 발송했습니다",
+            "email": request.email,
+            "username": user["username"]
         }
             
     except Exception as e:
@@ -379,9 +362,9 @@ def find_user_id_by_name_and_email(request: FindUserIdRequest):
 
 @router.post("/request-password-reset",
             summary="비밀번호 재설정 요청",
-            description="이름, 아이디, 이메일 확인 후 비밀번호 재설정 토큰을 발급합니다. (이메일 계정만 가능)")
+            description="이름, 아이디, 이메일 확인 후 임시 비밀번호를 이메일로 발송합니다.")
 async def request_password_reset(request: PasswordResetRequest):
-    """비밀번호 재설정 요청 - 이메일 계정만"""
+    """비밀번호 재설정 요청 - 임시 비밀번호 이메일 발송"""
     try:
         user = FirebaseUserService.verify_user_for_password_reset(
             request.username, 
@@ -407,17 +390,41 @@ async def request_password_reset(request: PasswordResetRequest):
                 detail=f"해당 계정은 {platform_name} 로그인으로 가입된 계정입니다. 비밀번호 재설정이 불가능합니다."
             )
         
-        # JWT 기반 비밀번호 재설정 토큰 생성
-        reset_token = FirebaseUserService.create_password_reset_token(user)
+        # 임시 비밀번호 생성
+        temp_password = EmailService._generate_temporary_password()
+        expire_minutes = 60  # 1시간
+        
+        # 임시 비밀번호를 Firestore에 저장
+        temp_id = EmailService.store_temporary_password(
+            user["id"], 
+            temp_password, 
+            expire_minutes
+        )
+        
+        # 만료 시간 계산 (KST로 변환)
+        kst = timezone(timedelta(hours=9))
+        expire_time = datetime.now(kst) + timedelta(minutes=expire_minutes)
+        
+        # 임시 비밀번호 이메일 발송
+        try:
+            EmailService.send_temporary_password_email(user, temp_password, expire_time)
+            print(f"[INFO] {user['username']}님께 임시 비밀번호 이메일 발송 완료")
+        except Exception as e:
+            print(f"[ERROR] 임시 비밀번호 이메일 발송 실패: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="임시 비밀번호 이메일 발송에 실패했습니다"
+            )
         
         return {
             "success": True,
-            "message": f"{user['username']}님의 비밀번호 재설정 요청이 완료되었습니다",
+            "message": f"{user['username']}님의 임시 비밀번호를 이메일로 발송했습니다",
             "username": user["username"],
             "user_id": request.user_id,
             "email": request.email,
-            "reset_token": reset_token,
-            "expires_in": "1시간"
+            "temp_id": temp_id,
+            "expires_in": f"{expire_minutes}분",
+            "notice": "임시 비밀번호로 로그인 후 반드시 새 비밀번호로 변경해주세요"
         }
             
     except Exception as e:
@@ -427,254 +434,34 @@ async def request_password_reset(request: PasswordResetRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"비밀번호 재설정 요청 중 오류가 발생했습니다: {str(e)}"
         )
-        
-@router.post("/verify-reset-token",
-            summary="재설정 토큰 확인",
-            description="비밀번호 재설정 토큰의 유효성을 확인합니다.")
-def verify_reset_token(request: dict):
-    """비밀번호 재설정 토큰 확인 (간단 버전)"""
-    token = request.get("token")
-    
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="재설정 토큰을 입력해주세요"
-        )
-    
-    try:
-        # JWT 토큰 디코딩으로 기본 검증 (만료 시간 포함)
-        from jose import jwt, JWTError
-        from services.firebase_user_service import SECRET_KEY, ALGORITHM
-        
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            token_type = payload.get("type")
-            user_id = payload.get("sub")
-            user_uuid = payload.get("user_uuid")
-            
-            if token_type != "password_reset":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="유효하지 않은 재설정 토큰입니다"
-                )
-            
-            # 사용자 존재 확인
-            user = FirebaseUserService.get_user_by_id(user_uuid)
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="유효하지 않은 사용자입니다"
-                )
-            
-            return {
-                "valid": True,
-                "message": "유효한 토큰입니다",
-                "username": user["username"],
-                "user_id": user["user_id"]
-            }
-            
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="재설정 토큰이 만료되었습니다"
-            )
-        except JWTError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="유효하지 않은 재설정 토큰입니다"
-            )
-        
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="토큰 확인 중 오류가 발생했습니다"
-        )
-
-@router.post("/reset-password",
-            summary="비밀번호 재설정",
-            description="재설정 토큰을 사용하여 새로운 비밀번호로 변경합니다.")
-def reset_password(request: PasswordResetConfirm):
-    """비밀번호 재설정 (간단 버전)"""
-    try:
-        # JWT 토큰 검증으로 사용자 정보 가져오기
-        from jose import jwt, JWTError
-        from services.firebase_user_service import SECRET_KEY, ALGORITHM
-        
-        try:
-            payload = jwt.decode(request.token, SECRET_KEY, algorithms=[ALGORITHM])
-            token_type = payload.get("type")
-            user_id = payload.get("sub")
-            user_uuid = payload.get("user_uuid")
-            
-            if token_type != "password_reset":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="유효하지 않은 재설정 토큰입니다"
-                )
-            
-            # 사용자 존재 확인
-            user = FirebaseUserService.get_user_by_id(user_uuid)
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="사용자를 찾을 수 없습니다"
-                )
-            
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="재설정 토큰이 만료되었습니다"
-            )
-        except JWTError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="유효하지 않은 재설정 토큰입니다"
-            )
-        
-        # 비밀번호 변경 (Firebase DB 업데이트)
-        from config.firebase_config import get_firestore_client
-        from datetime import datetime
-        db = get_firestore_client()
-        
-        # 새 비밀번호 해시화
-        hashed_password = FirebaseUserService.get_password_hash(request.new_password)
-        
-        # Firebase DB에서 사용자 비밀번호 업데이트
-        db.collection('users').document(user_uuid).update({
-            "hashed_password": hashed_password,
-            "updated_at": datetime.utcnow(),
-            "password_changed_at": datetime.utcnow()
-        })
-        
-        return {
-            "success": True,
-            "message": f"{user['username']}님의 비밀번호가 성공적으로 변경되었습니다",
-            "username": user["username"],               # 사용자 이름/실명
-            "user_id": user["user_id"]                  # 로그인용 아이디
-        }
-            
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"비밀번호 재설정 중 오류가 발생했습니다: {str(e)}"
-        )
-
-# 다른 라우터에서 사용할 인증 의존성
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """인증된 사용자 정보 반환"""
-    token = credentials.credentials
-    return FirebaseUserService.verify_access_token(token)
-
-# 추가: 디버그용 로그인 엔드포인트
-@router.post("/login-debug",
-            summary="로그인 디버그",
-            description="로그인 요청 데이터를 디버깅하기 위한 엔드포인트입니다.")
-async def login_debug(request: Request):
-    """로그인 디버깅용 엔드포인트 - 원시 데이터 확인"""
-    try:
-        # 원시 바이트 데이터 읽기
-        body = await request.body()
-        print(f"[DEBUG] 원시 요청 바디: {body}")
-        
-        # JSON 파싱 시도
-        import json
-        try:
-            json_data = json.loads(body)
-            print(f"[DEBUG] 파싱된 JSON: {json_data}")
-            print(f"[DEBUG] JSON 키들: {list(json_data.keys()) if isinstance(json_data, dict) else 'dict가 아님'}")
-            
-            # UserLogin 스키마 검증 시도
-            try:
-                user_login = UserLogin(**json_data)
-                print(f"[DEBUG] UserLogin 스키마 검증 성공: {user_login.dict()}")
-                return {"status": "success", "message": "로그인 데이터 검증 성공", "data": user_login.dict()}
-            except Exception as schema_error:
-                print(f"[DEBUG] UserLogin 스키마 검증 실패: {schema_error}")
-                return {"status": "schema_error", "error": str(schema_error), "data": json_data}
-                
-        except json.JSONDecodeError as json_error:
-            print(f"[DEBUG] JSON 파싱 실패: {json_error}")
-            return {"status": "json_error", "error": str(json_error), "raw_body": body.decode('utf-8', errors='ignore')}
-            
-    except Exception as e:
-        print(f"[DEBUG] 전체 요청 처리 실패: {e}")
-        return {"status": "error", "error": str(e)}
-
-# ============= 임시 토큰 로그인 API =============
-
-@router.post("/login-with-reset-token",
-            summary="임시 토큰 로그인",
-            description="비밀번호 재설정 토큰을 사용하여 임시 로그인하고 비밀번호 변경 권한을 가진 액세스 토큰을 발급받습니다.")
-def login_with_reset_token(request: TemporaryTokenLogin):
-    """임시 토큰으로 로그인하여 비밀번호 변경 권한을 가진 특별한 액세스 토큰 발급"""
-    try:
-        # JWT 기반 임시 토큰과 사용자 ID 검증
-        user = FirebaseUserService.verify_password_reset_token(
-            request.user_id, 
-            request.reset_token
-        )
-        
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="유효하지 않은 아이디 또는 재설정 토큰입니다",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        # 비밀번호 재설정 전용 액세스 토큰 생성 (30분 유효, 비밀번호 변경 권한만)
-        access_token = FirebaseUserService.create_password_reset_access_token(user)
-        
-        # 사용자 정보 (비밀번호 제외)
-        user_response = UserResponse(
-            id=user["id"],
-            username=user["username"],              # 사용자 이름/실명
-            user_id=user["user_id"],                # 로그인용 아이디
-            email=user["email"],                    # 이메일
-            farm_nickname=user["farm_nickname"],    # 목장 별명
-            farm_id=user["farm_id"],                # 농장 ID
-            created_at=user["created_at"],          # 가입일
-            last_login=user["last_login"],          # 최근 로그인 시간
-            is_active=user["is_active"],             # 활성 상태
-            login_type=LoginType(user.get("auth_type", "email")),  # auth_type을 login_type으로 변환
-            sns_provider=user.get("sns_provider"),   # SNS 제공자
-            sns_user_id=user.get("sns_user_id")      # SNS 사용자 ID
-        )
-        
-        return {
-            "success": True,
-            "message": "임시 토큰으로 로그인되었습니다. 비밀번호를 변경해주세요.",
-            "access_token": access_token,
-            "token_type": "bearer",
-            "expires_in": 30 * 60,  # 30분
-            "permissions": ["change_password"],
-            "user": user_response
-        }
-            
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"임시 토큰 로그인 중 오류가 발생했습니다: {str(e)}"
-        )
 
 @router.post("/change-password",
             summary="비밀번호 변경",
-            description="비밀번호 재설정 토큰으로 로그인한 사용자의 비밀번호를 변경합니다.")
+            description="임시 비밀번호로 로그인한 사용자 또는 일반 로그인한 사용자의 비밀번호를 변경합니다.")
 def change_password(
     request: ChangePasswordRequest,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
-    """비밀번호 변경 (비밀번호 재설정 토큰으로 로그인한 사용자만 가능)"""
+    """비밀번호 변경"""
     try:
         token = credentials.credentials
         
-        # 비밀번호 재설정 전용 토큰 검증
-        user = FirebaseUserService.verify_password_reset_access_token(token)
+        # 토큰 타입 확인 (일반 토큰 또는 비밀번호 재설정 토큰)
+        try:
+            # 비밀번호 재설정 전용 토큰인지 확인
+            user = FirebaseUserService.verify_password_reset_access_token(token)
+            is_temp_login = True
+        except:
+            try:
+                # 일반 액세스 토큰인지 확인
+                user = FirebaseUserService.verify_access_token(token)
+                is_temp_login = False
+            except:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="유효하지 않은 토큰입니다",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
         
         # 비밀번호 변경
         from config.firebase_config import get_firestore_client
@@ -691,24 +478,25 @@ def change_password(
             "password_changed_at": datetime.utcnow()
         })
         
-        # 기존 리프레시 토큰들 모두 무효화 (보안 강화)
-        refresh_tokens_ref = db.collection('refresh_tokens').where('user_id', '==', user["id"])
-        refresh_tokens = refresh_tokens_ref.get()
-        
-        for token_doc in refresh_tokens:
-            db.collection('refresh_tokens').document(token_doc.id).update({
-                "is_active": False,
-                "deactivated_at": datetime.utcnow(),
-                "deactivated_reason": "password_changed"
-            })
+        # 임시 로그인인 경우 모든 리프레시 토큰 무효화 (보안 강화)
+        if is_temp_login:
+            refresh_tokens_ref = db.collection('refresh_tokens').where('user_id', '==', user["id"])
+            refresh_tokens = refresh_tokens_ref.get()
+            
+            for token_doc in refresh_tokens:
+                db.collection('refresh_tokens').document(token_doc.id).update({
+                    "is_active": False,
+                    "deactivated_at": datetime.utcnow(),
+                    "deactivated_reason": "password_changed"
+                })
         
         return {
             "success": True,
             "message": f"{user['username']}님의 비밀번호가 성공적으로 변경되었습니다",
-            "username": user["username"],               # 사용자 이름/실명
-            "user_id": user["user_id"],                 # 로그인용 아이디
+            "username": user["username"],
+            "user_id": user["user_id"],
             "password_changed_at": datetime.utcnow().isoformat(),
-            "notice": "보안을 위해 모든 기기에서 로그아웃되었습니다. 새 비밀번호로 다시 로그인해주세요."
+            "notice": "비밀번호 변경이 완료되었습니다. 새 비밀번호로 다시 로그인해주세요." if is_temp_login else "비밀번호 변경이 완료되었습니다."
         }
             
     except Exception as e:
@@ -762,16 +550,14 @@ def update_farm_name(
         # 사용자 정보 응답 (비밀번호 제외)
         user_response = UserResponse(
             id=updated_user_data["id"],
-            username=updated_user_data["username"],              # 사용자 이름/실명
-            user_id=updated_user_data["user_id"],                # 로그인용 아이디
-            email=updated_user_data["email"],                    # 이메일
-            farm_nickname=updated_user_data["farm_nickname"],    # 수정된 목장 별명
-            farm_id=updated_user_data["farm_id"],                # 농장 ID
-            created_at=updated_user_data["created_at"],          # 가입일
-            is_active=updated_user_data["is_active"],             # 활성 상태
-            login_type=LoginType(updated_user_data.get("auth_type", "email")),  # auth_type을 login_type으로 변환
-            sns_provider=updated_user_data.get("sns_provider"),   # SNS 제공자
-            sns_user_id=updated_user_data.get("sns_user_id")      # SNS 사용자 ID
+            username=updated_user_data["username"],
+            user_id=updated_user_data["user_id"],
+            email=updated_user_data["email"],
+            farm_nickname=updated_user_data["farm_nickname"],
+            farm_id=updated_user_data["farm_id"],
+            created_at=updated_user_data["created_at"],
+            is_active=updated_user_data["is_active"],
+            auth_type=AuthType(updated_user_data.get("auth_type", "email"))
         )
         
         return {
@@ -820,3 +606,32 @@ def delete_account(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"회원탈퇴 처리 중 오류가 발생했습니다: {str(e)}"
         )
+
+# ============= 관리자용 API =============
+
+@router.post("/admin/cleanup-temporary-passwords",
+            summary="만료된 임시 비밀번호 정리",
+            description="만료된 임시 비밀번호를 정리합니다. (관리자용)")
+def cleanup_temporary_passwords():
+    """만료된 임시 비밀번호 정리 (관리자용)"""
+    try:
+        deleted_count = EmailService.cleanup_expired_temporary_passwords()
+        
+        return {
+            "success": True,
+            "message": f"만료된 임시 비밀번호 {deleted_count}개가 정리되었습니다",
+            "deleted_count": deleted_count,
+            "cleanup_time": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"임시 비밀번호 정리 중 오류가 발생했습니다: {str(e)}"
+        )
+
+# 다른 라우터에서 사용할 인증 의존성
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """인증된 사용자 정보 반환"""
+    token = credentials.credentials
+    return FirebaseUserService.verify_access_token(token)

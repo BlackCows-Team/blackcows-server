@@ -11,7 +11,7 @@ def initialize_firebase():
     
     # 방법 1: JSON 파일 경로를 사용하는 경우
     # json_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-    json_path = "config/firebase-service-account.json"
+    json_path = "config/blackcows-b20c8-firebase-adminsdk-fbsvc-b48732efcd.json"
     
     if json_path and os.path.exists(json_path):
         if not firebase_admin._apps:

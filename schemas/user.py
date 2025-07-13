@@ -167,7 +167,7 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     """로그인 성공시 토큰 응답 스키마"""
     access_token: str = Field(..., description="액세스 토큰")
-    refresh_token: str = Field(..., description="리프레시 토큰")
+    refresh_token: Optional[str] = Field(None, description="리프레시 토큰")
     token_type: str = Field(default="bearer", description="토큰 타입")
     expires_in: int = Field(..., description="토큰 만료 시간(초)")
     user: UserResponse = Field(..., description="사용자 정보")
@@ -399,20 +399,6 @@ class ErrorResponse(BaseModel):
     error_code: Optional[str] = Field(None, description="오류 코드")
     details: Optional[dict] = Field(None, description="오류 상세 정보")
 
-# ===== 개발/테스트용 스키마 =====
-
-class MockSocialLoginRequest(BaseModel):
-    """개발용 모의 SNS 로그인 스키마"""
-    auth_type: AuthType = Field(..., description="인증 타입")
-    mock_user_info: dict = Field(..., description="모의 사용자 정보")
-    farm_nickname: Optional[str] = Field(None, description="목장 별명")
-    
-    @validator('auth_type')
-    def validate_auth_type(cls, v):
-        if v == AuthType.EMAIL:
-            raise ValueError('이메일 인증은 모의 로그인에서 지원하지 않습니다')
-        return v
-
 # ===== SNS 회원탈퇴 관련 스키마 =====
 
 class SNSDeleteAccountRequest(BaseModel):
@@ -425,3 +411,150 @@ class SNSDeleteAccountRequest(BaseModel):
         if not v or len(v.strip()) == 0:
             raise ValueError('SNS 토큰은 필수입니다')
         return v.strip()
+    
+    # ===== 임시 비밀번호 관련 스키마 =====
+
+class TemporaryPasswordRequest(BaseModel):
+    """임시 비밀번호 요청 스키마 (기존 PasswordResetRequest와 동일하지만 명확성을 위해 별도 정의)"""
+    username: str = Field(..., description="사용자 이름/실명")
+    user_id: str = Field(..., description="로그인용 아이디")
+    email: str = Field(..., description="이메일 주소")
+    
+    @validator('username')
+    def username_validation(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('이름을 입력해주세요')
+        return v.strip()
+    
+    @validator('user_id')
+    def user_id_validation(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('아이디를 입력해주세요')
+        return v.strip()
+
+class TemporaryPasswordResponse(BaseModel):
+    """임시 비밀번호 발급 응답 스키마"""
+    success: bool = Field(True, description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    username: str = Field(..., description="사용자 이름")
+    user_id: str = Field(..., description="로그인용 아이디")
+    email: str = Field(..., description="이메일 주소")
+    temp_id: str = Field(..., description="임시 비밀번호 ID")
+    expires_in: str = Field(..., description="만료 시간 (예: '60분')")
+    notice: str = Field(..., description="주의사항")
+
+class TemporaryPasswordLogin(BaseModel):
+    """임시 비밀번호 로그인 스키마 (기존 UserLogin과 동일)"""
+    user_id: str = Field(..., description="로그인용 아이디")
+    password: str = Field(..., description="임시 비밀번호 또는 일반 비밀번호")
+    
+    @validator('user_id')
+    def user_id_validation(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('아이디를 입력해주세요')
+        return v.strip()
+    
+    @validator('password')
+    def password_validation(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('비밀번호를 입력해주세요')
+        return v
+
+class TemporaryPasswordLoginResponse(BaseModel):
+    """임시 비밀번호 로그인 응답 스키마"""
+    success: bool = Field(True, description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    access_token: str = Field(..., description="액세스 토큰")
+    token_type: str = Field(default="bearer", description="토큰 타입")
+    expires_in: int = Field(..., description="토큰 만료 시간(초)")
+    permissions: list = Field(..., description="허용된 권한 목록")
+    user: dict = Field(..., description="사용자 정보")
+    temp_login: bool = Field(True, description="임시 로그인 여부")
+    notice: str = Field(..., description="주의사항")
+
+# ===== 이메일 발송 관련 스키마 =====
+
+class EmailSendRequest(BaseModel):
+    """이메일 발송 요청 스키마 (관리자용)"""
+    email_type: str = Field(..., description="이메일 타입 (welcome, find_id, temp_password)")
+    recipient_email: str = Field(..., description="수신자 이메일")
+    user_data: dict = Field(..., description="사용자 데이터")
+    
+    @validator('email_type')
+    def validate_email_type(cls, v):
+        allowed_types = ['welcome', 'find_id', 'temp_password']
+        if v not in allowed_types:
+            raise ValueError(f'이메일 타입은 {allowed_types} 중 하나여야 합니다')
+        return v
+
+class EmailSendResponse(BaseModel):
+    """이메일 발송 응답 스키마"""
+    success: bool = Field(..., description="발송 성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    email_type: str = Field(..., description="발송된 이메일 타입")
+    recipient: str = Field(..., description="수신자 이메일")
+    sent_at: datetime = Field(..., description="발송 시간")
+
+# ===== 이메일 통계 스키마 =====
+
+class EmailStatistics(BaseModel):
+    """이메일 발송 통계 스키마"""
+    total_sent: int = Field(..., description="총 발송 수")
+    welcome_emails: int = Field(..., description="환영 이메일 수")
+    find_id_emails: int = Field(..., description="아이디 찾기 이메일 수")
+    temp_password_emails: int = Field(..., description="임시 비밀번호 이메일 수")
+    success_rate: float = Field(..., description="발송 성공률 (%)")
+    today_sent: int = Field(..., description="오늘 발송 수")
+    this_month_sent: int = Field(..., description="이번 달 발송 수")
+
+# ===== 임시 비밀번호 관리 스키마 =====
+
+class TemporaryPasswordStatus(BaseModel):
+    """임시 비밀번호 상태 조회 스키마"""
+    temp_id: str = Field(..., description="임시 비밀번호 ID")
+    user_id: str = Field(..., description="사용자 ID")
+    created_at: datetime = Field(..., description="생성 시간")
+    expires_at: datetime = Field(..., description="만료 시간")
+    is_used: bool = Field(..., description="사용 여부")
+    is_active: bool = Field(..., description="활성 상태")
+    used_at: Optional[datetime] = Field(None, description="사용 시간")
+
+class TemporaryPasswordCleanupResponse(BaseModel):
+    """임시 비밀번호 정리 응답 스키마"""
+    success: bool = Field(True, description="성공 여부")
+    message: str = Field(..., description="응답 메시지")
+    deleted_count: int = Field(..., description="삭제된 임시 비밀번호 수")
+    cleanup_time: str = Field(..., description="정리 시간")
+
+# ===== 유효성 검사 유틸리티 =====
+
+class EmailValidationResponse(BaseModel):
+    """이메일 유효성 검사 응답 스키마"""
+    is_valid: bool = Field(..., description="이메일 주소 유효성")
+    email: str = Field(..., description="검사한 이메일 주소")
+    reason: Optional[str] = Field(None, description="유효하지 않은 경우 사유")
+
+# ===== 보안 관련 스키마 =====
+
+class SecurityAlert(BaseModel):
+    """보안 알림 스키마"""
+    alert_type: str = Field(..., description="알림 타입 (password_reset, login_attempt, etc.)")
+    user_id: str = Field(..., description="대상 사용자 ID")
+    ip_address: Optional[str] = Field(None, description="요청 IP 주소")
+    user_agent: Optional[str] = Field(None, description="사용자 에이전트")
+    timestamp: datetime = Field(..., description="발생 시간")
+    details: Optional[dict] = Field(None, description="추가 세부사항")
+
+# ===== 이메일 로그 스키마 =====
+
+class EmailLog(BaseModel):
+    """이메일 발송 로그 스키마"""
+    email_type: str = Field(..., description="이메일 타입")
+    recipient: str = Field(..., description="수신자")
+    sender: str = Field(default="noreply@blackcowsdairy.com", description="발신자")
+    subject: str = Field(..., description="이메일 제목")
+    success: bool = Field(..., description="발송 성공 여부")
+    error_message: Optional[str] = Field(None, description="오류 메시지 (실패시)")
+    sent_at: datetime = Field(..., description="발송 시간")
+    user_id: Optional[str] = Field(None, description="관련 사용자 ID")
+    farm_id: Optional[str] = Field(None, description="관련 농장 ID")
