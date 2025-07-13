@@ -75,49 +75,8 @@ class AIPredictionService:
         return features
     
     @classmethod
-    def _calculate_confidence(cls, model, scaled_features: np.ndarray) -> float:
-        """AI 확신도 계산 - 트리들의 예측 일치도 측정"""
-        try:
-            # RandomForest의 각 트리 예측값들로 확신도 측정
-            if hasattr(model, 'estimators_'):
-                tree_predictions = []
-                for tree in model.estimators_:
-                    tree_pred = tree.predict(scaled_features)[0]
-                    tree_predictions.append(tree_pred)
-                
-                # 예측값들의 표준편차 계산
-                std_dev = np.std(tree_predictions)
-                mean_pred = np.mean(tree_predictions)
-                
-                # 변동계수 계산 (표준편차/평균)
-                if mean_pred > 0:
-                    coefficient_of_variation = std_dev / mean_pred
-                else:
-                    coefficient_of_variation = std_dev / 1.0
-                
-                # 변동계수를 확신도로 변환
-                if coefficient_of_variation < 0.05:
-                    confidence = 0.95
-                elif coefficient_of_variation < 0.10:
-                    confidence = 0.85
-                elif coefficient_of_variation < 0.15:
-                    confidence = 0.75
-                elif coefficient_of_variation < 0.20:
-                    confidence = 0.65
-                else:
-                    confidence = 0.55
-                
-                return confidence
-            else:
-                return 0.80
-                
-        except Exception as e:
-            logger.warning(f"확신도 계산 실패: {e}")
-            return None
-    
-    @classmethod
     async def predict_milk_yield(cls, request, current_user: Dict) -> Dict[str, Any]:
-        """착유량 예측"""
+        """착유량 예측 (확신도 제거)"""
         start_time = time.time()
         
         try:
@@ -131,18 +90,14 @@ class AIPredictionService:
             scaled_features = scaler.transform(features)
             prediction = model.predict(scaled_features)[0]
             
-            # 확신도 계산
-            confidence_score = cls._calculate_confidence(model, scaled_features)
-            
             # 처리 시간
             processing_time = (time.time() - start_time) * 1000
             
-            # 응답 생성
+            # 응답 생성 (확신도 제거)
             response = {
                 "prediction_id": str(uuid.uuid4()),
                 "cow_id": getattr(request, 'cow_id', None),
                 "predicted_milk_yield": round(float(prediction), 2),
-                "ai_confidence": round(confidence_score * 100),  # 85% 형태
                 "ai_accuracy": 82,  # 고정값 (R² 기준)
                 "input_features": {
                     "착유횟수": request.milking_frequency,
@@ -159,7 +114,7 @@ class AIPredictionService:
                 "processing_time_ms": round(processing_time, 2)
             }
             
-            logger.info(f"예측 완료: {prediction:.2f}L (확신도: {confidence_score*100:.0f}%)")
+            logger.info(f"예측 완료: {prediction:.2f}L ({processing_time:.1f}ms)")
             return response
             
         except Exception as e:
@@ -300,7 +255,6 @@ class AIPredictionService:
                     "착유기측정요일": 1
                 },
                 "predicted_milk_yield": result["predicted_milk_yield"],
-                "ai_confidence": result["ai_confidence"],
                 "ai_accuracy": result["ai_accuracy"],
                 "processing_time_ms": result["processing_time_ms"],
                 "test_timestamp": datetime.utcnow().isoformat()
@@ -315,7 +269,7 @@ class AIPredictionService:
 
 # 애플리케이션 시작시 모델 로드
 def initialize_models():
-    """앱 시작시 모델 초기화"""
+    """서버 시작시 모델 초기화"""
     try:
         AIPredictionService._load_models()
         logger.info("🎉 AI 서비스 초기화 완료")

@@ -14,7 +14,7 @@ router = APIRouter(tags=["AI 예측"])
 @router.post("/milk-yield/predict",
              summary="착유량 예측",
              description="""
-             젖소의 정보를 바탕으로 착유량을 예측합니다.
+             젖소의 8개 특성(feature)을 바탕으로 착유량을 예측합니다.
              
              **필요한 입력:**
              - 착유횟수, 전도율, 온도, 유지방비율, 유단백비율
@@ -22,8 +22,6 @@ router = APIRouter(tags=["AI 예측"])
              
              **결과:**
              - 예상 착유량 (리터)
-             - 신뢰도 점수
-             - 간단한 권장사항
              """)
 async def predict_milk_yield(
     prediction_request: MilkYieldPredictionRequest,
