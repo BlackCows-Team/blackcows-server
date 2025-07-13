@@ -2,6 +2,7 @@ import os
 import warnings
 import time
 from collections import defaultdict
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from routers import chatbot_router, cow, record, detailed_record, livestock_trace, sns_auth, task, notification, ai_prediction, auth_firebase
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,12 +44,33 @@ if not os.getenv("LIVESTOCK_TRACE_API_DECODING_KEY"):
     print("[WARNING] LIVESTOCK_TRACE_API_DECODING_KEY 환경변수가 설정되지 않았습니다.")
     print("축산물이력제 연동 기능이 제한될 수 있습니다.")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("🚀 서버 시작 중...")
+    
+    try:
+        from services.ai_prediction_service import initialize_models
+        if initialize_models():
+            logger.info("✅ AI 모델 로드 완료")
+        else:
+            logger.error("❌ AI 모델 로드 실패")
+    except Exception as e:
+        logger.error(f"❌ AI 모델 초기화 오류: {e}")
+    
+    setup_scheduler()
+    logger.info("✅ 서버 초기화 완료")
+    
+    yield
+    
+    logger.info("🛑 서버 종료 중...")
+
 
 
 app = FastAPI(
     title="낙농 관리 서버 API",
-    version="2.9.0",
+    version="3.0.0",
     description="낙농 관리 시스템",
+    lifespan=lifespan
 )
 
 # CORS 설정 (Flutter 연결을 위해)
@@ -77,7 +99,7 @@ async def security_middleware(request: Request, call_next):
             status_code=403,
             content={
                 "detail": "Access denied",
-                "message": "현재 귀하의 IP는 과도한 요청으로 인해 일시적으로 제한되었습니다. 서비스 정상 이용을 원하신다면 잠시 후 다시 시도하거나 support@blackcowsdairy.com 으로 문의 주세요."
+                "message": "현재 귀하의 IP는 과도한 요청으로 인해 일시적으로 제한되었습니다. 서비스 정상 이용을 원하신다면 잠시 후 다시 시도하거나 고객센터로 문의 주세요."
             }
         )
     
@@ -103,13 +125,12 @@ async def security_middleware(request: Request, call_next):
         '.env', 'phpinfo', 'config', 'admin', 'wp-', 
         'laravel', 'debug', 'info.php', 'test', 'backup',
         'sql', 'database', 'mysql', 'phpmyadmin', 'cpanel',
-        'wp-admin', 'wp-content', 'wp-includes', 'wordpress'
+        'wp-admin', 'wp-content', 'wp-includes', 'wordpress',
+        'shell', 'cmd', 'exec', 'eval', 'system'
     ]
-    
     if any(pattern in path for pattern in suspicious_patterns):
-        logger.warning(f"🚨 Suspicious request from {client_ip}: {path}")
-        request_counts[client_ip].append(current_time)  # 추가 카운트
-        request_counts[client_ip].append(current_time)  # 더 강한 제재
+        logger.warning(f"🚨 의심스러운 요청 감지: {client_ip}: {path}")
+        request_counts[client_ip].extend([current_time] * 3)
     
     # 로그 기록 (fail2ban용)
     logger.info(f'{client_ip} - "{request.method} {path} HTTP/{request.scope.get("http_version", "1.1")}" {200 if client_ip not in BLOCKED_IPS else 403}')
@@ -144,7 +165,7 @@ async def handle_mobile_cors(request: Request, call_next):
     # Flutter 모바일 앱에 대한 CORS 헤더 처리
     if is_flutter_app:
         response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Methods"] = "*"
         response.headers["Access-Control-Allow-Headers"] = "*"
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Access-Control-Max-Age"] = "86400"  # 24시간 캐시
@@ -154,12 +175,8 @@ async def handle_mobile_cors(request: Request, call_next):
     
     return response
 
-# # cow 라우터 연결
-# app.include_router(cow.router, prefix="/cows", tags=["Cows"])
-
 # 라우터 연결
 app.include_router(auth_firebase.router, prefix="/auth", tags=["인증"])
-
 app.include_router(sns_auth.router, prefix="/sns", tags=["SNS 로그인"])
 app.include_router(cow.router, prefix="/cows", tags=["소 관리"])
 app.include_router(record.router, prefix="/basic-records", tags=["기본 기록 관리"])
@@ -177,37 +194,37 @@ def health_check():
     return {
         "status": "success",
         "message": "낙농 관리 서버가 정상 작동 중입니다!!!",
-        "version": "2.9.0",
+        "version": "3.0.0",
     }
 @app.get("/health")
 def health_status():
-    return {"status": "healthy", "version": "2.9.0"}
+    return {"status": "healthy", "version": "3.0.0"}
 
 # 환경변수 확인 함수들
 
-# 토큰 관리 API 엔드포인트들
-@app.get("/admin/token-stats", summary="토큰 통계 조회")
-def get_token_statistics():
-    """리프레시 토큰 통계 조회 (관리자용)"""
-    from services.firebase_user_service import FirebaseUserService
-    return FirebaseUserService.get_token_statistics()
+# # 토큰 관리 API 엔드포인트들
+# @app.get("/admin/token-stats", summary="토큰 통계 조회")
+# def get_token_statistics():
+#     """리프레시 토큰 통계 조회 (관리자용)"""
+#     from services.firebase_user_service import FirebaseUserService
+#     return FirebaseUserService.get_token_statistics()
 
-@app.post("/admin/cleanup-tokens", summary="토큰 정리 실행")
-def cleanup_tokens():
-    """만료된/오래된 토큰 정리 실행 (관리자용)"""
-    from services.firebase_user_service import FirebaseUserService
-    return FirebaseUserService.auto_cleanup_tokens()
+# @app.post("/admin/cleanup-tokens", summary="토큰 정리 실행")
+# def cleanup_tokens():
+#     """만료된/오래된 토큰 정리 실행 (관리자용)"""
+#     from services.firebase_user_service import FirebaseUserService
+#     return FirebaseUserService.auto_cleanup_tokens()
 
-@app.delete("/admin/revoke-user-tokens/{user_id}", summary="사용자 토큰 무효화")
-def revoke_user_tokens(user_id: str):
-    """특정 사용자의 모든 토큰 무효화 (관리자용)"""
-    from services.firebase_user_service import FirebaseUserService
-    revoked_count = FirebaseUserService.revoke_all_user_tokens(user_id)
-    return {
-        "success": True,
-        "message": f"사용자 {user_id}의 토큰 {revoked_count}개가 무효화되었습니다",
-        "revoked_count": revoked_count
-    }
+# @app.delete("/admin/revoke-user-tokens/{user_id}", summary="사용자 토큰 무효화")
+# def revoke_user_tokens(user_id: str):
+#     """특정 사용자의 모든 토큰 무효화 (관리자용)"""
+#     from services.firebase_user_service import FirebaseUserService
+#     revoked_count = FirebaseUserService.revoke_all_user_tokens(user_id)
+#     return {
+#         "success": True,
+#         "message": f"사용자 {user_id}의 토큰 {revoked_count}개가 무효화되었습니다",
+#         "revoked_count": revoked_count
+#     }
 
 # 자동 토큰 정리를 위한 스케줄러 설정
 def auto_cleanup_tokens_scheduled():
@@ -272,7 +289,7 @@ def setup_scheduler():
     # 할일 마감 임박 알림 (매 30분마다)
     scheduler.add_job(
         check_task_due_notifications_scheduled,
-        CronTrigger(minute="*/30"),
+        CronTrigger(minute="*/60"),
         id='task_due_notifications',
         name='할일 마감 임박 알림'
     )

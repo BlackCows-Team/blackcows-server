@@ -9,9 +9,11 @@ from typing import Dict, Any
 from fastapi import HTTPException, status
 from pathlib import Path
 import logging
+from datetime import timezone, timedelta
 
 logger = logging.getLogger(__name__)
 
+KST = timezone(timedelta(hours=9))
 class AIPredictionService:
     
     MODEL_VERSION = "v1.0.0"
@@ -29,7 +31,7 @@ class AIPredictionService:
     
     @classmethod
     def _load_models(cls):
-        """로컬에서 모델 로드"""
+        """로컬에서 모델 로드 (실패해도 서버는 계속 실행)"""
         if cls._cache_loaded:
             return cls._cached_model, cls._cached_scaler
         
@@ -38,8 +40,12 @@ class AIPredictionService:
             
             if not cls.MODEL_PATH.exists():
                 raise FileNotFoundError(f"모델 파일 없음: {cls.MODEL_PATH}")
+                cls._cache_loaded = True  # 재시도 방지
+                return None, None
             if not cls.SCALER_PATH.exists():
                 raise FileNotFoundError(f"스케일러 파일 없음: {cls.SCALER_PATH}")
+                cls._cache_loaded = True  # 재시도 방지
+                return None, None
             
             start_time = time.time()
             cls._cached_scaler = joblib.load(cls.SCALER_PATH)
@@ -76,12 +82,27 @@ class AIPredictionService:
     
     @classmethod
     async def predict_milk_yield(cls, request, current_user: Dict) -> Dict[str, Any]:
-        """착유량 예측 (확신도 제거)"""
+        """착유량 예측 (확신도 제거) (모델 없으면 에러 응답)"""
         start_time = time.time()
         
         try:
             # 모델 로드
             model, scaler = cls._load_models()
+            
+            # 모델이 로드되지 않은 경우
+            if model is None or scaler is None:
+                logger.warning("AI 모델이 로드되지 않음 - 서비스 불가")
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "error_code": "MODEL_NOT_AVAILABLE",
+                        "error_message": "AI 모델을 사용할 수 없습니다",
+                        "reason": "모델 파일이 없거나 로드에 실패했습니다",
+                        "suggestion": "잠시 후 다시 시도하거나 관리자에게 문의하세요",
+                        "available_features": ["기본 기록 관리", "소 관리", "할일 관리"],
+                        "unavailable_features": ["AI 착유량 예측"]
+                    }
+                )
             
             # 특성 준비
             features = cls._prepare_features(request)
@@ -121,7 +142,12 @@ class AIPredictionService:
             logger.error(f"예측 실패: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"착유량 예측 중 오류: {str(e)}"
+                detail={
+                    "error_code": "PREDICTION_FAILED",
+                    "error_message": "예측 처리 중 오류가 발생했습니다",
+                    "reason": str(e),
+                    "suggestion": "입력값을 확인하고 다시 시도하세요"
+                }
             )
     
     @classmethod
@@ -160,7 +186,12 @@ class AIPredictionService:
             logger.error(f"배치 예측 실패: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"배치 예측 중 오류: {str(e)}"
+                detail={
+                    "error_code": "BATCH_PREDICTION_FAILED", 
+                    "error_message": "배치 예측 처리 중 오류가 발생했습니다",
+                    "batch_id": batch_id,
+                    "reason": str(e)
+                }
             )
     
     @classmethod
@@ -179,25 +210,34 @@ class AIPredictionService:
             
             try:
                 model, scaler = cls._load_models()
-                model_load_success = True
+                if model is not None and scaler is not None:
+                    model_load_success = True
                 
-                # 테스트 예측
-                test_features = np.array([[2, 7.5, 38.5, 3.8, 3.2, 3.5, 6, 1]])
-                test_scaled = scaler.transform(test_features)
-                test_prediction = model.predict(test_scaled)[0]
-                prediction_test_success = True
+                    # 테스트 예측
+                    test_features = np.array([[2, 7.5, 38.5, 3.8, 3.2, 3.5, 6, 1]])
+                    test_scaled = scaler.transform(test_features)
+                    test_prediction = model.predict(test_scaled)[0]
+                    prediction_test_success = True
                 
             except Exception as e:
                 logger.error(f"모델 테스트 실패: {e}")
             
             response_time = (time.time() - start_time) * 1000
             
-            status = "healthy" if all([
-                model_exists, scaler_exists, model_load_success, prediction_test_success
-            ]) else "unhealthy"
+                        # 상태 결정
+            if model_exists and scaler_exists and model_load_success and prediction_test_success:
+                status = "healthy"
+                message = "AI 예측 서비스가 정상 작동 중입니다"
+            elif model_exists and scaler_exists:
+                status = "degraded" 
+                message = "모델 파일은 존재하지만 로드 또는 테스트에 실패했습니다"
+            else:
+                status = "unavailable"
+                message = "AI 예측 서비스를 사용할 수 없습니다"
             
             return {
                 "status": status,
+                "message": message,
                 "timestamp": datetime.utcnow().isoformat(),
                 "response_time_ms": round(response_time, 2),
                 "checks": {
@@ -209,17 +249,24 @@ class AIPredictionService:
                 },
                 "model_info": {
                     "version": cls.MODEL_VERSION,
-                    "cached": cls._cache_loaded
-                }
+                    "cached": cls._cache_loaded,
+                    "available": model_load_success
+                },
+                "recommendations": {
+                    "healthy": "모든 기능을 정상적으로 사용할 수 있습니다",
+                    "degraded": "AI 예측 기능에 문제가 있습니다. 관리자에게 문의하세요",
+                    "unavailable": "AI 예측 기능을 사용할 수 없습니다. 다른 기능은 정상 작동합니다"
+                }.get(status, "상태를 확인할 수 없습니다")
             }
             
         except Exception as e:
             return {
                 "status": "error",
-                "timestamp": datetime.utcnow().isoformat(),
-                "error": str(e)
+                "message": "모델 상태 확인 중 오류가 발생했습니다",
+                "timestamp": datetime.now(KST).isoformat(),
+                "error": str(e),
+                "recommendations": "서버 관리자에게 문의하세요"
             }
-    
     @classmethod
     async def test_prediction_with_sample(cls) -> Dict[str, Any]:
         """샘플 테스트"""
@@ -275,5 +322,6 @@ def initialize_models():
         logger.info("🎉 AI 서비스 초기화 완료")
         return True
     except Exception as e:
-        logger.error(f"❌ AI 서비스 초기화 실패: {e}")
+        logger.warning(f"⚠️ AI 서비스 초기화 실패: {e}")
+        logger.info("📱 다른 기능들은 정상 작동합니다")
         return False
