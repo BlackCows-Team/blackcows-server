@@ -749,7 +749,7 @@ Future<void> registerFCMToken() async {
 
 #### 4️⃣ 알림 유형 (실제 구현된 것만)
 
-##### �� 할일 관련 알림
+#####  할일 관련 알림
 - `TASK_DUE_SOON` - 할일 마감 임박 (1시간 전)
 - `TASK_OVERDUE` - 할일 지연
 - `TASK_COMPLETED` - 할일 완료
@@ -767,13 +767,13 @@ Future<void> registerFCMToken() async {
 - `LIVESTOCK_TRACE_FAILED` - 축산물이력제 조회 실패
 - `LIVESTOCK_TRACE_ALREADY_REGISTERED` - 이미 등록된 젖소
 
-##### �� 기록 관리 알림
+#####  기록 관리 알림
 - `RECORD_CREATED` - 기록 생성
 - `RECORD_UPDATED` - 기록 수정
 - `RECORD_DELETED` - 기록 삭제
 - `RECORD_MISSING` - 기록 누락
 
-##### �� 건강 관리 알림
+#####  건강 관리 알림
 - `HEALTH_CHECK_DUE` - 건강검진 예정
 - `HEALTH_CHECK_COMPLETED` - 건강검진 완료
 - `VACCINATION_DUE` - 백신 접종 예정
@@ -788,14 +788,14 @@ Future<void> registerFCMToken() async {
 - `MILKING_MISSED` - 착유 누락
 - `MILKING_QUALITY_ISSUE` - 착유 품질 문제
 
-##### �� 번식 관리 알림
+##### 번식 관리 알림
 - `ESTRUS_DETECTED` - 발정 감지
 - `INSEMINATION_SCHEDULED` - 인공수정 예정
 - `PREGNANCY_CHECK_DUE` - 임신감정 예정
 - `CALVING_PREDICTED` - 분만 예정
 - `CALVING_COMPLETED` - 분만 완료
 
-##### �� 사료 관리 알림
+##### 사료 관리 알림
 - `FEED_SCHEDULE_REMINDER` - 사료 급여 일정
 - `FEED_RECORD_CREATED` - 사료 급여 기록
 - `FEED_QUALITY_ISSUE` - 사료 품질 문제
@@ -812,7 +812,7 @@ Future<void> registerFCMToken() async {
 - `TUBERCULOSIS_TEST_DUE` - 결핵 검사 예정
 - `TUBERCULOSIS_TEST_RESULT` - 결핵 검사 결과
 
-##### ��️ 시스템 알림
+##### 시스템 알림
 - `SYSTEM_MAINTENANCE` - 시스템 점검
 - `SECURITY_ALERT` - 보안 알림
 - `WELCOME` - 환영 알림
@@ -1851,7 +1851,7 @@ final response = await http.get(
 - **클라이언트 호환성**: Flutter 앱에서 기존 경로 그대로 사용 가능
 - **오류 해결**: 307, 500, 401 오류 모두 해결됨
 
-### ✅ 2025년 1월 26일 - 할일 관리 시스템 출시
+### ✅ 2025년 7월 13일 - 할일 관리 시스템 출시
 
 #### 🆕 새로운 기능
 - **할일 관리 시스템**: 개인/젖소별/농장 전체 할일 관리
@@ -1870,5 +1870,5 @@ final response = await http.get(
 
 **개발팀**: BlackCows Team  
 **버전**: v2.8.0  
-**최종 업데이트**: 2025년 1월 27일  
+**최종 업데이트**: 2025년 7월 13일  
 **주요 변경사항**: 라우터 prefix 중복 문제 해결, 할일 관리 시스템 최적화, 307/500/401 오류 완전 해결
