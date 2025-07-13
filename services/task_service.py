@@ -608,21 +608,29 @@ class TaskService:
     @staticmethod
     def _build_task_response(task_data: Dict, cow_info: Optional[Dict] = None) -> TaskResponse:
         """할일 응답 객체 생성"""
+
+        # Enum 안전 파싱
+        def safe_enum(enum_class, value, default):
+            try:
+                return enum_class(value)
+            except (ValueError, TypeError):
+                return default
+
         return TaskResponse(
             id=task_data["id"],
             title=task_data["title"],
             description=task_data.get("description"),
-            task_type=TaskType(task_data["task_type"]),
-            priority=TaskPriority(task_data["priority"]),
-            status=TaskStatus(task_data["status"]),
+            task_type=safe_enum(TaskType, task_data.get("task_type"), TaskType.PERSONAL),
+            priority=safe_enum(TaskPriority, task_data.get("priority"), TaskPriority.LOW),
+            status=safe_enum(TaskStatus, task_data.get("status"), TaskStatus.PENDING),
             due_date=task_data.get("due_date"),
             due_time=task_data.get("due_time"),
-            category=TaskCategory(task_data["category"]),
+            category=safe_enum(TaskCategory, task_data.get("category"), TaskCategory.MILKING),
             related_cow_id=task_data.get("related_cow_id"),
             related_cow_name=cow_info.get("name") if cow_info else None,
             related_cow_ear_tag=cow_info.get("ear_tag_number") if cow_info else None,
             auto_generated=task_data.get("auto_generated", False),
-            recurrence=TaskRecurrence(task_data.get("recurrence", "none")),
+            recurrence=safe_enum(TaskRecurrence, task_data.get("recurrence"), TaskRecurrence.NONE),
             notes=task_data.get("notes"),
             farm_id=task_data["farm_id"],
             owner_id=task_data["owner_id"],
