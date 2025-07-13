@@ -6,6 +6,8 @@ from fastapi import HTTPException, status
 from config.firebase_config import get_firestore_client
 from schemas.task import *
 import uuid
+from datetime import datetime
+import traceback
 
 class TaskService:
     
@@ -78,7 +80,34 @@ class TaskService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"할일 생성 중 오류가 발생했습니다: {str(e)}"
             )
-    
+
+    @staticmethod
+    def to_safe_datetime(dt) -> Optional[datetime]:
+        """Firestore datetime → Python datetime 변환"""
+        try:
+            if dt is None:
+                return None
+            if isinstance(dt, datetime):
+                return dt.replace(tzinfo=None)
+            if hasattr(dt, "timestamp"):
+                return datetime.fromtimestamp(dt.timestamp())
+            if hasattr(dt, "to_datetime"):
+                return dt.to_datetime().replace(tzinfo=None)
+            return datetime.fromisoformat(str(dt))
+        except Exception as e:
+            print("❌ to_safe_datetime 에러:", dt)
+            print("🔍 메시지:", e)
+            raise
+
+    @staticmethod
+    def normalize_datetime(dt) -> Optional[datetime]:
+        """created_at 전용 정규화 함수"""
+        try:
+            return TaskService.to_safe_datetime(dt)
+        except Exception as e:
+            print("❌ normalize_datetime 에러:", dt)
+            raise
+
     @staticmethod
     def get_tasks(
         user: Dict, 
@@ -88,80 +117,187 @@ class TaskService:
         cow_id_filter: Optional[str] = None,
         limit: int = 50
     ) -> List[TaskSummary]:
-        """할일 목록 조회"""
+
         try:
             db = get_firestore_client()
             farm_id = user.get("farm_id")
-            
-            # 기본 쿼리 - 단순화
-            query = (db.collection('tasks')
-                    .where('farm_id', '==', farm_id)
-                    .where('is_active', '==', True)
-                    .order_by('created_at', direction='DESCENDING')
-                    .limit(limit)
-                    .get())
-            
-            tasks = []
+
+            # Firestore 쿼리
+            task_docs = (db.collection('tasks')
+                            .where('farm_id', '==', farm_id)
+                            .where('is_active', '==', True)
+                            .order_by('created_at', direction='DESCENDING')
+                            .limit(limit)
+                            .get())
+
             current_time = datetime.utcnow()
-            
-            for task_doc in query:
-                task_data = task_doc.to_dict()
-                
-                # 필터링 - 클라이언트 사이드에서 처리
-                if status_filter and task_data['status'] != status_filter.value:
+            tasks = []
+
+            for doc in task_docs:
+                task_data = doc.to_dict()
+                print("🧪 task_data:", task_data)
+
+                # 필터링
+                if status_filter and task_data.get('status') != status_filter.value:
                     continue
-                if priority_filter and task_data['priority'] != priority_filter.value:
+                if priority_filter and task_data.get('priority') != priority_filter.value:
                     continue
-                if category_filter and task_data['category'] != category_filter.value:
+                if category_filter and task_data.get('category') != category_filter.value:
                     continue
                 if cow_id_filter and task_data.get('related_cow_id') != cow_id_filter:
                     continue
-                
-                # 지연 상태 체크
-                is_overdue = False
-                if (task_data.get('due_datetime') and 
-                    task_data['status'] in [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value] and
-                    task_data['due_datetime'] < current_time):
-                    is_overdue = True
-                    # 상태 업데이트
-                    db.collection('tasks').document(task_data['id']).update({
-                        'status': TaskStatus.OVERDUE.value,
-                        'updated_at': current_time
-                    })
-                
-                # 젖소 정보 조회
+
+                # 연체 여부 판단
+                due_dt = TaskService.to_safe_datetime(task_data.get('due_datetime'))
+                is_overdue = (
+                    due_dt and
+                    task_data.get('status') in [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value] and
+                    due_dt < current_time
+                )
+
+                # overdue 상태 업데이트
+                if is_overdue:
+                    try:
+                        db.collection('tasks').document(task_data['id']).update({
+                            'status': TaskStatus.OVERDUE.value,
+                            'updated_at': current_time
+                        })
+                    except Exception as update_err:
+                        print("⚠️ overdue 상태 업데이트 실패:", update_err)
+
+                # 젖소 이름 조회
                 cow_name = None
                 if task_data.get('related_cow_id'):
                     try:
                         cow_info = TaskService._get_cow_info(task_data['related_cow_id'], farm_id)
-                        cow_name = cow_info['name']
+                        cow_name = cow_info.get('name', '알 수 없음')
                     except:
                         cow_name = "삭제된 젖소"
-                
-                tasks.append(TaskSummary(
-                    id=task_data["id"],
-                    title=task_data["title"],
-                    task_type=TaskType(task_data["task_type"]),
-                    priority=TaskPriority(task_data["priority"]),
-                    status=TaskStatus.OVERDUE if is_overdue else TaskStatus(task_data["status"]),
-                    due_date=task_data.get("due_date"),
-                    due_time=task_data.get("due_time"),
-                    category=TaskCategory(task_data["category"]),
-                    related_cow_name=cow_name,
-                    is_overdue=is_overdue,
-                    created_at=task_data["created_at"]
-                ))
-            
+
+                # TaskSummary 생성
+                try:
+                    task_summary = TaskSummary(
+                        id=task_data.get("id"),
+                        title=task_data.get("title"),
+                        task_type=TaskType(task_data.get("task_type")),
+                        priority=TaskPriority(task_data.get("priority")),
+                        status=TaskStatus.OVERDUE if is_overdue else TaskStatus(task_data.get("status")),
+                        due_date=task_data.get("due_date"),
+                        due_time=task_data.get("due_time"),
+                        category=TaskCategory(task_data.get("category")),
+                        related_cow_name=cow_name,
+                        is_overdue=is_overdue,
+                        created_at=TaskService.normalize_datetime(task_data.get("created_at")),
+                    )
+                    tasks.append(task_summary)
+                    print("✅ TaskSummary 생성 성공:", task_summary)
+
+                except ValueError as enum_err:
+                    print("❌ Enum 변환 실패:", task_data)
+                    print("🔍 에러 메시지:", enum_err)
+                    continue
+                except Exception as general_err:
+                    print("❌ TaskSummary 생성 중 오류:", task_data)
+                    print("🔍 에러 메시지:", general_err)
+                    import traceback
+                    traceback.print_exc()
+                    continue
+
             return tasks
-            
+
         except Exception as e:
-            if isinstance(e, HTTPException):
-                raise e
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"할일 목록 조회 중 오류가 발생했습니다: {str(e)}"
             )
-    
+
+
+    @staticmethod
+    def get_task_statistics(user: Dict) -> TaskStatistics:
+        try:
+            db = get_firestore_client()
+            farm_id = user.get("farm_id")
+            today = date.today().strftime('%Y-%m-%d')
+
+            all_tasks = (
+                db.collection('tasks')
+                .where('farm_id', '==', farm_id)
+                .where('is_active', '==', True)
+                .get()
+            )
+
+            total_tasks = len(all_tasks)
+            pending_tasks = 0
+            completed_tasks = 0
+            overdue_tasks = 0
+            today_tasks = 0
+            high_priority_tasks = 0
+
+            category_stats = {}
+            priority_stats = {}
+
+            current_time = datetime.utcnow()
+
+            for task_doc in all_tasks:
+                task_data = task_doc.to_dict()
+                status_val = task_data.get('status')
+                priority_val = task_data.get('priority')
+                category_val = task_data.get('category')
+
+                # 기본 상태 통계 처리
+                if status_val == TaskStatus.COMPLETED.value:
+                    completed_tasks += 1
+                elif status_val in [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value]:
+                    pending_tasks += 1
+                elif status_val == TaskStatus.OVERDUE.value:
+                    overdue_tasks += 1
+
+                # 연체 상태 재검사 (status가 overdue가 아니더라도 due_datetime 기준으로 판단)
+                due_dt = TaskService.to_safe_datetime(task_data.get('due_datetime'))
+                if (
+                    due_dt and
+                    status_val in [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value] and
+                    due_dt < current_time
+                ):
+                    overdue_tasks += 1
+                    if pending_tasks > 0:
+                        pending_tasks -= 1
+
+                # 오늘 할 일
+                if task_data.get('due_date') == today:
+                    today_tasks += 1
+
+                # 높은 우선순위
+                if priority_val in [TaskPriority.HIGH.value, TaskPriority.URGENT.value]:
+                    high_priority_tasks += 1
+
+                # 카테고리/우선순위 분포
+                if category_val:
+                    category_stats[category_val] = category_stats.get(category_val, 0) + 1
+                if priority_val:
+                    priority_stats[priority_val] = priority_stats.get(priority_val, 0) + 1
+
+            completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+
+            return TaskStatistics(
+                total_tasks=total_tasks,
+                pending_tasks=pending_tasks,
+                completed_tasks=completed_tasks,
+                overdue_tasks=overdue_tasks,
+                today_tasks=today_tasks,
+                high_priority_tasks=high_priority_tasks,
+                by_category=category_stats,
+                by_priority=priority_stats,
+                completion_rate=round(completion_rate, 2)
+            )
+
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"할일 통계 조회 중 오류가 발생했습니다: {str(e)}"
+            )
+
+
     @staticmethod
     def get_today_tasks(user: Dict) -> List[TaskSummary]:
         """오늘 할일 조회"""
@@ -180,7 +316,7 @@ class TaskService:
             tasks = []
             for task_doc in tasks_query:
                 task_data = task_doc.to_dict()
-                
+                print(task_data)
                 # 상태 필터링 - 클라이언트 사이드에서 처리
                 if task_data['status'] not in [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value]:
                     continue
@@ -372,9 +508,6 @@ class TaskService:
             if existing_task.recurrence != TaskRecurrence.NONE:
                 TaskService._create_next_recurring_task(existing_task, user)
             
-            # 할일 완료 알림 생성
-            TaskService._create_task_completed_notification(existing_task, user)
-            
             # 완료된 할일 반환
             return TaskService.get_task_by_id(task_id, farm_id)
             
@@ -415,87 +548,7 @@ class TaskService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"할일 삭제 중 오류가 발생했습니다: {str(e)}"
             )
-    
-    @staticmethod
-    def get_task_statistics(user: Dict) -> TaskStatistics:
-        """할일 통계 조회"""
-        try:
-            db = get_firestore_client()
-            farm_id = user.get("farm_id")
-            today = date.today().strftime('%Y-%m-%d')
-            
-            # 전체 할일 조회
-            all_tasks = (db.collection('tasks')
-                        .where('farm_id', '==', farm_id)
-                        .where('is_active', '==', True)
-                        .get())
-            
-            total_tasks = len(all_tasks)
-            pending_tasks = 0
-            completed_tasks = 0
-            overdue_tasks = 0
-            today_tasks = 0
-            high_priority_tasks = 0
-            
-            category_stats = {}
-            priority_stats = {}
-            
-            current_time = datetime.utcnow()
-            
-            for task_doc in all_tasks:
-                task_data = task_doc.to_dict()
-                
-                # 상태별 집계
-                if task_data['status'] == TaskStatus.COMPLETED.value:
-                    completed_tasks += 1
-                elif task_data['status'] in [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value]:
-                    pending_tasks += 1
-                elif task_data['status'] == TaskStatus.OVERDUE.value:
-                    overdue_tasks += 1
-                
-                # 지연 상태 재체크
-                if (task_data.get('due_datetime') and 
-                    task_data['status'] in [TaskStatus.PENDING.value, TaskStatus.IN_PROGRESS.value] and
-                    task_data['due_datetime'] < current_time):
-                    overdue_tasks += 1
-                    pending_tasks -= 1
-                
-                # 오늘 할일
-                if task_data.get('due_date') == today:
-                    today_tasks += 1
-                
-                # 높은 우선순위
-                if task_data['priority'] in [TaskPriority.HIGH.value, TaskPriority.URGENT.value]:
-                    high_priority_tasks += 1
-                
-                # 카테고리별 집계
-                category = task_data['category']
-                category_stats[category] = category_stats.get(category, 0) + 1
-                
-                # 우선순위별 집계
-                priority = task_data['priority']
-                priority_stats[priority] = priority_stats.get(priority, 0) + 1
-            
-            # 완료율 계산
-            completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
-            
-            return TaskStatistics(
-                total_tasks=total_tasks,
-                pending_tasks=pending_tasks,
-                completed_tasks=completed_tasks,
-                overdue_tasks=overdue_tasks,
-                today_tasks=today_tasks,
-                high_priority_tasks=high_priority_tasks,
-                by_category=category_stats,
-                by_priority=priority_stats,
-                completion_rate=round(completion_rate, 2)
-            )
-            
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"할일 통계 조회 중 오류가 발생했습니다: {str(e)}"
-            )
+   
     
     @staticmethod
     def get_task_by_id(task_id: str, farm_id: str) -> TaskResponse:
@@ -559,85 +612,30 @@ class TaskService:
         return cow_data
     
     @staticmethod
-    def _create_task_completed_notification(task: TaskResponse, user: Dict):
-        """할일 완료 알림 생성"""
-        try:
-            from services.notification_service import NotificationService
-            from schemas.notification import NotificationCreate, NotificationType, NotificationPriority, NotificationChannel
-            
-            # 젖소 이름 조회
-            cow_name = None
-            if task.related_cow_id:
-                try:
-                    cow_info = TaskService._get_cow_info(task.related_cow_id, user.get("farm_id"))
-                    cow_name = cow_info.get('name') if cow_info else None
-                except:
-                    cow_name = "삭제된 젖소"
-            
-            # 알림 메시지 생성
-            title = "할일 완료"
-            message = f"'{task.title}' 할일이 완료되었습니다."
-            
-            if cow_name:
-                message += f" (관련 젖소: {cow_name})"
-            
-            # 우선순위에 따른 알림 우선순위 설정
-            priority = NotificationPriority.NORMAL
-            if task.priority in [TaskPriority.HIGH, TaskPriority.URGENT]:
-                priority = NotificationPriority.HIGH
-            
-            notification_data = NotificationCreate(
-                user_id=user.get("id"),
-                farm_id=user.get("farm_id"),
-                notification_type=NotificationType.TASK_COMPLETED,
-                title=title,
-                message=message,
-                priority=priority,
-                channels=[NotificationChannel.IN_APP],
-                related_task_id=task.id,
-                related_cow_id=task.related_cow_id,
-                metadata={"task_priority": task.priority.value, "completion_time": datetime.utcnow().isoformat()}
-            )
-            
-            NotificationService.create_notification(notification_data)
-            
-        except Exception as e:
-            # 알림 생성 실패는 로그만 남기고 할일 완료는 계속 진행
-            print(f"할일 완료 알림 생성 실패: {str(e)}")
-    
-    @staticmethod
     def _build_task_response(task_data: Dict, cow_info: Optional[Dict] = None) -> TaskResponse:
         """할일 응답 객체 생성"""
-
-        # Enum 안전 파싱
-        def safe_enum(enum_class, value, default):
-            try:
-                return enum_class(value)
-            except (ValueError, TypeError):
-                return default
-
         return TaskResponse(
             id=task_data["id"],
             title=task_data["title"],
             description=task_data.get("description"),
-            task_type=safe_enum(TaskType, task_data.get("task_type"), TaskType.PERSONAL),
-            priority=safe_enum(TaskPriority, task_data.get("priority"), TaskPriority.LOW),
-            status=safe_enum(TaskStatus, task_data.get("status"), TaskStatus.PENDING),
+            task_type=TaskType(task_data["task_type"]),
+            priority=TaskPriority(task_data["priority"]),
+            status=TaskStatus(task_data["status"]),
             due_date=task_data.get("due_date"),
             due_time=task_data.get("due_time"),
-            category=safe_enum(TaskCategory, task_data.get("category"), TaskCategory.MILKING),
+            category=TaskCategory(task_data["category"]),
             related_cow_id=task_data.get("related_cow_id"),
-            related_cow_name=cow_info.get("name") if cow_info else None,
-            related_cow_ear_tag=cow_info.get("ear_tag_number") if cow_info else None,
+            related_cow_name=cow_info["name"] if cow_info else None,
+            related_cow_ear_tag=cow_info["ear_tag_number"] if cow_info else None,
             auto_generated=task_data.get("auto_generated", False),
-            recurrence=safe_enum(TaskRecurrence, task_data.get("recurrence"), TaskRecurrence.NONE),
+            recurrence=TaskRecurrence(task_data["recurrence"]),
             notes=task_data.get("notes"),
             farm_id=task_data["farm_id"],
             owner_id=task_data["owner_id"],
             completed_at=task_data.get("completed_at"),
             created_at=task_data["created_at"],
             updated_at=task_data["updated_at"],
-            is_active=task_data.get("is_active", True)
+            is_active=task_data["is_active"]
         )
     
     @staticmethod
