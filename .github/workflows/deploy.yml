@@ -133,7 +133,7 @@ jobs:
           AI_SERVER_SUCCESS=false
           echo "🔍 외부 AI 서버 헬스체크 중..."
           
-          if curl -f -m 10 https://feof-implement-finnish-finally.trycloudflare.com/ai/model-health >/dev/null 2>&1; then
+          if curl -f -m 10 https://feof-implement-finnish-finally.trycloudflare.com/health >/dev/null 2>&1; then
             echo "✅ 외부 AI 서버 연결 성공"
             AI_SERVER_SUCCESS=true
           else
@@ -191,12 +191,14 @@ jobs:
           # AI 중계 기능 테스트 (AI 서버가 살아있을 때만)
           AI_RELAY_SUCCESS=false
           if [ "$AI_SERVER_SUCCESS" = true ]; then
-            RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET http://localhost:8000/api/ai-prediction/test/sample-predict)
+            echo "🔍 AI 샘플 예측 테스트 중..."
+            RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET http://localhost:8000/ai/test/sample-predict)
             if [ "$RESPONSE_CODE" = "200" ]; then
               echo "✅ AI 샘플 예측 테스트 성공"
               AI_RELAY_SUCCESS=true
             else
               echo "⚠️ AI 샘플 예측 테스트 실패 (응답코드: $RESPONSE_CODE)"
+              echo "🔍 디버깅: curl -v http://localhost:8000/ai/test/sample-predict"
             fi
           else
             echo "⚠️ 외부 AI 서버 연결 불가로 AI 중계 테스트 건너뜀"
