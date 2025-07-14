@@ -9,7 +9,7 @@ from schemas.ai_prediction import (
 from services.ai_prediction_service import AIPredictionService
 from routers.auth_firebase import get_current_user
 
-router = APIRouter(tags=["AI 예측"])
+router = APIRouter(prefix="/ai", tags=["AI 예측"])
 
 @router.post("/milk-yield/predict",
              summary="착유량 예측",
@@ -42,16 +42,16 @@ async def predict_milk_yield_batch(
 
 # ===== 테스트/개발용 엔드포인트 =====
 
-@router.get("/test/predict-sample",
-           summary="샘플 데이터 예측 테스트",
-           description="테스트용 샘플 데이터로 예측을 테스트합니다.")
-async def test_predict_with_sample():
-    """샘플 데이터 예측 테스트"""
-    return await AIPredictionService.test_prediction_with_sample()
+# @router.get("/test/predict-sample",
+#            summary="샘플 데이터 예측 테스트",
+#            description="테스트용 샘플 데이터로 예측을 테스트합니다.")
+# async def test_predict_with_sample():
+#     """샘플 데이터 예측 테스트"""
+#     return await AIPredictionService.test_prediction_with_sample()
 
-@router.get("/test/model-health",
-           summary="모델 상태 확인",
-           description="AI 모델 로드 및 예측 상태를 확인합니다.")
-async def check_model_health():
-    """모델 서빙 상태 확인"""
-    return await AIPredictionService.check_model_health()
+# @router.get("/test/model-health",
+#            summary="모델 상태 확인",
+#            description="AI 모델 로드 및 예측 상태를 확인합니다.")
+# async def check_model_health():
+#     """모델 서빙 상태 확인"""
+#     return await AIPredictionService.check_model_health()
