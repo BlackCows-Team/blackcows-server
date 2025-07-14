@@ -1,4 +1,4 @@
-name: Deploy to EC2 with tmux
+name: Deploy to EC2 tmux
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.EC2_KEY }}
 
-    - name: Deploy to EC2 with AI
+    - name: Deploy to EC2 (Pure Relay Server)
       run: |
         ssh -o StrictHostKeyChecking=no ubuntu@52.78.212.96 << 'EOF'
           echo "=== 기존 tmux 세션 확인 ==="
@@ -49,24 +49,10 @@ jobs:
           find ~/blackcows-server -type f -name "*.pyc" -delete 2>/dev/null || true
           find ~/blackcows-server -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
-          echo "=== AI 모델 파일 확인 ==="
+          echo "=== 중계 서버 설정 ==="
           cd ~/blackcows-server
-          
-          # 모델 디렉토리 생성
-          mkdir -p models
-          
-          # 모델 파일 존재 확인
-          if [ -f "models/1_random_forest.pkl" ] && [ -f "models/1_scaler.pkl" ]; then
-            MODEL_SIZE=$(du -sh models/1_random_forest.pkl | cut -f1)
-            SCALER_SIZE=$(du -sh models/1_scaler.pkl | cut -f1)
-            echo "✅ AI 모델 파일 존재"
-            echo "   모델: $MODEL_SIZE"
-            echo "   스케일러: $SCALER_SIZE"
-          else
-            echo "❌ AI 모델 파일 없음"
-            echo "   AI 예측 기능이 제한됩니다"
-            echo "   다른 기능은 정상 작동합니다"
-          fi
+          echo "🔄 AWS EC2는 순수 중계 서버 역할"
+          echo "🤖 AI 처리는 외부 AI 서버로 전달"
 
           echo "=== Firebase 설정 확인 ==="
           if [ -f "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" ]; then
@@ -102,6 +88,7 @@ jobs:
           echo "SMTP_SERVER=${{ secrets.SMTP_SERVER }}" >> .env
           echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env
           echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "AI_SERVER_URL=https://feof-implement-finnish-finally.trycloudflare.com" >> .env
           chmod 600 .env
 
           echo "=== Python 가상 환경 설정 ==="
@@ -126,7 +113,7 @@ jobs:
           echo "=== 구문 검사 ==="
           python3 -m py_compile main.py
 
-          echo "=== 서버 시작 (AI 모델 로드 포함) ==="
+          echo "=== 서버 시작 ==="
           tmux send-keys -t 0 "export GOOGLE_APPLICATION_CREDENTIALS=${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" Enter
           sleep 1
           tmux send-keys -t 0 "export LIVESTOCK_TRACE_API_DECODING_KEY=${{ secrets.LIVESTOCK_TRACE_API_DECODING_KEY }}" Enter
@@ -139,16 +126,18 @@ jobs:
           sleep 1
           tmux send-keys -t 0 "uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level info --access-log" Enter
           
-          echo "=== 서버 시작 대기 (AI 모델 로드 시간 포함) ==="
-          sleep 30
+          echo "=== 서버 시작 대기 ==="
+          sleep 10
 
-          echo "=== AI 모델 로드 확인 ==="
-          AI_MODEL_SUCCESS=false
-          if curl -f -m 15 http://localhost:8000/api/ai-prediction/test/model-health >/dev/null 2>&1; then
-            echo "✅ AI 모델 상태 확인 성공"
-            AI_MODEL_SUCCESS=true
+          echo "=== 외부 AI 서버 연결 확인 ==="
+          AI_SERVER_SUCCESS=false
+          echo "🔍 외부 AI 서버 헬스체크 중..."
+          
+          if curl -f -m 10 https://feof-implement-finnish-finally.trycloudflare.com/ai/model-health >/dev/null 2>&1; then
+            echo "✅ 외부 AI 서버 연결 성공"
+            AI_SERVER_SUCCESS=true
           else
-            echo "⚠️ AI 모델 상태 확인 실패 (다른 기능은 정상)"
+            echo "⚠️ 외부 AI 서버 연결 실패 (AI 기능 제한됨)"
           fi
 
           echo "=== tmux 세션 확인 ==="
@@ -183,7 +172,7 @@ jobs:
             PORT_CHECK_SUCCESS=true
           fi
 
-          echo "=== 헬스체크 ==="
+          echo "=== AWS EC2 헬스체크 ==="
           sleep 5
           
           HEALTH_CHECK_SUCCESS=false
@@ -199,18 +188,22 @@ jobs:
             ROOT_CHECK_SUCCESS=true
           fi
 
-          # AI 예측 테스트
-          AI_PREDICTION_SUCCESS=false
-          if curl -f -m 15 http://localhost:8000/api/ai-prediction/test/predict-sample >/dev/null 2>&1; then
-            echo "✅ AI 예측 테스트 성공"
-            AI_PREDICTION_SUCCESS=true
+          # AI 중계 기능 테스트 (AI 서버가 살아있을 때만)
+          AI_RELAY_SUCCESS=false
+          if [ "$AI_SERVER_SUCCESS" = true ]; then
+            if curl -f -m 15 http://localhost:8000/api/ai-prediction/test/model-health >/dev/null 2>&1; then
+              echo "✅ AI 중계 기능 테스트 성공"
+              AI_RELAY_SUCCESS=true
+            else
+              echo "⚠️ AI 중계 기능 테스트 실패"
+            fi
           else
-            echo "⚠️ AI 예측 테스트 실패 (모델 파일 없거나 메모리 부족)"
+            echo "⚠️ 외부 AI 서버 연결 불가로 AI 중계 테스트 건너뜀"
           fi
 
           if [ "$HEALTH_CHECK_SUCCESS" = true ] || [ "$ROOT_CHECK_SUCCESS" = true ] || [ "$PORT_CHECK_SUCCESS" = true ]; then
             echo ""
-            echo "🎉 서버 시작 성공!"
+            echo "🎉 AWS EC2 서버 시작 성공!"
             echo "🎯 서버: https://api.blackcowsdairy.com"
             echo "📚 API 문서: https://api.blackcowsdairy.com/docs"
             echo "🖥️ tmux 접속: tmux attach-session -t 0"
@@ -221,6 +214,7 @@ jobs:
             echo "✅ Firebase 설정"
             echo "✅ tmux session 실행"
             echo "✅ 패키지 업데이트"
+            echo "✅ AWS EC2 서버 정상"
             if [ "$HEALTH_CHECK_SUCCESS" = true ]; then
               echo "✅ 헬스체크 통과"
             fi
@@ -230,18 +224,19 @@ jobs:
             if [ "$PORT_CHECK_SUCCESS" = true ]; then
               echo "✅ 포트 8000 정상"
             fi
-            if [ "$AI_MODEL_SUCCESS" = true ]; then
-              echo "✅ AI 모델 상태 정상"
+            if [ "$AI_SERVER_SUCCESS" = true ]; then
+              echo "✅ 외부 AI 서버 연결 정상"
             else
-              echo "⚠️ AI 모델 상태 제한됨"
+              echo "⚠️ 외부 AI 서버 연결 제한됨"
             fi
-            if [ "$AI_PREDICTION_SUCCESS" = true ]; then
-              echo "✅ AI 예측 기능 정상"
+            if [ "$AI_RELAY_SUCCESS" = true ]; then
+              echo "✅ AI 중계 기능 정상"
             else
-              echo "⚠️ AI 예측 기능 제한됨"
+              echo "⚠️ AI 중계 기능 제한됨"
             fi
             echo ""
-            echo "🚀 배포 완료!"
+            echo "🚀 서버 배포 완료!"
+            echo "🤖 AI 처리: 외부 AI 서버로 전달"
             echo "💡 로그 확인: tmux attach-session -t 0"
             echo "💡 tmux 나가기: Ctrl+B → D"
             
