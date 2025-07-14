@@ -14,8 +14,11 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 ### 🎯 주요 기능
 
 #### 🐄 AI 착유량 예측 기능 (NEW!)
-- ✅ 개별 젖소 착유량 예측: 젖소의 8가지 특성(착유횟수, 전도율, 온도, 유지방비율, 유단백비율, 농후사료섭취량, 착유기측정월, 착유기측정요일)을 바탕으로 착유량을 예측합니다.
-- ✅ 다중 젖소 착유량 일괄 예측: 여러 젖소의 착유량을 한 번에 예측하여 효율적인 관리를 돕습니다.
+- ✅ **외부 AI 서버 연동**: Cloudflare Tunnel을 통한 안정적인 AI 서버 연결
+- ✅ **개별 젖소 착유량 예측**: 젖소의 8가지 특성(착유횟수, 전도율, 온도, 유지방비율, 유단백비율, 농후사료섭취량, 착유기측정월, 착유기측정요일)을 바탕으로 착유량을 예측합니다.
+- ✅ **다중 젖소 착유량 일괄 예측**: 여러 젖소의 착유량을 한 번에 예측하여 효율적인 관리를 돕습니다.
+- ✅ **실시간 헬스체크**: AI 서버 상태 자동 모니터링 및 오류 처리
+- ✅ **메타데이터 보강**: 사용자 정보, 농장 정보, 처리 시간 등 추가 정보 제공
 
 #### 관리자 기능 특징
 - ✅ **토큰 관리**: 만료된/오래된 토큰 자동 정리
@@ -123,11 +126,109 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 
 ## 📡 전체 API 엔드포인트
 
-### 🤖 AI 예측 API (`/ai`) - ⭐ NEW!
+### 🤖 AI 예측 API (`/api/ai-prediction`) - ⭐ NEW!
 | Method | Endpoint | 설명 | 필수 필드 | 응답 |
 |--------|----------|------|----------|------|
-| `POST` | `/ai/milk-yield/predict` | **착유량 예측** - 젖소의 8개 특성(feature)을 바탕으로 착유량을 예측합니다. | `착유횟수`, `전도율`, `온도`, `유지방비율`, `유단백비율`, `농후사료섭취량`, `착유기측정월`, `착유기측정요일` + Bearer Token | 예상 착유량 (리터) |
-| `POST` | `/ai/milk-yield/batch-predict` | **다중 젖소 착유량 예측** - 여러 젖소의 착유량을 한번에 예측합니다. | 착유량 예측 요청 객체 리스트 + Bearer Token | 예측된 착유량 목록 (리터) |
+| `POST` | `/api/ai-prediction/milk-yield/predict` | **착유량 예측** - 젖소의 8개 특성(feature)을 바탕으로 착유량을 예측합니다. | `milking_frequency`, `conductivity`, `temperature`, `fat_percentage`, `protein_percentage`, `concentrate_intake`, `milking_month`, `milking_day_of_week` + Bearer Token | 예상 착유량 (리터) |
+| `POST` | `/api/ai-prediction/milk-yield/batch-predict` | **다중 젖소 착유량 예측** - 여러 젖소의 착유량을 한번에 예측합니다. | `predictions` (예측 요청 객체 리스트) + Bearer Token | 예측된 착유량 목록 (리터) |
+| `GET` | `/api/ai-prediction/test/sample-predict` | **샘플 예측 테스트(비인증)** - AI 서버가 실제 예측 가능한지 샘플 데이터로 테스트합니다. | 없음 | 샘플 예측 결과 |
+
+#### 🤖 AI 예측 시스템 특징
+- ✅ **외부 AI 서버 연동**: Cloudflare Tunnel을 통한 안정적인 AI 서버 연결
+- ✅ **8개 특성 기반 예측**: 착유횟수, 전도율, 온도, 유지방비율, 유단백비율, 농후사료섭취량, 착유기측정월, 착유기측정요일
+- ✅ **개별/배치 예측**: 단일 젖소 또는 다중 젖소 동시 예측 지원
+- ✅ **실시간 헬스체크**: AI 서버 상태 자동 모니터링
+- ✅ **오류 처리**: 타임아웃, 연결 실패, 모델 로드 실패 등 다양한 오류 상황 처리
+- ✅ **메타데이터 보강**: 사용자 정보, 농장 정보, 처리 시간 등 추가 정보 제공
+
+#### 착유량 예측 요청 예시
+```json
+POST /api/ai-prediction/milk-yield/predict
+{
+  "cow_id": "cow-uuid-123",
+  "milking_frequency": 2,
+  "conductivity": 7.7,
+  "temperature": 38.5,
+  "fat_percentage": 3.8,
+  "protein_percentage": 3.2,
+  "concentrate_intake": 3.5,
+  "milking_month": 6,
+  "milking_day_of_week": 1,
+  "prediction_date": "2025-01-17",
+  "notes": "정기 예측"
+}
+```
+
+#### 착유량 예측 응답 예시
+```json
+{
+  "predicted_milk_yield": 25.3,
+  "confidence_score": 0.89,
+  "model_version": "v1.0.0",
+  "user_id": "user123",
+  "farm_id": "farm-uuid",
+  "requested_at": "2025-01-17T10:30:00Z",
+  "server_processing_time_ms": 245.67
+}
+```
+
+#### 다중 젖소 예측 요청 예시
+```json
+POST /api/ai-prediction/milk-yield/batch-predict
+{
+  "predictions": [
+    {
+      "cow_id": "cow-uuid-123",
+      "milking_frequency": 2,
+      "conductivity": 7.7,
+      "temperature": 38.5,
+      "fat_percentage": 3.8,
+      "protein_percentage": 3.2,
+      "concentrate_intake": 3.5,
+      "milking_month": 6,
+      "milking_day_of_week": 1
+    },
+    {
+      "cow_id": "cow-uuid-456",
+      "milking_frequency": 3,
+      "conductivity": 8.1,
+      "temperature": 38.2,
+      "fat_percentage": 4.1,
+      "protein_percentage": 3.4,
+      "concentrate_intake": 4.0,
+      "milking_month": 6,
+      "milking_day_of_week": 1
+    }
+  ],
+  "batch_name": "오전 착유 예측"
+}
+```
+
+#### 다중 젖소 예측 응답 예시
+```json
+{
+  "batch_id": "batch-uuid-123",
+  "successful_predictions": 2,
+  "failed_predictions": 0,
+  "predictions": [
+    {
+      "cow_id": "cow-uuid-123",
+      "predicted_milk_yield": 25.3,
+      "confidence_score": 0.89
+    },
+    {
+      "cow_id": "cow-uuid-456",
+      "predicted_milk_yield": 28.7,
+      "confidence_score": 0.92
+    }
+  ],
+  "aws_batch_id": "aws-batch-uuid",
+  "user_id": "user123",
+  "farm_id": "farm-uuid",
+  "requested_at": "2025-01-17T10:30:00Z",
+  "server_processing_time_ms": 512.34
+}
+```
 
 ### 📋 할일 관리 API (`/api/todos`) - ⭐ NEW!
 

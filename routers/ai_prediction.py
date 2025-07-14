@@ -9,7 +9,7 @@ from schemas.ai_prediction import (
 from services.ai_prediction_service import AIPredictionService
 from routers.auth_firebase import get_current_user
 
-router = APIRouter(prefix="/ai", tags=["AI 예측"])
+router = APIRouter(tags=["AI 예측"])
 
 @router.post("/milk-yield/predict",
              summary="착유량 예측",
@@ -42,12 +42,23 @@ async def predict_milk_yield_batch(
 
 # ===== 테스트/개발용 엔드포인트 =====
 
-# @router.get("/test/predict-sample",
-#            summary="샘플 데이터 예측 테스트",
-#            description="테스트용 샘플 데이터로 예측을 테스트합니다.")
-# async def test_predict_with_sample():
-#     """샘플 데이터 예측 테스트"""
-#     return await AIPredictionService.test_prediction_with_sample()
+@router.get("/test/sample-predict", summary="샘플 예측 테스트(비인증)", description="AI 서버가 실제 예측 가능한지 샘플 데이터로 테스트합니다.")
+async def test_sample_predict():
+    class SampleRequest:
+        def __init__(self):
+            self.cow_id = "test_cow"
+            self.milking_frequency = 2
+            self.conductivity = 7.7
+            self.temperature = 38.5
+            self.fat_percentage = 3.8
+            self.protein_percentage = 3.2
+            self.concentrate_intake = 3.5
+            self.milking_month = 6
+            self.milking_day_of_week = 1
+            self.prediction_date = "2025-01-17"
+            self.notes = "sample test"
+    sample_request = SampleRequest()
+    return await AIPredictionService.predict_milk_yield(sample_request, current_user={})
 
 # @router.get("/test/model-health",
 #            summary="모델 상태 확인",
