@@ -6,6 +6,7 @@ from firebase_admin import firestore
 from services.chatbot_langgraph.graph import run_chatbot_graph
 from schemas.chatbot_schema import AskRequest, ChatMessage, ChatRoom
 import uuid
+import logging
 
 
 db = get_firestore_client()
@@ -23,7 +24,8 @@ async def handle_user_question(data: AskRequest, question_time: datetime) -> str
         question=data.question
     )
     answer_time = datetime.now()
-    print(f"✅ question_time: {question_time}, answer_time: {answer_time}")
+    logger = logging.getLogger(__name__)
+    logger.info(f"✅ question_time: {question_time}, answer_time: {answer_time}")
 
     try:
         chat_ref = db.collection("chat_rooms").document(data.chat_id)
