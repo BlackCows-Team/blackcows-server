@@ -27,6 +27,8 @@ async def handle_user_question(data: AskRequest) -> str:
         messages_ref = chat_ref.collection("messages")
 
         now = datetime.now()
+        answer_time = now + timedelta(seconds=2)  # 2초 뒤
+
         messages_ref.add({
             "role": "user",
             "content": data.question,
@@ -35,7 +37,7 @@ async def handle_user_question(data: AskRequest) -> str:
         messages_ref.add({
             "role": "assistant",
             "content": answer,
-            "timestamp": now
+            "timestamp": answer_time
         })
     except Exception as e:
         print(f"채팅 내역 저장 오류: {e}")
