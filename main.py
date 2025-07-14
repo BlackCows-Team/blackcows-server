@@ -1,6 +1,7 @@
 import os
 import warnings
 import time
+import httpx
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
@@ -13,6 +14,7 @@ import uvicorn
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import atexit
+
 
 # 로깅 설정
 # Windows 환경에 맞는 로그 경로 설정
@@ -44,27 +46,51 @@ if not os.getenv("LIVESTOCK_TRACE_API_DECODING_KEY"):
     print("[WARNING] LIVESTOCK_TRACE_API_DECODING_KEY 환경변수가 설정되지 않았습니다.")
     print("축산물이력제 연동 기능이 제한될 수 있습니다.")
 
+# AI 서버 헬스체크 함수
+async def check_ai_server_health():
+    """AI 서버 헬스체크 수행"""
+    ai_server_url = "https://feof-implement-finnish-finally.trycloudflare.com/ai/model-health"
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            logger.info("🔍 AI 서버 헬스체크 시작...")
+            response = await client.get(ai_server_url)
+            
+            if response.status_code == 200:
+                logger.info("✅ AI 서버 연결 성공!")
+                logger.info(f"✅ AI 서버 상태: {response.json()}")
+                return True
+            else:
+                logger.warning(f"⚠️ AI 서버 응답 이상: {response.status_code}")
+                return False
+                
+    except httpx.TimeoutException:
+        logger.error("❌ AI 서버 연결 시간초과 (30초)")
+        return False
+    except httpx.ConnectTimeout:
+        logger.error("❌ AI 서버 연결 시간초과")
+        return False
+    except httpx.ReadTimeout:
+        logger.error("❌ AI 서버 응답 읽기 시간초과")
+        return False
+    except Exception as e:
+        logger.error(f"❌ AI 서버 헬스체크 실패: {str(e)}")
+        return False
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 서버 시작 중...")
     
-    try:
-        from services.ai_prediction_service import initialize_models
-        if initialize_models():
-            logger.info("✅ AI 모델 로드 완료")
-        else:
-            logger.error("❌ AI 모델 로드 실패")
-    except Exception as e:
-        logger.error(f"❌ AI 모델 초기화 오류: {e}")
+    # AI 서버 헬스체크 수행
+    await check_ai_server_health()
     
+    # 스케줄러 설정
     setup_scheduler()
     logger.info("✅ 서버 초기화 완료")
     
     yield
     
     logger.info("🛑 서버 종료 중...")
-
-
 
 app = FastAPI(
     title="낙농 관리 서버 API",
@@ -91,36 +117,18 @@ BLOCKED_IPS = set()
 async def security_middleware(request: Request, call_next):
     client_ip = request.client.host
     path = request.url.path.lower()
-    
-    # 차단된 IP 체크
-    if client_ip in BLOCKED_IPS:
-        logger.warning(f"🚨 Blocked IP access attempt: {client_ip} -> {path}")
-        return JSONResponse(
-            status_code=403,
-            content={
-                "detail": "Access denied",
-                "message": "현재 귀하의 IP는 과도한 요청으로 인해 일시적으로 제한되었습니다. 서비스 정상 이용을 원하신다면 잠시 후 다시 시도하거나 고객센터로 문의 주세요."
-            }
-        )
-    
-    # Rate Limiting (1분에 50개 요청 제한)
+
+    # Rate Limiting (1분에 50개 요청 제한) - 로깅만, 차단하지 않음
     current_time = time.time()
     request_counts[client_ip] = [t for t in request_counts[client_ip] if current_time - t < 60]
     
-    if len(request_counts[client_ip]) >= 30:
-        logger.warning(f"🚨 Rate limit exceeded for IP: {client_ip} -> {path}")
-        BLOCKED_IPS.add(client_ip)
-        return JSONResponse(
-            status_code=429,
-            content={
-                "detail": "Too many requests",
-                "message": "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."
-            }
-        )
+    if len(request_counts[client_ip]) >= 50:
+        logger.warning(f"🚨 Rate limit exceeded for IP (로깅만): {client_ip} -> {path}")
+        # 차단하지 않고 로깅만 수행
     
     request_counts[client_ip].append(current_time)
     
-    # 의심스러운 요청 패턴 감지
+# 의심스러운 요청 패턴 감지 (로깅만)
     suspicious_patterns = [
         '.env', 'phpinfo', 'config', 'admin', 'wp-', 
         'laravel', 'debug', 'info.php', 'test', 'backup',
@@ -129,11 +137,12 @@ async def security_middleware(request: Request, call_next):
         'shell', 'cmd', 'exec', 'eval', 'system'
     ]
     if any(pattern in path for pattern in suspicious_patterns):
-        logger.warning(f"🚨 의심스러운 요청 감지: {client_ip}: {path}")
+        logger.warning(f"🚨🚨🚨🚨🚨 의심스러운 요청 감지🚨🚨🚨🚨🚨: {client_ip}: {path}")
+        # 추가 로깅만 수행, 차단하지 않음
         request_counts[client_ip].extend([current_time] * 3)
     
     # 로그 기록 (fail2ban용)
-    logger.info(f'{client_ip} - "{request.method} {path} HTTP/{request.scope.get("http_version", "1.1")}" {200 if client_ip not in BLOCKED_IPS else 403}')
+    logger.info(f'{client_ip} - "{request.method} {path} HTTP/{request.scope.get("http_version", "1.1")}" 200')
     
     return await call_next(request)
 
@@ -289,7 +298,7 @@ def setup_scheduler():
     # 할일 마감 임박 알림 (매 30분마다)
     scheduler.add_job(
         check_task_due_notifications_scheduled,
-        CronTrigger(minute="*/60"),
+        CronTrigger(minute=0),
         id='task_due_notifications',
         name='할일 마감 임박 알림'
     )
@@ -331,6 +340,10 @@ def setup_scheduler():
 async def startup_event():
     """앱 시작 시 실행되는 이벤트"""
     print("🚀 BlackCows 백엔드 서버 시작 중...")
+    
+        # AI 서버 헬스체크 수행
+    await check_ai_server_health()
+    
     setup_scheduler()
     print("✅ 서버 초기화 완료!")
 
