@@ -16,7 +16,8 @@ class NotificationScheduler:
         """할일 마감 임박 알림 체크"""
         try:
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            # 기존: current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 마감 1시간 전인 할일들 조회
             due_soon_time = current_time + timedelta(hours=1)
@@ -64,7 +65,8 @@ class NotificationScheduler:
         """지연된 할일 알림 체크"""
         try:
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            # 기존: current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 지연된 할일들 조회
             tasks_query = (db.collection('tasks')
@@ -106,7 +108,8 @@ class NotificationScheduler:
         """일일 요약 알림 체크 (매일 오전 9시)"""
         try:
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            # 기존: current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 오늘 할일이 있는 사용자들 조회
             today = current_time.date().strftime('%Y-%m-%d')
@@ -164,7 +167,8 @@ class NotificationScheduler:
         """주간 요약 알림 체크 (매주 월요일 오전 9시)"""
         try:
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            # 기존: current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 이번 주 할일들 조회
             week_ago = current_time - timedelta(days=7)
@@ -227,7 +231,8 @@ class NotificationScheduler:
         """최근에 동일한 알림을 보냈는지 확인"""
         try:
             db = get_firestore_client()
-            time_threshold = datetime.utcnow() - timedelta(hours=hours)
+            # time_threshold = datetime.utcnow() - timedelta(hours=hours)
+            time_threshold = datetime.now() - timedelta(hours=hours)
             
             query = (db.collection('notifications')
                     .where('user_id', '==', user_id)

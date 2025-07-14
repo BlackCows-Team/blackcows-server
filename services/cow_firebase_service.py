@@ -49,7 +49,8 @@ class CowFirebaseService:
             
             # 새 젖소 ID 생성
             cow_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            # 기존: current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 젖소 데이터 구성
             cow_document = {

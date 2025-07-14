@@ -24,7 +24,7 @@ class TaskService:
                 cow_info = TaskService._get_cow_info(task_data.related_cow_id, farm_id)
             
             task_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 마감일시 조합
             due_datetime = None
@@ -130,7 +130,7 @@ class TaskService:
                             .limit(limit)
                             .get())
 
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             tasks = []
 
             for doc in task_docs:
@@ -236,7 +236,7 @@ class TaskService:
             category_stats = {}
             priority_stats = {}
 
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
 
             for task_doc in all_tasks:
                 task_data = task_doc.to_dict()
@@ -360,7 +360,7 @@ class TaskService:
         try:
             db = get_firestore_client()
             farm_id = user.get("farm_id")
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 지연된 할일들 조회 - 단순화된 쿼리
             tasks_query = (db.collection('tasks')
@@ -428,7 +428,7 @@ class TaskService:
             existing_task = TaskService.get_task_by_id(task_id, farm_id)
             
             # 업데이트할 데이터 구성
-            update_data = {"updated_at": datetime.utcnow()}
+            update_data = {"updated_at": datetime.now()}
             
             if task_update.title is not None:
                 update_data["title"] = task_update.title
@@ -480,7 +480,7 @@ class TaskService:
         try:
             db = get_firestore_client()
             farm_id = user.get("farm_id")
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 기존 할일 확인
             existing_task = TaskService.get_task_by_id(task_id, farm_id)
@@ -532,8 +532,8 @@ class TaskService:
             # 소프트 삭제
             db.collection('tasks').document(task_id).update({
                 "is_active": False,
-                "updated_at": datetime.utcnow(),
-                "deleted_at": datetime.utcnow()
+                "updated_at": datetime.now(),
+                "deleted_at": datetime.now()
             })
             
             return {

@@ -23,7 +23,8 @@ class RecordFirebaseService:
             
             # 기록 데이터 구성
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            # 기존: current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             breeding_data = {
                 "breeding_method": record_data.breeding_method.value,
@@ -91,7 +92,8 @@ class RecordFirebaseService:
             
             # 기록 데이터 구성
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            # 기존: current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             disease_data = {
                 "disease_name": record_data.disease_name,
@@ -161,7 +163,8 @@ class RecordFirebaseService:
             
             # 기록 데이터 구성
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            # 기존: current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             status_change_data = {
                 "previous_status": record_data.previous_status,
@@ -226,7 +229,8 @@ class RecordFirebaseService:
             
             # 기록 데이터 구성
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            # 기존: current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             other_data = {
                 "category": record_data.category,

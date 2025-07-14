@@ -20,7 +20,7 @@ class NotificationService:
         try:
             db = get_firestore_client()
             notification_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 젖소 이름 조회
             cow_name = None
@@ -172,7 +172,7 @@ class NotificationService:
         """알림 읽음 처리"""
         try:
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 알림 확인
             notification = NotificationService.get_notification_by_id(notification_id, user_id, farm_id)
@@ -207,7 +207,7 @@ class NotificationService:
         """모든 알림 읽음 처리"""
         try:
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 읽지 않은 알림들 조회
             unread_notifications = (db.collection('notifications')
@@ -270,7 +270,7 @@ class NotificationService:
         """알림 통계 조회"""
         try:
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             today = current_time.date()
             week_ago = current_time - timedelta(days=7)
             
@@ -351,7 +351,7 @@ class NotificationService:
                 return NotificationSettings(**settings_data)
             
             # 기본 설정 생성
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             default_settings = {
                 "user_id": user_id,
                 "farm_id": farm_id,
@@ -390,7 +390,7 @@ class NotificationService:
         """알림 설정 업데이트"""
         try:
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 기존 설정 조회
             settings = NotificationService.get_or_create_notification_settings(user_id, farm_id)
@@ -432,7 +432,7 @@ class NotificationService:
         """알림 발송 처리"""
         try:
             db = get_firestore_client()
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             # 사용자 설정 조회
             settings = NotificationService.get_or_create_notification_settings(
@@ -482,7 +482,7 @@ class NotificationService:
             db = get_firestore_client()
             db.collection('notifications').document(notification_data['id']).update({
                 "status": NotificationStatus.FAILED.value,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now()
             })
     
     @staticmethod

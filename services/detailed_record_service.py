@@ -33,7 +33,7 @@ class DetailedRecordService:
                 )
             
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             milking_data = {
                 # 필수 필드
@@ -140,7 +140,7 @@ class DetailedRecordService:
             cow_info = DetailedRecordService._get_cow_info(record_data.cow_id, farm_id)
             
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             estrus_data = {
                 "estrus_start_time": record_data.estrus_start_time,
@@ -211,7 +211,7 @@ class DetailedRecordService:
             cow_info = DetailedRecordService._get_cow_info(record_data.cow_id, farm_id)
             
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             insemination_data = {
                 "insemination_time": record_data.insemination_time,
@@ -283,7 +283,7 @@ class DetailedRecordService:
             cow_info = DetailedRecordService._get_cow_info(record_data.cow_id, farm_id)
             
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             pregnancy_data = {
                 "check_method": record_data.check_method,
@@ -355,7 +355,7 @@ class DetailedRecordService:
             cow_info = DetailedRecordService._get_cow_info(record_data.cow_id, farm_id)
             
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             calving_data = {
                 "calving_start_time": record_data.calving_start_time,
@@ -432,7 +432,7 @@ class DetailedRecordService:
             cow_info = DetailedRecordService._get_cow_info(record_data.cow_id, farm_id)
             
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             feed_data = {
                 "feed_time": record_data.feed_time,
@@ -506,7 +506,7 @@ class DetailedRecordService:
             cow_info = DetailedRecordService._get_cow_info(record_data.cow_id, farm_id)
             
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             health_data = {
                 "check_time": record_data.check_time,
@@ -582,7 +582,7 @@ class DetailedRecordService:
             cow_info = DetailedRecordService._get_cow_info(record_data.cow_id, farm_id)
             
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             vaccination_data = {
                 "vaccination_time": record_data.vaccination_time,
@@ -657,7 +657,7 @@ class DetailedRecordService:
             cow_info = DetailedRecordService._get_cow_info(record_data.cow_id, farm_id)
             
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             weight_data = {
                 "measurement_time": record_data.measurement_time,
@@ -729,7 +729,7 @@ class DetailedRecordService:
             cow_info = DetailedRecordService._get_cow_info(record_data.cow_id, farm_id)
             
             record_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             
             treatment_data = {
                 "treatment_time": record_data.treatment_time,

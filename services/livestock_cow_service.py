@@ -206,7 +206,7 @@ class LivestockCowService:
         """축산물이력제 API에서 젖소 정보 조회"""
         try:
             # 캐시 확인 (5분간 유효)
-            current_time = datetime.utcnow()
+            current_time = datetime.now()
             if ear_tag_number in LivestockCowService._cache:
                 cached_time = LivestockCowService._cache_time[ear_tag_number]
                 time_diff = (current_time - cached_time).total_seconds()
