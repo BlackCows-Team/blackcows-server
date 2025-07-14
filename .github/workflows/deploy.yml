@@ -64,7 +64,7 @@ jobs:
           fi
 
           echo "=== 환경변수 설정 ==="
-          echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" > ㅑ.env
+          echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" >> .env
           echo "ACCESS_TOKEN_EXPIRE_MINUTES=30" >> .env
           echo "REFRESH_TOKEN_EXPIRE_DAYS=7" >> .env
           echo "ENVIRONMENT=production" >> .env
@@ -133,11 +133,16 @@ jobs:
           AI_SERVER_SUCCESS=false
           echo "🔍 외부 AI 서버 헬스체크 중..."
           
+          # 여러 헬스체크 엔드포인트 시도
           if curl -f -m 10 https://feof-implement-finnish-finally.trycloudflare.com/health >/dev/null 2>&1; then
-            echo "✅ 외부 AI 서버 연결 성공"
+            echo "✅ 외부 AI 서버 연결 성공 (/health)"
+            AI_SERVER_SUCCESS=true
+          elif curl -f -m 10 https://feof-implement-finnish-finally.trycloudflare.com/ >/dev/null 2>&1; then
+            echo "✅ 외부 AI 서버 연결 성공 (루트 경로)"
             AI_SERVER_SUCCESS=true
           else
             echo "⚠️ 외부 AI 서버 연결 실패 (AI 기능 제한됨)"
+            echo "🔍 디버깅: curl -v https://feof-implement-finnish-finally.trycloudflare.com/health"
           fi
 
           echo "=== tmux 세션 확인 ==="
@@ -198,7 +203,10 @@ jobs:
               AI_RELAY_SUCCESS=true
             else
               echo "⚠️ AI 샘플 예측 테스트 실패 (응답코드: $RESPONSE_CODE)"
-              echo "🔍 디버깅: curl -v http://localhost:8000/ai/test/sample-predict"
+              echo "🔍 상세 디버깅 정보:"
+              curl -v http://localhost:8000/ai/test/sample-predict 2>&1 | head -10
+              echo "🔍 서버 로그 확인:"
+              tmux capture-pane -t 0 -p | tail -5
             fi
           else
             echo "⚠️ 외부 AI 서버 연결 불가로 AI 중계 테스트 건너뜀"
