@@ -194,7 +194,7 @@ app.include_router(livestock_trace.router, prefix="/api/livestock-trace", tags=[
 app.include_router(chatbot_router.router, tags=["Chatbot"])
 app.include_router(task.router, prefix="/api/todos", tags=["할일 관리"])
 app.include_router(notification.router, prefix="/api/notifications", tags=["알림 관리"]) 
-app.include_router(ai_prediction.router, prefix="/api/ai-prediction", tags=["AI 예측"])
+app.include_router(ai_prediction.router, prefix="/ai", tags=["AI 예측"])
 
 
 

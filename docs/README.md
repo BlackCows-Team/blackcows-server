@@ -126,12 +126,12 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 
 ## 📡 전체 API 엔드포인트
 
-### 🤖 AI 예측 API (`/api/ai-prediction`) - ⭐ NEW!
+### 🤖 AI 예측 API (`/ai`) - ⭐ NEW!
 | Method | Endpoint | 설명 | 필수 필드 | 응답 |
 |--------|----------|------|----------|------|
-| `POST` | `/api/ai-prediction/milk-yield/predict` | **착유량 예측** - 젖소의 8개 특성(feature)을 바탕으로 착유량을 예측합니다. | `milking_frequency`, `conductivity`, `temperature`, `fat_percentage`, `protein_percentage`, `concentrate_intake`, `milking_month`, `milking_day_of_week` + Bearer Token | 예상 착유량 (리터) |
-| `POST` | `/api/ai-prediction/milk-yield/batch-predict` | **다중 젖소 착유량 예측** - 여러 젖소의 착유량을 한번에 예측합니다. | `predictions` (예측 요청 객체 리스트) + Bearer Token | 예측된 착유량 목록 (리터) |
-| `GET` | `/api/ai-prediction/test/sample-predict` | **샘플 예측 테스트(비인증)** - AI 서버가 실제 예측 가능한지 샘플 데이터로 테스트합니다. | 없음 | 샘플 예측 결과 |
+| `POST` | `/ai/milk-yield/predict` | **착유량 예측** - 젖소의 8개 특성(feature)을 바탕으로 착유량을 예측합니다. | **필수**: `milking_frequency`, `conductivity`, `temperature`, `fat_percentage`, `protein_percentage`, `concentrate_intake`, `milking_month`, `milking_day_of_week` + Bearer Token<br>**선택**: `cow_id`, `prediction_date`, `notes` | 예상 착유량 (리터) |
+| `POST` | `/ai/milk-yield/batch-predict` | **다중 젖소 착유량 예측** - 여러 젖소의 착유량을 한번에 예측합니다. | `predictions` (예측 요청 객체 리스트) + Bearer Token | 예측된 착유량 목록 (리터) |
+| `GET` | `/ai/test/sample-predict` | **샘플 예측 테스트(비인증)** - AI 서버가 실제 예측 가능한지 샘플 데이터로 테스트합니다. | 없음 | 샘플 예측 결과 |
 
 #### 🤖 AI 예측 시스템 특징
 - ✅ **외부 AI 서버 연동**: Cloudflare Tunnel을 통한 안정적인 AI 서버 연결
@@ -143,19 +143,19 @@ BlackCows는 낙농업 종합 관리 시스템으로, 젖소 정보 관리와 �
 
 #### 착유량 예측 요청 예시
 ```json
-POST /api/ai-prediction/milk-yield/predict
+POST /ai/milk-yield/predict
 {
-  "cow_id": "cow-uuid-123",
-  "milking_frequency": 2,
-  "conductivity": 7.7,
-  "temperature": 38.5,
-  "fat_percentage": 3.8,
-  "protein_percentage": 3.2,
-  "concentrate_intake": 3.5,
-  "milking_month": 6,
-  "milking_day_of_week": 1,
-  "prediction_date": "2025-01-17",
-  "notes": "정기 예측"
+  "cow_id": "cow-uuid-123",           // 선택사항
+  "milking_frequency": 2,             // 필수: 착유횟수 (1-4회)
+  "conductivity": 7.7,                // 필수: 전도율
+  "temperature": 38.5,                // 필수: 온도 (°C)
+  "fat_percentage": 3.8,              // 필수: 유지방비율 (%)
+  "protein_percentage": 3.2,          // 필수: 유단백비율 (%)
+  "concentrate_intake": 3.5,          // 필수: 농후사료섭취량 (kg)
+  "milking_month": 6,                 // 필수: 착유기측정월 (1-12)
+  "milking_day_of_week": 1,           // 필수: 착유기측정요일 (0:월요일~6:일요일)
+  "prediction_date": "2025-01-17",    // 선택사항: 예측 기준일
+  "notes": "정기 예측"                 // 선택사항: 예측 관련 메모
 }
 ```
 
@@ -174,7 +174,7 @@ POST /api/ai-prediction/milk-yield/predict
 
 #### 다중 젖소 예측 요청 예시
 ```json
-POST /api/ai-prediction/milk-yield/batch-predict
+POST /ai/milk-yield/batch-predict
 {
   "predictions": [
     {
