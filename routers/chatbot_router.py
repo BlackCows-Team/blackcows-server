@@ -7,6 +7,7 @@ from schemas.chatbot_schema import (
     ChatHistoryResponse, UpdateChatRoomNameRequest
 )
 from services import chatbot_service
+from datetime import datetime
 
 router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
 
@@ -15,7 +16,8 @@ router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
 @router.post("/ask", response_model=AskResponse)
 async def ask_question(data: AskRequest):
     try:
-        answer = await chatbot_service.handle_user_question(data)
+        question_time = datetime.now()
+        answer = await chatbot_service.handle_user_question(data, question_time)
         return AskResponse(answer=answer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

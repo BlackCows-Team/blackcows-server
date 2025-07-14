@@ -12,30 +12,31 @@ db = get_firestore_client()
 
 
 # 1. LangGraph 실행 + 응답 저장
-async def handle_user_question(data: AskRequest) -> str:
+async def handle_user_question(data: AskRequest, question_time: datetime) -> str:
     if db is None:
         raise ValueError("Firebase가 초기화되지 않았습니다.")
+    
     
     answer = await run_chatbot_graph(
         user_id=data.user_id,
         chat_id=data.chat_id,
         question=data.question
     )
+    answer_time = datetime.now()
 
     try:
         chat_ref = db.collection("chat_rooms").document(data.chat_id)
         messages_ref = chat_ref.collection("messages")
 
-        now = datetime.now()
         messages_ref.add({
             "role": "user",
             "content": data.question,
-            "timestamp": now
+            "timestamp": question_time
         })
         messages_ref.add({
             "role": "assistant",
             "content": answer,
-            "timestamp": now
+            "timestamp": answer_time
         })
     except Exception as e:
         print(f"채팅 내역 저장 오류: {e}")
