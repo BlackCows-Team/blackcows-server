@@ -47,7 +47,7 @@ async def predict_milk_yield_batch(
     return await AIPredictionService.predict_milk_yield_batch(batch_request, current_user)
 
 
-# ===== 유방염 예측 API ===== ✅ 새로 추가
+# ===== 유방염 예측 API ===== #
 
 @router.post("/mastitis/predict",
              summary="유방염 예측",
@@ -78,7 +78,7 @@ async def predict_mastitis_batch(
     """다중 젖소 유방염 일괄 예측"""
     return await AIPredictionService.predict_mastitis_batch(batch_request, current_user)
 
-# ===== 체세포수 기반 유방염 예측 API ===== ✅ 새로 추가
+# ===== 체세포수 기반 유방염 예측 API ===== #
 
 @router.post("/scc-mastitis/predict",
              summary="체세포수 기반 유방염 예측",

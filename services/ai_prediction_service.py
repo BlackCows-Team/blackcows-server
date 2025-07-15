@@ -136,6 +136,7 @@ class AIPredictionService:
                 }
             )
     
+    # 유방염 예측
     @classmethod
     async def predict_mastitis(cls, request, current_user: Dict) -> Dict[str, Any]:
         """유방염 예측 - AI 서버로 요청 전달"""
@@ -185,6 +186,7 @@ class AIPredictionService:
                 }
             )
 
+    #체세포수 기반 유방염 예측
     @classmethod
     async def predict_scc_mastitis(cls, request, current_user: Dict) -> Dict[str, Any]:
         """체세포수 기반 유방염 예측 - AI 서버로 요청 전달"""
@@ -201,8 +203,8 @@ class AIPredictionService:
                 "notes": getattr(request, 'notes', None)
             }
             
-            # AI 서버로 예측 요청
-            ai_response = await cls._make_ai_request("/ai/scc-mastitis/predict", payload)
+            # AI 서버로 예측 요청 (정확한 엔드포인트로 수정)
+            ai_response = await cls._make_ai_request("/ai/mastitis/predict-by-scc", payload)
             
             # AWS EC2 서버에서 추가 메타데이터 보강
             enhanced_response = {
@@ -229,8 +231,7 @@ class AIPredictionService:
                     "reason": str(e)
                 }
             )
-
-
+    
     @classmethod
     async def predict_milk_yield_batch(cls, batch_request, current_user: Dict) -> Dict[str, Any]:
         """다중 젖소 착유량 일괄 예측 - AI 서버로 요청 전달"""
@@ -291,7 +292,8 @@ class AIPredictionService:
                     "reason": str(e)
                 }
             )
-# 유방염 배치 예측
+
+    # 유방염 배치 예측
     @classmethod
     async def predict_mastitis_batch(cls, batch_request, current_user: Dict) -> Dict[str, Any]:
         """다중 젖소 유방염 일괄 예측 - AI 서버로 요청 전달"""
@@ -374,8 +376,8 @@ class AIPredictionService:
                 "batch_name": getattr(batch_request, 'batch_name', None)
             }
             
-            # AI 서버로 배치 예측 요청
-            ai_response = await cls._make_ai_request("/ai/scc-mastitis/batch-predict", payload)
+            # AI 서버로 배치 예측 요청 (정확한 엔드포인트로 수정)
+            ai_response = await cls._make_ai_request("/ai/mastitis/batch-predict-by-scc", payload)
             
             # AWS EC2 서버에서 추가 메타데이터 보강
             enhanced_response = {
@@ -404,7 +406,6 @@ class AIPredictionService:
                     "reason": str(e)
                 }
             )
-
 
     @classmethod
     async def check_ai_server_health(cls) -> Dict[str, Any]:
