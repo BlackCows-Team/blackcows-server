@@ -491,6 +491,10 @@ def change_password(
                     "deactivated_at": datetime.utcnow(),
                     "deactivated_reason": "password_changed"
                 })
+            # 임시 비밀번호 즉시 삭제
+            temp_pw_docs = db.collection('temporary_passwords').where('user_id', '==', user["id"]).get()
+            for temp_doc in temp_pw_docs:
+                db.collection('temporary_passwords').document(temp_doc.id).delete()
         
         return {
             "success": True,
