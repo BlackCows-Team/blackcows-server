@@ -60,9 +60,3 @@ async def test_sample_predict():
     sample_request = SampleRequest()
     return await AIPredictionService.predict_milk_yield(sample_request, current_user={})
 
-# @router.get("/test/model-health",
-#            summary="모델 상태 확인",
-#            description="AI 모델 로드 및 예측 상태를 확인합니다.")
-# async def check_model_health():
-#     """모델 서빙 상태 확인"""
-#     return await AIPredictionService.check_model_health()
