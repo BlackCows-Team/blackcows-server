@@ -150,7 +150,7 @@ def get_cow_details_by_ear_tag_number(ear_tag_number: str):
 
 def extract_ear_tag_number(text: str) -> str | None:
     """텍스트에서 12자리 이표번호 추출 (한글과 붙어 있어도 추출되게)"""
-    match = re.search(r'(\\d{12})', text)
+    match = re.search(r'(\d{12})', text)
     return match.group(1) if match else None
 
 ### LLM 기반 질문 분류 ###
