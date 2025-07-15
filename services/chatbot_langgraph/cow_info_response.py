@@ -3,63 +3,18 @@ from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 import os
 from .types import DairyChatState, get_chat_memory, append_chat_memory
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from services.firebase_user_service import FirebaseUserService, ACCESS_TOKEN_EXPIRE_MINUTES
-from fastapi import Depends
-from datetime import datetime
 from config.firebase_config import get_firestore_client
 from schemas.cow import HealthStatus, BreedingStatus, Temperament, MilkingBehavior
-from fastapi import APIRouter
-
-router = APIRouter()
+import re
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 db = get_firestore_client()
-security = HTTPBearer()
-
-def get_current_user_farm_id(credentials):
-    """현재 로그인된 사용자의 농장 ID를 조회"""
-    token = credentials.credentials
-    user = FirebaseUserService.verify_access_token(token)
-    return user["farm_id"]
-
-def get_cows_by_farm(farm_id: str, is_active: bool = True):
-        """farm_id로 젖소 목록 조회"""
-        try:
-            cows_query = (db.collection('cows')
-                         .where('farm_id', '==', farm_id)
-                         .where('is_active', '==', is_active)
-                         .order_by('created_at', direction='DESCENDING')
-                         .get())
-            
-            cows = []
-            for cow_doc in cows_query:
-                try:
-                    cow_data = cow_doc.to_dict()
-                    
-                    cows.append({
-                        "cow_id": cow_data.get("id", ""),
-                        "ear_tag_number": cow_data.get("ear_tag_number", ""),
-                        "name": cow_data.get("name", "이름 없음"),
-                        "birthdate": cow_data.get("birthdate"),
-                    })
-                except Exception as e:
-                    # 개별 젖소 처리 실패 시 로그만 남기고 계속 진행
-                    print(f"[WARNING] 젖소 처리 실패 (ID: {cow_doc.id}): {str(e)}")
-                    continue
-            
-            return cows
-            
-        except Exception as e:
-            # 전체 실패 시에도 빈 배열 반환 (500 오류 방지)
-            print(f"[ERROR] 젖소 목록 조회 전체 실패 (farm_id: {farm_id}): {str(e)}")
-            return []
 
 
-def get_cow_by_id(cow_id: str):
+def get_cow_by_ear_tag_number(ear_tag_number: str):
     """특정 젖소 - 기본 정보 조회"""
     try:
-        cow_doc = db.collection('cows').document(cow_id).get()
+        cow_doc = db.collection('cows').document(ear_tag_number).get()
         
         if not cow_doc.exists:
             return None
@@ -104,13 +59,13 @@ def get_cow_by_id(cow_id: str):
         
     except Exception as e:
         # 실패 시에도 500 오류 방지
-        print(f"[ERROR] 특정 젖소 *기본 정보* 조회 전체 실패 (cow_id: {cow_id}): {str(e)}")
+        print(f"[ERROR] 특정 젖소 *기본 정보* 조회 전체 실패 (ear_tag_number: {ear_tag_number}): {str(e)}")
         return None
 
-def get_cow_details_by_id(cow_id: str):
+def get_cow_details_by_ear_tag_number(ear_tag_number: str):
     """특정 젖소 - 상세 정보 조회"""
     try:
-        cow_doc = db.collection('cows').document(cow_id).get()
+        cow_doc = db.collection('cows').document(ear_tag_number).get()
         
         if not cow_doc.exists:
             return None
@@ -190,18 +145,13 @@ def get_cow_details_by_id(cow_id: str):
         
     except Exception as e:
         # 실패 시에도 500 오류 방지
-        print(f"[ERROR] 특정 젖소 *상세 정보* 조회 전체 실패 (cow_id: {cow_id}): {str(e)}")
+        print(f"[ERROR] 특정 젖소 *상세 정보* 조회 전체 실패 (ear_tag_number: {ear_tag_number}): {str(e)}")
         return None
 
-'''
-user_farm_id = get_current_user_farm_id(credentials=Depends(security))
-cows = get_cows_by_farm(user_farm_id, is_active=True)
-user_selected_cow_num = 0
-
-cow_id = cows[user_selected_cow_num]["cow_id"]
-cow_basic_info = get_cow_by_id(cow_id)
-cow_detailed_info = get_cow_details_by_id(cow_id)
-'''
+def extract_ear_tag_number(text: str) -> str | None:
+    """텍스트에서 12자리 이표번호 추출 (한글과 붙어 있어도 추출되게)"""
+    match = re.search(r'(\d{12})', text)
+    return match.group(1) if match else None
 
 ### LLM 기반 질문 분류 ###
 def classify_question_category(question: str) -> str:
@@ -284,27 +234,24 @@ def build_relevant_cow_info(question: str, basic: dict, detail: dict) -> dict:
 
 ### 응답 생성 노드 ###
 # 일반 함수로 정의
-def generate_cow_info_response(state: DairyChatState, credentials: HTTPAuthorizationCredentials) -> DairyChatState:
+def generate_cow_info_response(state: DairyChatState) -> DairyChatState:
     memory_text = "\n".join(get_chat_memory(state["user_id"], state["chat_id"]))
     question = state["current_question"]
-    user_farm_id = get_current_user_farm_id(credentials)
-    cow_list = get_cows_by_farm(user_farm_id, is_active=True)
+    ear_tag_number = extract_ear_tag_number(question)
+    print(f"🏷️ 추출된 이표번호: {ear_tag_number}")
 
-    selected_ear_tag = next((c["ear_tag_number"] for c in cow_list if c["ear_tag_number"] in question), None)
-    if not selected_ear_tag:
-        cow_summary = "\n".join([f"- {c['name']} (이표번호: {c['ear_tag_number']})" for c in cow_list])
-        msg = f"등록된 젖소 목록입니다:\n{cow_summary}\n\n어떤 소에 대해 알고 싶으신가요? 이표번호를 포함해서 질문해 주세요."
+    # 이표번호가 포함되어 있지 않으면 안내
+    if not ear_tag_number:
+        msg = (
+            "어떤 젖소에 대한 정보가 궁금하신가요?\n"
+            "12자리 이표번호를 포함해서 질문해 주세요. 예: '123456789012 소의 건강 상태 알려줘.'"
+        )
         append_chat_memory(state["user_id"], state["chat_id"], question, msg)
         return {**state, "current_answer": msg}
 
-    selected_cow = next((c for c in cow_list if c["ear_tag_number"] == selected_ear_tag), None)
-    if not selected_cow:
-        msg = f"'{selected_ear_tag}' 이표번호의 젖소를 찾을 수 없습니다."
-        append_chat_memory(state["user_id"], state["chat_id"], question, msg)
-        return {**state, "current_answer": msg}
-
-    basic = get_cow_by_id(selected_cow["cow_id"])
-    detail = get_cow_details_by_id(selected_cow["cow_id"])
+    # 소 정보 조회
+    basic = get_cow_by_ear_tag_number(ear_tag_number)
+    detail = get_cow_details_by_ear_tag_number(ear_tag_number)
     cow_info = build_relevant_cow_info(question, basic, detail)
 
     prompt = PromptTemplate(
@@ -338,8 +285,3 @@ def generate_cow_info_response(state: DairyChatState, credentials: HTTPAuthoriza
 
 
     return {**state, "current_answer": result}
-
-# FastAPI 라우터에서 사용
-@router.post("/chat/cow-info")
-def chat_cow_info(state: DairyChatState, credentials: HTTPAuthorizationCredentials = Depends(security)):
-    return generate_cow_info_response(state, credentials)
