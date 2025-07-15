@@ -149,9 +149,9 @@ def get_cow_details_by_ear_tag_number(ear_tag_number: str):
         return None
 
 def extract_ear_tag_number(text: str) -> str | None:
-    """텍스트에서 12자리 이표번호 추출"""
-    match = re.search(r'\\b\\d{12}\\b', text)
-    return match.group() if match else None
+    """텍스트에서 12자리 이표번호 추출 (한글과 붙어 있어도 추출되게)"""
+    match = re.search(r'(\\d{12})', text)
+    return match.group(1) if match else None
 
 ### LLM 기반 질문 분류 ###
 def classify_question_category(question: str) -> str:
@@ -238,6 +238,7 @@ def generate_cow_info_response(state: DairyChatState) -> DairyChatState:
     memory_text = "\n".join(get_chat_memory(state["user_id"], state["chat_id"]))
     question = state["current_question"]
     ear_tag_number = extract_ear_tag_number(question)
+    print(f"🏷️ 추출된 이표번호: {ear_tag_number}")
 
     # 이표번호가 포함되어 있지 않으면 안내
     if not ear_tag_number:
