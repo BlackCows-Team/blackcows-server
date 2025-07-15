@@ -18,11 +18,11 @@ def classify_question_route(state: DairyChatState) -> DairyChatState:
             ---
 
             1. "rag"
-            - 낙농업과 관련된 모든 정보 요청 (지식, 원리, 정책, 용어 등)
+            - 낙농업 및 젖소와 관련된 모든 정보 요청 (지식, 원리, 정책, 용어 등)
             - 예시: "젖소의 발정 주기는?", "착유기는 어떻게 작동하나요?", "낙농업 역사 알려줘"
 
             2. "cow_info"
-            - 사용자의 농장에 등록된 소 정보나 상태, 기록 등
+            - 사용자의 농장에 등록된 소 정보를 물어보는 질문
             - 예시: "103번 소 상태 알려줘", "어제 분만한 소들 누구야?"
 
             3. "general"
@@ -39,7 +39,7 @@ def classify_question_route(state: DairyChatState) -> DairyChatState:
             {question}
 
             [분류 결과]
-            아래 중 하나만 출력하세요: rag / cow_info / general / irrelevant
+            다음 중 하나만 출력하세요: rag / cow_info / general / irrelevant
             그 외 말은 절대 하지 마세요.
             """
     )

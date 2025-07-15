@@ -79,7 +79,7 @@ def build_or_load_vectordb(source_folder: str, persist_dir: str = "RAG/chroma"):
 
 
 def generate_rag_response(state: DairyChatState) -> DairyChatState:
-    """RAG 기반 답변을 생성하는 노드"""
+    """RAG 기반으로 낙농업에 대한 전문적인 답변을 생성하는 노드"""
     vectordb = build_or_load_vectordb("RAG/source_docs")
     memory_text = "\n".join(get_chat_memory(state["user_id"], state["chat_id"]))
 

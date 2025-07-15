@@ -2,7 +2,7 @@ from langgraph.graph import StateGraph, START, END
 from .classifier import classify_question_route
 from .general_response import generate_general_response
 from .rag_response import generate_rag_response
-from .cow_info_response import generate_farmdata_response
+from .cow_info_response import generate_cow_info_response
 from .irrelevant_response import handle_irrelevant_question
 from .router import route_by_answer_type
 from .types import DairyChatState
@@ -43,24 +43,24 @@ def create_chatbot_graph():
     builder = StateGraph(DairyChatState)
     
     # 노드 추가
-    builder.add_node("classify_question_route", classify_question_route)
-    builder.add_node("generate_general_answer", generate_general_response)
-    builder.add_node("generate_rag_answer", generate_rag_response)
-    builder.add_node("generate_cow_info_answer", generate_farmdata_response)
-    builder.add_node("handle_irrelevant_question", handle_irrelevant_question)
+    builder.add_node("classifier", classify_question_route)
+    builder.add_node("general_response", generate_general_response)
+    builder.add_node("rag_response", generate_rag_response)
+    builder.add_node("cow_info_response", generate_cow_info_response)
+    builder.add_node("irrelevant_response", handle_irrelevant_question)
 
     # 엣지 추가
-    builder.add_edge(START, "classify_question_route")
-    builder.add_conditional_edges("classify_question_route", route_by_answer_type, {
-        "general": "generate_general_answer",
-        "rag": "generate_rag_answer",
-        "cow_info": "generate_cow_info_answer",
-        "irrelevant": "handle_irrelevant_question",
+    builder.add_edge(START, "classifier")
+    builder.add_conditional_edges("classifier", route_by_answer_type, {
+        "general": "general_response",
+        "rag": "rag_response",
+        "cow_info": "cow_info_response",
+        "irrelevant": "irrelevant_response",
     })
-    builder.add_edge("generate_general_answer", END)
-    builder.add_edge("generate_rag_answer", END)
-    builder.add_edge("generate_cow_info_answer", END)
-    builder.add_edge("handle_irrelevant_question", END)
+    builder.add_edge("general_response", END)
+    builder.add_edge("rag_response", END)
+    builder.add_edge("cow_info_response", END)
+    builder.add_edge("irrelevant_response", END)
 
     return builder.compile()
 
