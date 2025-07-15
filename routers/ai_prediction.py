@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List, Optional, Dict, Any
 from schemas.ai_prediction import (
     MilkYieldPredictionRequest,
-    PredictionBatchRequest
+    MastitisPredictionRequest,
+    PredictionBatchRequest,
+    MastitisBatchRequest
 )
 from services.ai_prediction_service import AIPredictionService
 from routers.auth_firebase import get_current_user
@@ -30,6 +32,25 @@ async def predict_milk_yield(
     """개별 젖소 착유량 예측"""
     return await AIPredictionService.predict_milk_yield(prediction_request, current_user)
 
+@router.post("/mastitis/predict",
+             summary="유방염 예측",
+             description="""
+             젖소의 5개 특성을 바탕으로 유방염 위험도를 분류합니다.
+             
+             **필요한 입력:**
+             - 착유량, 전도율, 유지방비율, 유단백비율, 산차수
+             
+             **결과:**
+             - 예측 클래스: 정상, 주의, 염증 가능성
+             - 신뢰도 점수
+             """)
+async def predict_mastitis(
+    prediction_request: MastitisPredictionRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """개별 젖소 유방염 예측"""
+    return await AIPredictionService.predict_mastitis(prediction_request, current_user)
+
 @router.post("/milk-yield/batch-predict",
              summary="다중 젖소 착유량 예측",
              description="여러 젖소의 착유량을 한번에 예측합니다.")
@@ -39,6 +60,16 @@ async def predict_milk_yield_batch(
 ):
     """다중 젖소 착유량 일괄 예측"""
     return await AIPredictionService.predict_milk_yield_batch(batch_request, current_user)
+
+@router.post("/mastitis/batch-predict",
+             summary="다중 젖소 유방염 예측",
+             description="여러 젖소의 유방염 위험도를 한번에 예측합니다.")
+async def predict_mastitis_batch(
+    batch_request: MastitisBatchRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """다중 젖소 유방염 일괄 예측"""
+    return await AIPredictionService.predict_mastitis_batch(batch_request, current_user)
 
 # ===== 테스트/개발용 엔드포인트 =====
 
@@ -59,6 +90,21 @@ async def test_sample_predict():
             self.notes = "sample test"
     sample_request = SampleRequest()
     return await AIPredictionService.predict_milk_yield(sample_request, current_user={})
+
+@router.get("/test/sample-mastitis-predict", summary="샘플 유방염 예측 테스트(비인증)", description="AI 서버가 실제 유방염 예측 가능한지 샘플 데이터로 테스트합니다.")
+async def test_sample_mastitis_predict():
+    class SampleMastitisRequest:
+        def __init__(self):
+            self.cow_id = "test_cow"
+            self.milk_yield = 25.5
+            self.conductivity = 7.7
+            self.fat_percentage = 3.8
+            self.protein_percentage = 3.2
+            self.lactation_number = 2
+            self.prediction_date = "2025-01-17"
+            self.notes = "sample mastitis test"
+    sample_request = SampleMastitisRequest()
+    return await AIPredictionService.predict_mastitis(sample_request, current_user={})
 
 # @router.get("/test/model-health",
 #            summary="모델 상태 확인",

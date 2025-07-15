@@ -8,7 +8,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 
 def generate_general_response(state: DairyChatState) -> DairyChatState:
-    """일반적인 대화 답변을 생성하는 노드"""
+    """챗봇 자체에 대한 질문, 인사, 감정 표현, 잡담 등 UX 흐름 질문에 대한 답변을 생성하는 노드"""
     memory_text = "\n".join(get_chat_memory(state["user_id"], state["chat_id"]))
     prompt = PromptTemplate(
         input_variables=["memory", "question"],

@@ -49,7 +49,7 @@ class CowFirebaseService:
             
             # 새 젖소 ID 생성
             cow_id = str(uuid.uuid4())
-            # 기존: current_time = datetime.utcnow()
+            # 기존: current_time = datetime.now()
             current_time = datetime.now()
             
             # 젖소 데이터 구성
@@ -100,6 +100,8 @@ class CowFirebaseService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"젖소 등록 중 오류가 발생했습니다: {str(e)}"
             )
+   
+    #########################################################
     
     @staticmethod
     def get_cows_by_farm(farm_id: str, is_active: bool = True) -> List[CowResponse]:
@@ -147,8 +149,8 @@ class CowFirebaseService:
                         is_favorite=cow_data.get("is_favorite", False),
                         farm_id=cow_data.get("farm_id", farm_id),
                         owner_id=cow_data.get("owner_id", ""),
-                        created_at=cow_data.get("created_at", datetime.utcnow()),
-                        updated_at=cow_data.get("updated_at", datetime.utcnow()),
+                        created_at=cow_data.get("created_at", datetime.now()),
+                        updated_at=cow_data.get("updated_at", datetime.now()),
                         is_active=cow_data.get("is_active", True)
                     ))
                 except Exception as cow_error:
@@ -234,7 +236,7 @@ class CowFirebaseService:
                 )
             
             # 업데이트할 데이터 구성
-            update_data = {"updated_at": datetime.utcnow()}
+            update_data = {"updated_at": datetime.now()}
             
             # 변경된 필드만 업데이트
             if cow_update.name is not None:
@@ -363,7 +365,7 @@ class CowFirebaseService:
             # Firestore 업데이트
             db.collection('cows').document(cow_id).update({
                 "is_favorite": new_favorite_status,
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.now()
             })
             
             action = "추가" if new_favorite_status else "제거"
@@ -428,8 +430,8 @@ class CowFirebaseService:
                         is_favorite=cow_data.get("is_favorite", False),
                         farm_id=cow_data.get("farm_id", farm_id),
                         owner_id=cow_data.get("owner_id", ""),
-                        created_at=cow_data.get("created_at", datetime.utcnow()),
-                        updated_at=cow_data.get("updated_at", datetime.utcnow()),
+                        created_at=cow_data.get("created_at", datetime.now()),
+                        updated_at=cow_data.get("updated_at", datetime.now()),
                         is_active=cow_data.get("is_active", True)
                     ))
                 except Exception as cow_error:
@@ -560,7 +562,7 @@ def update_cow_details(cow_id: str, cow_detail_update: CowDetailUpdate, user: Di
                 detail="젖소를 찾을 수 없습니다"
             )
         
-        current_time = datetime.utcnow()
+        current_time = datetime.now()
         
         # 업데이트할 데이터 구성
         update_data = {
