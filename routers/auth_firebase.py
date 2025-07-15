@@ -194,8 +194,12 @@ def login_user(user_data: UserLogin):
                 detail="사용자를 찾을 수 없습니다",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        # 비밀번호 변경 전용 액세스 토큰 생성 (30분 유효)
-        access_token = FirebaseUserService.create_password_reset_access_token(user)
+        # 비밀번호 변경 전용 액세스 토큰 생성 (60분 유효)
+        access_token = FirebaseUserService.create_access_token(
+            data={"sub": user["user_id"], "user_uuid": user["id"]},
+            expires_delta=timedelta(minutes=60)
+        )
+        refresh_token = FirebaseUserService.create_refresh_token(user["id"])
         user_response = UserResponse(
             id=user["id"],
             username=user["username"],
@@ -213,10 +217,11 @@ def login_user(user_data: UserLogin):
         # 임시 비밀번호 로그인 응답(비밀번호 변경 안내)
         return TokenResponse(
             access_token=access_token,
-            refresh_token=None,
+            refresh_token=refresh_token,
             token_type="bearer",
             expires_in=30 * 60,  # 30분
             user=user_response,
+            is_new_user=False,
             temp_login=True,
             notice="임시 비밀번호로 로그인되었습니다. 반드시 새 비밀번호로 변경해주세요."
         )
@@ -489,6 +494,10 @@ def change_password(
                     "deactivated_at": datetime.utcnow(),
                     "deactivated_reason": "password_changed"
                 })
+            # 임시 비밀번호 즉시 삭제
+            temp_pw_docs = db.collection('temporary_passwords').where('user_id', '==', user["id"]).get()
+            for temp_doc in temp_pw_docs:
+                db.collection('temporary_passwords').document(temp_doc.id).delete()
         
         return {
             "success": True,

@@ -306,33 +306,54 @@ POST /api/todos/create
 | `POST` | `/auth/login` | 로그인 (user_id 기반) | `user_id`, `password` | `access_token`, `refresh_token`, 사용자 정보 |
 | `POST` | `/auth/refresh` | 토큰 갱신 | `refresh_token` | 새로운 `access_token` |
 | `GET` | `/auth/me` | 현재 사용자 정보 조회 | Bearer Token | 현재 사용자 정보 |
-| `POST` | `/auth/find-user-id` | 아이디 찾기 | `username`, `email` | 찾은 `user_id` |
-| `POST` | `/auth/request-password-reset` | 비밀번호 재설정 요청 | `username`, `user_id`, `email` | 이메일 전송 결과 + 임시 토큰 |
-| `POST` | `/auth/verify-reset-token` | 재설정 토큰 검증 | `token` | 토큰 유효성 결과 |
-| `POST` | `/auth/reset-password` | 비밀번호 재설정 | `token`, `new_password`, `confirm_password` | 재설정 성공 메시지 |
-| `POST` | `/auth/login-with-reset-token` | 임시 토큰 로그인 | `user_id`, `reset_token` | 임시 `access_token` (비밀번호 변경 권한) |
+| `POST` | `/auth/find-user-id` | 아이디 찾기 | `username`, `email` | 아이디 이메일 발송 결과 |
+| `POST` | `/auth/request-password-reset` | 비밀번호 재설정 요청 | `username`, `user_id`, `email` | 임시 비밀번호 이메일 발송 결과 |
 | `POST` | `/auth/change-password` | 비밀번호 변경 | `new_password`, `confirm_password` + Bearer Token | 변경 성공 메시지 |
 | `PUT` | `/auth/update-farm-name` | 목장 이름 수정 | `farm_nickname` + Bearer Token | 수정된 사용자 정보 |
 | `DELETE` | `/auth/delete-account` | 회원탈퇴 | `password`, `confirmation` + Bearer Token | 삭제 완료 메시지 |
 | `POST` | `/auth/login-debug` | 로그인 디버깅 | 원시 요청 데이터 | 디버그 정보 |
 
-#### 📧 임시비밀번호 및 이메일 시스템 (업데이트!)
+#### 📧 아이디 찾기 & 비밀번호 재설정 시스템
 
-**임시비밀번호 생성 플로우:**
+**아이디 찾기 플로우:**
+1. **사용자 정보 입력**: 이름 + 이메일 입력
+2. **사용자 검증**: 서버에서 2개 정보 모두 일치하는지 확인
+3. **SNS 계정 체크**: 구글 로그인 계정인지 확인
+4. **이메일 발송**: Gmail SMTP로 아이디 정보 발송
+
+**비밀번호 재설정 플로우:**
 1. **비밀번호 재설정 요청**: 사용자가 이름, 아이디, 이메일 입력
 2. **사용자 검증**: 서버에서 3개 정보 모두 일치하는지 확인
-3. **JWT 토큰 생성**: 1시간 유효한 재설정 토큰 생성
-4. **이메일 발송**: AWS SES 또는 Gmail SMTP로 재설정 링크 발송
-5. **토큰 검증**: 사용자가 링크 클릭 시 토큰 유효성 검증
-6. **임시 로그인**: 재설정 토큰으로 제한된 권한 로그인
-7. **비밀번호 변경**: 새 비밀번호로 변경 완료
-8. **보안 강화**: 모든 기존 리프레시 토큰 무효화
+3. **임시 비밀번호 생성**: 8자리 랜덤 임시 비밀번호 생성 (60분 유효)
+4. **이메일 발송**: AWS SES 또는 Gmail SMTP로 임시 비밀번호 발송
+5. **임시 비밀번호 로그인**: 일반 로그인 API로 임시 비밀번호 사용
+6. **비밀번호 변경**: 임시 토큰으로 새 비밀번호 변경
+7. **보안 강화**: 모든 기존 리프레시 토큰 무효화
 
 **이메일 서비스 구성:**
 - **AWS SES**: 프로덕션 환경 이메일 발송
 - **Gmail SMTP**: 개발 환경 및 백업 서비스
 - **템플릿 시스템**: HTML 이메일 템플릿 지원
 - **발송 추적**: 이메일 발송 성공/실패 로그 관리
+
+**아이디 찾기 요청 예시:**
+```json
+POST /auth/find-user-id
+{
+  "username": "홍길동",
+  "email": "admin@farm.com"
+}
+```
+
+**응답:**
+```json
+{
+  "success": true,
+  "message": "홍길동님의 아이디를 이메일로 발송했습니다",
+  "email": "admin@farm.com",
+  "username": "홍길동"
+}
+```
 
 **비밀번호 재설정 요청 예시:**
 ```json
@@ -348,33 +369,9 @@ POST /auth/request-password-reset
 ```json
 {
   "success": true,
-  "message": "비밀번호 재설정 이메일이 발송되었습니다.",
-  "reset_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expires_at": "2025-07-12T15:30:00Z"
-}
-```
-
-**임시 토큰 로그인 예시:**
-```json
-POST /auth/login-with-reset-token
-{
-  "user_id": "admin123",
-  "reset_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**응답:**
-```json
-{
-  "access_token": "temporary_access_token_here",
-  "token_type": "bearer",
-  "expires_in": 1800,
-  "scope": "password_change_only",
-  "user": {
-    "user_id": "admin123",
-    "username": "홍길동",
-    "email": "admin@farm.com"
-  }
+  "message": "임시 비밀번호를 이메일로 발송했습니다",
+  "email": "admin@farm.com",
+  "expires_at": "2025-01-17T11:30:00Z"
 }
 ```
 

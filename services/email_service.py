@@ -296,12 +296,7 @@ class EmailService:
                 
                 # 비밀번호 검증
                 if FirebaseUserService.verify_password(temp_password, temp_data['hashed_temp_password']):
-                    # 사용 처리
-                    db.collection('temporary_passwords').document(temp_doc.id).update({
-                        'is_used': True,
-                        'used_at': current_time
-                    })
-                    
+                    # 사용 처리 (is_used는 비밀번호 변경 시에만 True로 변경)
                     print(f"[EMAIL] ✅ 임시 비밀번호 검증 성공: {user_id}")
                     return temp_data['temp_id']
             
