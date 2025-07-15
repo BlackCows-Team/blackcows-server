@@ -194,8 +194,11 @@ def login_user(user_data: UserLogin):
                 detail="사용자를 찾을 수 없습니다",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        # 비밀번호 변경 전용 액세스 토큰 생성 (30분 유효)
-        access_token = FirebaseUserService.create_password_reset_access_token(user)
+        # 비밀번호 변경 전용 액세스 토큰 생성 (60분 유효)
+        access_token = FirebaseUserService.create_access_token(
+            data={"sub": user["user_id"], "user_uuid": user["id"]},
+            expires_delta=timedelta(minutes=60)
+        )
         refresh_token = FirebaseUserService.create_refresh_token(user["id"])
         user_response = UserResponse(
             id=user["id"],
