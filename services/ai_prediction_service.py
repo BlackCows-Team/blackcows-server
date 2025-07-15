@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class AIPredictionService:
     
-    MODEL_VERSION = "v1.0.0"
+    MODEL_VERSION = "v2.0.0"
     
     # AI 서버 URL (Cloudflare Tunnel 고정 도메인)
     AI_SERVER_URL = "https://feof-implement-finnish-finally.trycloudflare.com"
@@ -184,7 +184,53 @@ class AIPredictionService:
                     "reason": str(e)
                 }
             )
-    
+
+    @classmethod
+    async def predict_scc_mastitis(cls, request, current_user: Dict) -> Dict[str, Any]:
+        """체세포수 기반 유방염 예측 - AI 서버로 요청 전달"""
+        start_time = time.time()
+        
+        logger.info(f"사용자 {current_user.get('user_id')}의 체세포수 기반 유방염 예측 요청 시작")
+        
+        try:
+            # AI 서버로 보낼 페이로드 구성 (체세포수만 전송)
+            payload = {
+                "cow_id": getattr(request, 'cow_id', None),
+                "somatic_cell_count": request.somatic_cell_count,
+                "prediction_date": getattr(request, 'prediction_date', None),
+                "notes": getattr(request, 'notes', None)
+            }
+            
+            # AI 서버로 예측 요청
+            ai_response = await cls._make_ai_request("/ai/scc-mastitis/predict", payload)
+            
+            # AWS EC2 서버에서 추가 메타데이터 보강
+            enhanced_response = {
+                **ai_response,
+                "user_id": current_user.get("user_id"),
+                "farm_id": current_user.get("farm_id"),
+                "requested_at": datetime.utcnow().isoformat(),
+                "server_processing_time_ms": round((time.time() - start_time) * 1000, 2)
+            }
+            
+            logger.info(f"체세포수 기반 유방염 예측 완료 - 결과: {ai_response.get('prediction_class')}")
+            return enhanced_response
+            
+        except HTTPException:
+            # AI 서버에서 발생한 HTTP 예외는 그대로 전달
+            raise
+        except Exception as e:
+            logger.error(f"체세포수 기반 유방염 예측 처리 중 오류: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "error_code": "SCC_MASTITIS_PREDICTION_PROCESSING_FAILED",
+                    "error_message": "체세포수 기반 유방염 예측 처리 중 오류가 발생했습니다",
+                    "reason": str(e)
+                }
+            )
+
+
     @classmethod
     async def predict_milk_yield_batch(cls, batch_request, current_user: Dict) -> Dict[str, Any]:
         """다중 젖소 착유량 일괄 예측 - AI 서버로 요청 전달"""
@@ -245,7 +291,7 @@ class AIPredictionService:
                     "reason": str(e)
                 }
             )
-
+# 유방염 배치 예측
     @classmethod
     async def predict_mastitis_batch(cls, batch_request, current_user: Dict) -> Dict[str, Any]:
         """다중 젖소 유방염 일괄 예측 - AI 서버로 요청 전달"""
@@ -303,6 +349,62 @@ class AIPredictionService:
                     "reason": str(e)
                 }
             )
+
+    # 체세포수 기반 유방염 배치 예측
+    @classmethod
+    async def predict_scc_mastitis_batch(cls, batch_request, current_user: Dict) -> Dict[str, Any]:
+        """다중 젖소 체세포수 기반 유방염 일괄 예측 - AI 서버로 요청 전달"""
+        batch_id = str(uuid.uuid4())
+        start_time = time.time()
+        
+        logger.info(f"사용자 {current_user.get('user_id')}의 배치 체세포수 기반 유방염 예측 요청 시작 - 크기: {len(batch_request.predictions)}")
+        
+        try:
+            # AI 서버로 보낼 페이로드 구성 (체세포수만 전송)
+            payload = {
+                "predictions": [
+                    {
+                        "cow_id": getattr(pred, 'cow_id', None),
+                        "somatic_cell_count": pred.somatic_cell_count,
+                        "prediction_date": getattr(pred, 'prediction_date', None),
+                        "notes": getattr(pred, 'notes', None)
+                    }
+                    for pred in batch_request.predictions
+                ],
+                "batch_name": getattr(batch_request, 'batch_name', None)
+            }
+            
+            # AI 서버로 배치 예측 요청
+            ai_response = await cls._make_ai_request("/ai/scc-mastitis/batch-predict", payload)
+            
+            # AWS EC2 서버에서 추가 메타데이터 보강
+            enhanced_response = {
+                **ai_response,
+                "aws_batch_id": batch_id,
+                "user_id": current_user.get("user_id"),
+                "farm_id": current_user.get("farm_id"),
+                "requested_at": datetime.utcnow().isoformat(),
+                "server_processing_time_ms": round((time.time() - start_time) * 1000, 2)
+            }
+            
+            logger.info(f"배치 체세포수 기반 유방염 예측 완료 - 성공: {ai_response.get('successful_predictions')}")
+            return enhanced_response
+                
+        except HTTPException:
+            # AI 서버에서 발생한 HTTP 예외는 그대로 전달
+            raise
+        except Exception as e:
+            logger.error(f"배치 체세포수 기반 유방염 예측 처리 중 오류: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail={
+                    "error_code": "BATCH_SCC_MASTITIS_PREDICTION_PROCESSING_FAILED",
+                    "error_message": "배치 체세포수 기반 유방염 예측 처리 중 오류가 발생했습니다",
+                    "batch_id": batch_id,
+                    "reason": str(e)
+                }
+            )
+
 
     @classmethod
     async def check_ai_server_health(cls) -> Dict[str, Any]:

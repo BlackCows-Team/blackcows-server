@@ -57,14 +57,41 @@ class MastitisPredictionRequest(BaseModel):
                 raise ValueError('예측 기준일은 YYYY-MM-DD 형식으로 입력해주세요')
         return v
 
+# 체세포수 기반 유방염 예측 요청 스키마
+class SCCMastitisPredictionRequest(BaseModel):
+    cow_id: Optional[str] = Field(None, description="젖소 ID (선택사항)")
+    
+    # 필수 예측 변수 (체세포수만 사용)
+    somatic_cell_count: int = Field(..., description="체세포수", ge=0)
+    
+    # 추가 메타데이터
+    prediction_date: Optional[str] = Field(None, description="예측 기준일 (YYYY-MM-DD)")
+    notes: Optional[str] = Field(None, description="예측 관련 메모")
+    
+    @validator('prediction_date')
+    def validate_prediction_date(cls, v):
+        if v is not None and len(v.strip()) > 0:
+            try:
+                datetime.strptime(v.strip(), '%Y-%m-%d')
+                return v.strip()
+            except ValueError:
+                raise ValueError('예측 기준일은 YYYY-MM-DD 형식으로 입력해주세요')
+        return v
+    
+
 # 배치 예측 요청 스키마
 class PredictionBatchRequest(BaseModel):
-    predictions: List[MilkYieldPredictionRequest] = Field(..., description="예측 요청 목록")
+    predictions: List[MilkYieldPredictionRequest] = Field(..., description="착유량 예측 요청 목록")
     batch_name: Optional[str] = Field(None, description="배치 이름")
 
 # 유방염 배치 예측 요청 스키마
 class MastitisBatchRequest(BaseModel):
     predictions: List[MastitisPredictionRequest] = Field(..., description="유방염 예측 요청 목록")
+    batch_name: Optional[str] = Field(None, description="배치 이름")
+    
+# 체세포수 기반 유방염 배치 예측 요청 스키마
+class SCCMastitisBatchRequest(BaseModel):
+    predictions: List[SCCMastitisPredictionRequest] = Field(..., description="체세포수 기반 유방염 예측 요청 목록")
     batch_name: Optional[str] = Field(None, description="배치 이름")
 
 # 에러 응답 스키마
