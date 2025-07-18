@@ -36,10 +36,10 @@ jobs:
           fi
 
           echo "=== 프로젝트 업데이트 ==="
-          tmux send-keys -t 0 "cd ~/blackcows-server" Enter
-          sleep 1
-          tmux send-keys -t 0 "git pull origin main" Enter
-          sleep 3
+          tmux send-keys -t 0 "cd ~/blackcows-server" C-m
+          sleep 2
+          tmux send-keys -t 0 "git pull origin main" C-m
+          sleep 5
           
           echo "=== 캐시 정리 ==="
           find ~/blackcows-server -type f -name "*.pyc" -delete 2>/dev/null || true
@@ -67,22 +67,22 @@ jobs:
             python3.11 -m venv venv
           fi
           
-          tmux send-keys -t 0 "source venv/bin/activate" Enter
+          tmux send-keys -t 0 "source venv/bin/activate" C-m
           sleep 3
       
           echo "=== 패키지 업데이트 ==="
-          tmux send-keys -t 0 "pip install --upgrade pip" Enter
-          sleep 3
-          tmux send-keys -t 0 "pip install --upgrade --force-reinstall bcrypt==4.0.1 passlib[bcrypt]==1.7.4" Enter
+          tmux send-keys -t 0 "pip install --upgrade pip" C-m
           sleep 5
-          tmux send-keys -t 0 "pip install -r requirements.txt" Enter
+          tmux send-keys -t 0 "pip install --upgrade --force-reinstall bcrypt==4.0.1 passlib[bcrypt]==1.7.4" C-m
+          sleep 5
+          tmux send-keys -t 0 "pip install -r requirements.txt" C-m
           sleep 18
 
           echo "=== 구문 검사 ==="
           python3 -m py_compile main.py
 
           echo "=== 서버 시작 ==="
-          tmux send-keys -t 0 "uvicorn main:app --host 0.0.0.0 --port 8000 --log-level info --access-log" Enter
+          tmux send-keys -t 0 "uvicorn main:app --host 0.0.0.0 --port 8000 --log-level info --access-log" C-m
           sleep 10
 
           echo "=== 외부 AI 서버 연결 확인 ==="
