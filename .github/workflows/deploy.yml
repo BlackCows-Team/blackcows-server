@@ -57,14 +57,10 @@ jobs:
           echo "=== 환경변수 파일 확인 ==="
           if [ -f ".env" ]; then
             echo "✅ .env 파일 존재"
-            echo "📝 환경변수 개수: $(grep -v '^#' .env | grep -v '^
-
-          echo "=== Firebase 설정 확인 ==="
-          if [ -f "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}" ]; then
-            echo "✅ Firebase 키 파일 존재"
+            echo "📝 환경변수 개수: \$(grep -v '^#' .env | grep -v '^$' | wc -l)개"
           else
-            echo "❌ Firebase 키 파일 없음"
-            echo "파일을 확인하거나 올바른 경로를 설정하세요."
+            echo "❌ .env 파일이 없습니다!"
+            echo "서버에 .env 파일을 먼저 생성해주세요."
             exit 1
           fi
 
@@ -91,7 +87,6 @@ jobs:
           python3 -m py_compile main.py
 
           echo "=== 서버 시작 ==="
-          sleep 1
           tmux send-keys -t 0 "uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level info --access-log" Enter
           
           echo "=== 서버 시작 대기 ==="
@@ -120,9 +115,9 @@ jobs:
             echo "=== 최근 로그 확인 ==="
             tmux capture-pane -t 0 -p | tail -15
             
-            ERROR_COUNT=$(tmux capture-pane -t 0 -p | grep -i error | wc -l)
-            if [ $ERROR_COUNT -gt 0 ]; then
-              echo "⚠️ 에러 발견 ($ERROR_COUNT개)"
+            ERROR_COUNT=\$(tmux capture-pane -t 0 -p | grep -i error | wc -l)
+            if [ \$ERROR_COUNT -gt 0 ]; then
+              echo "⚠️ 에러 발견 (\$ERROR_COUNT개)"
               tmux capture-pane -t 0 -p | grep -i error | tail -3
             else
               echo "✅ 에러 없음"
@@ -161,151 +156,7 @@ jobs:
             ROOT_CHECK_SUCCESS=true
           fi
 
-          # ===== AI 중계 기능 종합 테스트 (AI 서버가 살아있을 때만) =====
-          AI_MILK_YIELD_SUCCESS=false
-          AI_MASTITIS_SUCCESS=false
-          AI_SCC_MASTITIS_SUCCESS=false
-          AI_HEALTH_SUCCESS=false
-          
-          if [ "$AI_SERVER_SUCCESS" = true ]; then
-            echo ""
-            echo "🤖 === AI 중계 기능 종합 테스트 시작 ==="
-            echo ""
-            
-            # 1️⃣ 착유량 예측 테스트
-            echo "🥛 [1/4] 착유량 예측 테스트 중..."
-            MILK_YIELD_RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET http://localhost:8000/ai/test/sample-predict)
-            if [ "$MILK_YIELD_RESPONSE_CODE" = "200" ]; then
-              echo "✅ 착유량 예측 테스트 성공 (응답코드: $MILK_YIELD_RESPONSE_CODE)"
-              AI_MILK_YIELD_SUCCESS=true
-              
-              # 실제 예측 결과 확인
-              MILK_YIELD_RESULT=$(curl -s -X GET http://localhost:8000/ai/test/sample-predict | jq -r '.predicted_milk_yield // "null"' 2>/dev/null || echo "parse_error")
-              if [ "$MILK_YIELD_RESULT" != "null" ] && [ "$MILK_YIELD_RESULT" != "parse_error" ]; then
-                echo "  📊 예측 착유량: ${MILK_YIELD_RESULT}L"
-              fi
-            else
-              echo "❌ 착유량 예측 테스트 실패 (응답코드: $MILK_YIELD_RESPONSE_CODE)"
-              echo "🔍 상세 정보:"
-              curl -s -X GET http://localhost:8000/ai/test/sample-predict | head -3
-            fi
-            
-            sleep 2
-            
-            # 2️⃣ 유방염 예측 테스트
-            echo "🔬 [2/4] 유방염 예측 테스트 중..."
-            MASTITIS_RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET http://localhost:8000/ai/test/sample-mastitis-predict)
-            if [ "$MASTITIS_RESPONSE_CODE" = "200" ]; then
-              echo "✅ 유방염 예측 테스트 성공 (응답코드: $MASTITIS_RESPONSE_CODE)"
-              AI_MASTITIS_SUCCESS=true
-              
-              # 실제 예측 결과 확인
-              MASTITIS_RESULT=$(curl -s -X GET http://localhost:8000/ai/test/sample-mastitis-predict | jq -r '.prediction_class_label // "null"' 2>/dev/null || echo "parse_error")
-              if [ "$MASTITIS_RESULT" != "null" ] && [ "$MASTITIS_RESULT" != "parse_error" ]; then
-                echo "  🩺 유방염 상태: $MASTITIS_RESULT"
-              fi
-            else
-              echo "❌ 유방염 예측 테스트 실패 (응답코드: $MASTITIS_RESPONSE_CODE)"
-              echo "🔍 상세 정보:"
-              curl -s -X GET http://localhost:8000/ai/test/sample-mastitis-predict | head -3
-            fi
-            
-            sleep 2
-            
-            # 3️⃣ 체세포수 기반 유방염 예측 테스트
-            echo "🧪 [3/4] 체세포수 기반 유방염 예측 테스트 중..."
-            SCC_MASTITIS_RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET http://localhost:8000/ai/test/sample-scc-mastitis-predict)
-            if [ "$SCC_MASTITIS_RESPONSE_CODE" = "200" ]; then
-              echo "✅ 체세포수 기반 유방염 예측 테스트 성공 (응답코드: $SCC_MASTITIS_RESPONSE_CODE)"
-              AI_SCC_MASTITIS_SUCCESS=true
-              
-              # 실제 예측 결과 확인
-              SCC_MASTITIS_RESULT=$(curl -s -X GET http://localhost:8000/ai/test/sample-scc-mastitis-predict | jq -r '.prediction_class_label // "null"' 2>/dev/null || echo "parse_error")
-              if [ "$SCC_MASTITIS_RESULT" != "null" ] && [ "$SCC_MASTITIS_RESULT" != "parse_error" ]; then
-                echo "  🔬 체세포수 기반 유방염 상태: $SCC_MASTITIS_RESULT"
-              fi
-            else
-              echo "❌ 체세포수 기반 유방염 예측 테스트 실패 (응답코드: $SCC_MASTITIS_RESPONSE_CODE)"
-              echo "🔍 상세 정보:"
-              curl -s -X GET http://localhost:8000/ai/test/sample-scc-mastitis-predict | head -3
-            fi
-            
-            sleep 2
-            
-            # 4️⃣ AI 서버 상태 확인
-            echo "⚕️ [4/4] AI 서버 상태 확인 중..."
-            AI_HEALTH_RESPONSE_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET http://localhost:8000/ai/health)
-            if [ "$AI_HEALTH_RESPONSE_CODE" = "200" ]; then
-              echo "✅ AI 서버 상태 확인 성공 (응답코드: $AI_HEALTH_RESPONSE_CODE)"
-              AI_HEALTH_SUCCESS=true
-              
-              # AI 서버 상태 상세 정보
-              AI_STATUS=$(curl -s -X GET http://localhost:8000/ai/health | jq -r '.service_ready // "null"' 2>/dev/null || echo "parse_error")
-              if [ "$AI_STATUS" = "true" ]; then
-                echo "  🟢 AI 서비스: 정상 작동"
-              elif [ "$AI_STATUS" = "false" ]; then
-                echo "  🟡 AI 서비스: 제한적 작동"
-              else
-                echo "  🔍 AI 서비스: 상태 확인 불가"
-              fi
-            else
-              echo "❌ AI 서버 상태 확인 실패 (응답코드: $AI_HEALTH_RESPONSE_CODE)"
-              echo "🔍 상세 정보:"
-              curl -s -X GET http://localhost:8000/ai/health | head -3
-            fi
-            
-            echo ""
-            echo "🤖 === AI 중계 기능 테스트 완료 ==="
-            
-            # AI 테스트 결과 요약
-            AI_TEST_PASSED=0
-            AI_TEST_TOTAL=4
-            
-            if [ "$AI_MILK_YIELD_SUCCESS" = true ]; then
-              AI_TEST_PASSED=$((AI_TEST_PASSED + 1))
-            fi
-            if [ "$AI_MASTITIS_SUCCESS" = true ]; then
-              AI_TEST_PASSED=$((AI_TEST_PASSED + 1))
-            fi
-            if [ "$AI_SCC_MASTITIS_SUCCESS" = true ]; then
-              AI_TEST_PASSED=$((AI_TEST_PASSED + 1))
-            fi
-            if [ "$AI_HEALTH_SUCCESS" = true ]; then
-              AI_TEST_PASSED=$((AI_TEST_PASSED + 1))
-            fi
-            
-            echo "📊 AI 테스트 결과: $AI_TEST_PASSED/$AI_TEST_TOTAL 통과"
-            
-            if [ $AI_TEST_PASSED -eq $AI_TEST_TOTAL ]; then
-              echo "🎉 모든 AI 기능 테스트 통과!"
-              AI_RELAY_SUCCESS=true
-            elif [ $AI_TEST_PASSED -gt 0 ]; then
-              echo "⚠️ 일부 AI 기능 테스트 통과 (부분적 정상)"
-              AI_RELAY_SUCCESS=partial
-            else
-              echo "❌ 모든 AI 기능 테스트 실패"
-              AI_RELAY_SUCCESS=false
-            fi
-            
-          else
-            echo "⚠️ 외부 AI 서버 연결 불가로 AI 중계 테스트 건너뜀"
-            AI_RELAY_SUCCESS=false
-          fi
-
-          # 추가 디버깅 정보 (테스트 실패 시)
-          if [ "$AI_RELAY_SUCCESS" = false ] && [ "$AI_SERVER_SUCCESS" = true ]; then
-            echo ""
-            echo "🔍 === AI 테스트 실패 디버깅 정보 ==="
-            echo "서버 로그 (최근 10줄):"
-            tmux capture-pane -t 0 -p | tail -10
-            echo ""
-            echo "AI 서버 직접 연결 테스트:"
-            curl -v -m 5 https://feof-implement-finnish-finally.trycloudflare.com/health 2>&1 | head -10
-            echo "=== 디버깅 정보 끝 ==="
-            echo ""
-          fi
-
-          if [ "$HEALTH_CHECK_SUCCESS" = true ] || [ "$ROOT_CHECK_SUCCESS" = true ] || [ "$PORT_CHECK_SUCCESS" = true ]; then
+          if [ "\$HEALTH_CHECK_SUCCESS" = true ] || [ "\$ROOT_CHECK_SUCCESS" = true ] || [ "\$PORT_CHECK_SUCCESS" = true ]; then
             echo ""
             echo "🎉 AWS EC2 서버 시작 성공!"
             echo "🎯 서버: https://api.blackcowsdairy.com"
@@ -315,61 +166,23 @@ jobs:
             echo "=== 배포 상태 요약 ==="
             echo "✅ Git 업데이트"
             echo "✅ 환경 변수 설정"
-            echo "✅ Firebase 설정"
             echo "✅ tmux session 실행"
             echo "✅ 패키지 업데이트"
             echo "✅ AWS EC2 서버 정상"
             
-            if [ "$HEALTH_CHECK_SUCCESS" = true ]; then
+            if [ "\$HEALTH_CHECK_SUCCESS" = true ]; then
               echo "✅ 헬스체크 통과"
             fi
-            if [ "$ROOT_CHECK_SUCCESS" = true ]; then
+            if [ "\$ROOT_CHECK_SUCCESS" = true ]; then
               echo "✅ 루트 경로 정상"
             fi
-            if [ "$PORT_CHECK_SUCCESS" = true ]; then
+            if [ "\$PORT_CHECK_SUCCESS" = true ]; then
               echo "✅ 포트 8000 정상"
             fi
-            if [ "$AI_SERVER_SUCCESS" = true ]; then
+            if [ "\$AI_SERVER_SUCCESS" = true ]; then
               echo "✅ 외부 AI 서버 연결 정상"
             else
               echo "⚠️ 외부 AI 서버 연결 제한됨"
-            fi
-            
-            # AI 기능별 상태 표시
-            if [ "$AI_RELAY_SUCCESS" = true ]; then
-              echo "✅ AI 중계 기능 완전 정상"
-              echo "  ✅ 착유량 예측"
-              echo "  ✅ 유방염 예측" 
-              echo "  ✅ 체세포수 기반 유방염 예측"
-              echo "  ✅ AI 서버 상태 확인"
-            elif [ "$AI_RELAY_SUCCESS" = "partial" ]; then
-              echo "⚠️ AI 중계 기능 부분 정상"
-              if [ "$AI_MILK_YIELD_SUCCESS" = true ]; then
-                echo "  ✅ 착유량 예측"
-              else
-                echo "  ❌ 착유량 예측"
-              fi
-              if [ "$AI_MASTITIS_SUCCESS" = true ]; then
-                echo "  ✅ 유방염 예측"
-              else
-                echo "  ❌ 유방염 예측"
-              fi
-              if [ "$AI_SCC_MASTITIS_SUCCESS" = true ]; then
-                echo "  ✅ 체세포수 기반 유방염 예측"
-              else
-                echo "  ❌ 체세포수 기반 유방염 예측"
-              fi
-              if [ "$AI_HEALTH_SUCCESS" = true ]; then
-                echo "  ✅ AI 서버 상태 확인"
-              else
-                echo "  ❌ AI 서버 상태 확인"
-              fi
-            else
-              echo "⚠️ AI 중계 기능 제한됨"
-              echo "  ❌ 착유량 예측"
-              echo "  ❌ 유방염 예측"
-              echo "  ❌ 체세포수 기반 유방염 예측"
-              echo "  ❌ AI 서버 상태 확인"
             fi
             
             echo ""
@@ -377,22 +190,6 @@ jobs:
             echo "🤖 AI 처리: 외부 AI 서버로 전달"
             echo "💡 로그 확인: tmux attach-session -t 0"
             echo "💡 tmux 나가기: Ctrl+B → D"
-            
-            # AI 테스트 결과에 따른 추가 안내
-            if [ "$AI_RELAY_SUCCESS" = true ]; then
-              echo ""
-              echo "🎉 모든 AI 기능이 정상 작동합니다!"
-              echo "📱 Flutter 앱에서 AI 예측 기능을 안전하게 사용할 수 있습니다."
-            elif [ "$AI_RELAY_SUCCESS" = "partial" ]; then
-              echo ""
-              echo "⚠️ 일부 AI 기능에 문제가 있습니다."
-              echo "🔧 AI 서버를 확인하거나 잠시 후 다시 시도해주세요."
-            else
-              echo ""
-              echo "⚠️ AI 기능이 제한됩니다."
-              echo "🔧 로컬 AI 서버 상태를 확인해주세요."
-              echo "🔗 AI 서버 URL: https://feof-implement-finnish-finally.trycloudflare.com"
-            fi
             
           else
             echo "❌ 서버 시작 실패"
