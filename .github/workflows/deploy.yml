@@ -26,14 +26,10 @@ jobs:
           # tmux session 0이 있는지 확인하고 연결
           if tmux has-session -t 0 2>/dev/null; then
             echo "✅ tmux session 0 발견 - 기존 프로세스 종료"
-            # 기존 실행 중인 프로세스 종료 (Ctrl+C)
             tmux send-keys -t 0 C-c
             sleep 3
-            
-            # 추가로 uvicorn 프로세스가 남아있다면 강제 종료
             pkill -f uvicorn || true
             sleep 3
-            
           else
             echo "⚠️ tmux session 0 없음 - 새로 생성"
             tmux new-session -d -s 0
@@ -57,7 +53,8 @@ jobs:
           echo "=== 환경변수 파일 확인 ==="
           if [ -f ".env" ]; then
             echo "✅ .env 파일 존재"
-            echo "📝 환경변수 개수: \$(grep -v '^#' .env | grep -v '^$' | wc -l)개"
+            ENV_COUNT=$(grep -v '^#' .env | grep -v '^$' | wc -l)
+            echo "📝 환경변수 개수: ${ENV_COUNT}개"
           else
             echo "❌ .env 파일이 없습니다!"
             echo "서버에 .env 파일을 먼저 생성해주세요."
@@ -65,13 +62,11 @@ jobs:
           fi
 
           echo "=== Python 가상 환경 설정 ==="
-          # 가상환경 생성 (없을 경우에만)
           if [ ! -d "venv" ]; then
             echo "가상환경 생성 중..."
             python3.11 -m venv venv
           fi
           
-          # tmux 세션에서 가상환경 활성화
           tmux send-keys -t 0 "source venv/bin/activate" Enter
           sleep 3
       
@@ -87,16 +82,13 @@ jobs:
           python3 -m py_compile main.py
 
           echo "=== 서버 시작 ==="
-          tmux send-keys -t 0 "uvicorn main:app --host 0.0.0.0 --port 8000 --reload --log-level info --access-log" Enter
-          
-          echo "=== 서버 시작 대기 ==="
+          tmux send-keys -t 0 "uvicorn main:app --host 0.0.0.0 --port 8000 --log-level info --access-log" Enter
           sleep 10
 
           echo "=== 외부 AI 서버 연결 확인 ==="
           AI_SERVER_SUCCESS=false
           echo "🔍 외부 AI 서버 헬스체크 중..."
           
-          # 여러 헬스체크 엔드포인트 시도
           if curl -f -m 10 https://feof-implement-finnish-finally.trycloudflare.com/health >/dev/null 2>&1; then
             echo "✅ 외부 AI 서버 연결 성공 (/health)"
             AI_SERVER_SUCCESS=true
@@ -105,19 +97,16 @@ jobs:
             AI_SERVER_SUCCESS=true
           else
             echo "⚠️ 외부 AI 서버 연결 실패 (AI 기능 제한됨)"
-            echo "🔍 디버깅: curl -v https://feof-implement-finnish-finally.trycloudflare.com/health"
           fi
 
           echo "=== tmux 세션 확인 ==="
           if tmux has-session -t 0 2>/dev/null; then
             echo "✅ tmux session 실행 중"
-            
-            echo "=== 최근 로그 확인 ==="
             tmux capture-pane -t 0 -p | tail -15
             
-            ERROR_COUNT=\$(tmux capture-pane -t 0 -p | grep -i error | wc -l)
-            if [ \$ERROR_COUNT -gt 0 ]; then
-              echo "⚠️ 에러 발견 (\$ERROR_COUNT개)"
+            ERROR_COUNT=$(tmux capture-pane -t 0 -p | grep -i error | wc -l)
+            if [ $ERROR_COUNT -gt 0 ]; then
+              echo "⚠️ 에러 발견 (${ERROR_COUNT}개)"
               tmux capture-pane -t 0 -p | grep -i error | tail -3
             else
               echo "✅ 에러 없음"
@@ -129,12 +118,10 @@ jobs:
 
           echo "=== 포트 확인 ==="
           PORT_CHECK_SUCCESS=false
-          
           if ss -tlnp | grep ':8000'; then
             echo "✅ 포트 8000 사용 중"
             PORT_CHECK_SUCCESS=true
           fi
-          
           if ps aux | grep uvicorn | grep -v grep | grep 8000; then
             echo "✅ uvicorn 프로세스 실행 중"
             PORT_CHECK_SUCCESS=true
@@ -142,7 +129,6 @@ jobs:
 
           echo "=== AWS EC2 헬스체크 ==="
           sleep 5
-          
           HEALTH_CHECK_SUCCESS=false
           ROOT_CHECK_SUCCESS=false
           
@@ -150,13 +136,13 @@ jobs:
             echo "✅ /health 응답 성공"
             HEALTH_CHECK_SUCCESS=true
           fi
-          
           if curl -f -m 10 http://localhost:8000/ >/dev/null 2>&1; then
             echo "✅ 루트 경로 응답 성공"
             ROOT_CHECK_SUCCESS=true
           fi
 
-          if [ "\$HEALTH_CHECK_SUCCESS" = true ] || [ "\$ROOT_CHECK_SUCCESS" = true ] || [ "\$PORT_CHECK_SUCCESS" = true ]; then
+          # 배포 성공 체크
+          if [ "$HEALTH_CHECK_SUCCESS" = true ] || [ "$ROOT_CHECK_SUCCESS" = true ] || [ "$PORT_CHECK_SUCCESS" = true ]; then
             echo ""
             echo "🎉 AWS EC2 서버 시작 성공!"
             echo "🎯 서버: https://api.blackcowsdairy.com"
@@ -170,16 +156,16 @@ jobs:
             echo "✅ 패키지 업데이트"
             echo "✅ AWS EC2 서버 정상"
             
-            if [ "\$HEALTH_CHECK_SUCCESS" = true ]; then
+            if [ "$HEALTH_CHECK_SUCCESS" = true ]; then
               echo "✅ 헬스체크 통과"
             fi
-            if [ "\$ROOT_CHECK_SUCCESS" = true ]; then
+            if [ "$ROOT_CHECK_SUCCESS" = true ]; then
               echo "✅ 루트 경로 정상"
             fi
-            if [ "\$PORT_CHECK_SUCCESS" = true ]; then
+            if [ "$PORT_CHECK_SUCCESS" = true ]; then
               echo "✅ 포트 8000 정상"
             fi
-            if [ "\$AI_SERVER_SUCCESS" = true ]; then
+            if [ "$AI_SERVER_SUCCESS" = true ]; then
               echo "✅ 외부 AI 서버 연결 정상"
             else
               echo "⚠️ 외부 AI 서버 연결 제한됨"
@@ -190,11 +176,9 @@ jobs:
             echo "🤖 AI 처리: 외부 AI 서버로 전달"
             echo "💡 로그 확인: tmux attach-session -t 0"
             echo "💡 tmux 나가기: Ctrl+B → D"
-            
           else
             echo "❌ 서버 시작 실패"
             tmux capture-pane -t 0 -p
             exit 1
           fi
-
         EOF
