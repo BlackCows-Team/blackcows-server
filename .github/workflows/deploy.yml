@@ -89,10 +89,10 @@ jobs:
           AI_SERVER_SUCCESS=false
           echo "🔍 외부 AI 서버 헬스체크 중..."
           
-          if curl -f -m 10 https://feof-implement-finnish-finally.trycloudflare.com/health >/dev/null 2>&1; then
+          if curl -f -m 10 https://ai.blackcowsdairy.com/health >/dev/null 2>&1; then
             echo "✅ 외부 AI 서버 연결 성공 (/health)"
             AI_SERVER_SUCCESS=true
-          elif curl -f -m 10 https://feof-implement-finnish-finally.trycloudflare.com/ >/dev/null 2>&1; then
+          elif curl -f -m 10 https://ai.blackcowsdairy.com/ >/dev/null 2>&1; then
             echo "✅ 외부 AI 서버 연결 성공 (루트 경로)"
             AI_SERVER_SUCCESS=true
           else
