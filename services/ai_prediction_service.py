@@ -18,7 +18,7 @@ class AIPredictionService:
     MODEL_VERSION = "v2.0.0"
     
     # AI 서버 URL (Cloudflare Tunnel 고정 도메인)
-    AI_SERVER_URL = "https://feof-implement-finnish-finally.trycloudflare.com"
+    AI_SERVER_URL = "https://ai.blackcowsdairy.com"
     
     # HTTP 클라이언트 설정
     timeout = httpx.Timeout(30.0)  # 30초 타임아웃

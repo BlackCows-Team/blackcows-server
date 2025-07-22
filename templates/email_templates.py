@@ -37,6 +37,10 @@ class EmailTemplate:
     @staticmethod
     def get_welcome_template(user_data):
         current_time = datetime.now(KST)
+        # 가입일을 KST로 변환
+        created_at = user_data.get('created_at')
+        created_at_kst = EmailTemplate.to_kst(created_at) if created_at else None
+        created_at_str = created_at_kst.strftime('%Y년 %m월 %d일') if created_at_kst else '-'
         
         greeting_html = '<div style="font-size: 1rem; font-weight: 600; color: #222; text-align: left; padding-bottom: 15px;">안녕하세요, <span style="color: #468B49; font-weight: 700;">{}</span>님!</div>'.format(user_data['username'])
         
@@ -56,7 +60,7 @@ class EmailTemplate:
             user_data['user_id'],
             user_data['email'],
             user_data['farm_nickname'],
-            user_data['created_at'].strftime('%Y년 %m월 %d일')
+            created_at_str
         )
         
         spacer_html = '<div style="height: 20px;"></div>'
