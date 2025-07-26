@@ -137,7 +137,7 @@ def generate_rag_response(state: DairyChatState) -> DairyChatState:
     → 형식: [출처: 파일명1, 파일명2]  
     → 파일명에는 파일 확장자(.txt, .pdf)를 생략하고, 중복되지 않게 쉼표(,)로 구분하세요.
 - 영어로 질문하는 경우, 영어로 답변하세요.
-    → 출처 표기 시, '출처' 대신 'Source'로 표기하세요.
+    → 출처 표기 시 형식: [Source: 파일명1, 파일명2]  
 """
     )
 
