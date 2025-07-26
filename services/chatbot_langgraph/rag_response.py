@@ -29,7 +29,6 @@ def extract_texts_from_folder(folder_path):
 
     for root, _, files in os.walk(folder_path):
         for file_name in files:
-            print(file_name, "🔥")
             full_path = os.path.join(root, file_name)
             if file_name.lower().endswith(".pdf"):
                 text = extract_text_from_pdf(full_path)
@@ -40,9 +39,11 @@ def extract_texts_from_folder(folder_path):
                 continue
 
             # 텍스트를 먼저 나눠서 각 청크에 파일명 metadata 붙임
+            
+            base_name = os.path.splitext(file_name)[0] # 확장자 제거된 파일명
             split_texts = splitter.split_text(text)
             for i, chunk in enumerate(split_texts):
-                documents.append(Document(page_content=chunk, metadata={"source": file_name}))
+                documents.append(Document(page_content=chunk, metadata={"source": base_name}))
     return documents
 
 def build_or_load_vectordb(source_folder: str, persist_dir: str = "RAG/chroma"):
@@ -136,7 +137,6 @@ def generate_rag_response(state: DairyChatState) -> DairyChatState:
   → 질문이 한글인 경우: [출처: 파일명1, 파일명2]
   → 질문이 영어인 경우: [Source: filename1, filename2]
   → 파일명은 중복 없이, 쉼표로 구분하세요.
-- 출처 표기 시, 파일 확장자(txt, pdf 등)는 절대 붙이지 마세요.  
   예: 위키백과_낙농업.txt(X) → 위키백과_낙농업(O)
 """
     )
