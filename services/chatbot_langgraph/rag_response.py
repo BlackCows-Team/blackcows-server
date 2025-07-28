@@ -45,9 +45,9 @@ def extract_texts_from_folder(folder_path):
                 documents.append(Document(page_content=chunk, metadata={"source": base_name}))
     return documents
 
-def build_or_load_vectordb(source_folder: str, persist_dir: str = "/RAG/chroma"):
+def build_or_load_vectordb(source_folder: str, persist_dir: str = "RAG/chroma"):
     global _vectordb
-    _vectordb = None
+    # _vectordb = None # 메모리 캐시 다시 로드해야 할 때 주석 해제
     if _vectordb:
         print("✅ 메모리 캐시에 이미 로드된 벡터 DB 사용 중")
         return _vectordb
@@ -55,24 +55,37 @@ def build_or_load_vectordb(source_folder: str, persist_dir: str = "/RAG/chroma")
     embedding = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
     collection_path = os.path.join(persist_dir, "chroma.sqlite3")
 
-    if not os.path.exists(collection_path):
-        print("🆕 벡터 DB가 존재하지 않아 새로 생성합니다.")
-        raw_documents = extract_texts_from_folder(source_folder)
-        vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding)
+    try:
+        if not os.path.exists(collection_path):
+            print("🆕 벡터 DB가 존재하지 않아 새로 생성합니다.")
+            if not os.path.exists(source_folder):
+                raise FileNotFoundError(f"❌ source_folder '{source_folder}' 경로가 존재하지 않음")
 
-        BATCH_SIZE = 100
-        for i in range(0, len(raw_documents), BATCH_SIZE):
-            batch = raw_documents[i:i + BATCH_SIZE]
-            texts = [doc.page_content for doc in batch]
-            metadatas = [doc.metadata for doc in batch]
-            vectordb.add_texts(texts=texts, metadatas=metadatas)
+            raw_documents = extract_texts_from_folder(source_folder)
+            print(f"📄 추출된 문서 수: {len(raw_documents)}")
 
-    else:
-        print("📂 기존 벡터 DB를 불러옵니다.")
-        vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding)
+            if len(raw_documents) == 0:
+                raise ValueError("❌ 문서가 비어 있음 (빈 벡터 DB 생성은 불가능)")
 
-    _vectordb = vectordb
-    return vectordb
+            vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding)
+
+            BATCH_SIZE = 100
+            for i in range(0, len(raw_documents), BATCH_SIZE):
+                batch = raw_documents[i:i + BATCH_SIZE]
+                texts = [doc.page_content for doc in batch]
+                metadatas = [doc.metadata for doc in batch]
+                vectordb.add_texts(texts=texts, metadatas=metadatas)
+
+        else:
+            print("📂 기존 벡터 DB를 불러옵니다.")
+            vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding)
+
+        _vectordb = vectordb
+        return vectordb
+    
+    except Exception as e:
+        print(f"❌ 벡터 DB 로드/생성 중 오류 발생: {e}")
+        raise
 
 
 
