@@ -14,12 +14,15 @@ db = get_firestore_client()
 def get_cow_by_ear_tag_number(ear_tag_number: str):
     """특정 젖소 - 기본 정보 조회"""
     try:
-        cow_doc = db.collection('cows').document(ear_tag_number).get()
-        
-        if not cow_doc.exists:
+        docs = db.collection('cows').where("ear_tag_number", "==", ear_tag_number).limit(1).stream()
+        cow_doc = next(docs, None)
+
+        if cow_doc is None or not cow_doc.exists:
+            print(f"[ERROR] 해당 이표번호로 문서를 찾지 못했습니다: {ear_tag_number}")
             return None
-        
+
         cow_data = cow_doc.to_dict()
+        print(f"[DEBUG] 조회된 cow ID: {cow_doc.id}, 데이터: {cow_data}")
         
         # HealthStatus와 BreedingStatus 안전하게 변환
         health_status = None
@@ -202,6 +205,11 @@ def build_relevant_cow_info(question: str, basic: dict, detail: dict) -> dict:
     category = classify_question_category(question)
     if category == "unknown":
         return {"오류": "젖소의 어떤 정보를 원하시는지 정확히 파악하지 못했어요. 구체적으로 질문해 주시겠어요?"}
+    
+    # 방어 코드 추가
+    if basic is None or detail is None:
+        return {"오류": "해당 젖소의 기본 정보 또는 상세 정보를 찾을 수 없습니다."}
+
 
     info = {
         "이름": basic.get("name"),
@@ -238,7 +246,7 @@ def generate_cow_info_response(state: DairyChatState) -> DairyChatState:
     memory_text = "\n".join(get_chat_memory(state["user_id"], state["chat_id"]))
     question = state["current_question"]
     ear_tag_number = extract_ear_tag_number(question)
-    print(f"🏷️ 추출된 이표번호: {ear_tag_number}")
+    print(f"🏷️ 추출된 이표번호: '{ear_tag_number}'")
 
     # 이표번호가 포함되어 있지 않으면 안내
     if not ear_tag_number:
@@ -251,7 +259,13 @@ def generate_cow_info_response(state: DairyChatState) -> DairyChatState:
 
     # 소 정보 조회
     basic = get_cow_by_ear_tag_number(ear_tag_number)
+    print(f"🏷️ 조회된 기본 정보: {basic}")
     detail = get_cow_details_by_ear_tag_number(ear_tag_number)
+    if not basic and not detail:
+        msg = f"{ear_tag_number}번 소에 대한 정보가 존재하지 않거나 등록되지 않았습니다."
+        append_chat_memory(state["user_id"], state["chat_id"], question, msg)
+        return {**state, "current_answer": msg}
+    
     cow_info = build_relevant_cow_info(question, basic, detail)
 
     prompt = PromptTemplate(
