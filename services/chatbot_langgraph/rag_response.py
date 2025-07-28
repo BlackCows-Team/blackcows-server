@@ -39,21 +39,20 @@ def extract_texts_from_folder(folder_path):
                 continue
 
             # 텍스트를 먼저 나눠서 각 청크에 파일명 metadata 붙임
-            
             base_name = os.path.splitext(file_name)[0] # 확장자 제거된 파일명
             split_texts = splitter.split_text(text)
             for i, chunk in enumerate(split_texts):
                 documents.append(Document(page_content=chunk, metadata={"source": base_name}))
     return documents
 
-def build_or_load_vectordb(source_folder: str, persist_dir: str = "RAG/chroma"):
+def build_or_load_vectordb(source_folder: str, persist_dir: str = "/RAG/chroma"):
     global _vectordb
+    _vectordb = None
     if _vectordb:
         print("✅ 메모리 캐시에 이미 로드된 벡터 DB 사용 중")
         return _vectordb
 
     embedding = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-    vectordb = None
     collection_path = os.path.join(persist_dir, "chroma.sqlite3")
 
     if not os.path.exists(collection_path):
@@ -61,8 +60,6 @@ def build_or_load_vectordb(source_folder: str, persist_dir: str = "RAG/chroma"):
         raw_documents = extract_texts_from_folder(source_folder)
         vectordb = Chroma(persist_directory=persist_dir, embedding_function=embedding)
 
-
-        # === 임베딩 배치 처리 ===
         BATCH_SIZE = 100
         for i in range(0, len(raw_documents), BATCH_SIZE):
             batch = raw_documents[i:i + BATCH_SIZE]
@@ -137,7 +134,6 @@ def generate_rag_response(state: DairyChatState) -> DairyChatState:
   → 질문이 한글인 경우: [출처: 파일명1, 파일명2]
   → 질문이 영어인 경우: [Source: filename1, filename2]
   → 파일명은 중복 없이, 쉼표로 구분하세요.
-  예: 위키백과_낙농업.txt(X) → 위키백과_낙농업(O)
 """
     )
 
