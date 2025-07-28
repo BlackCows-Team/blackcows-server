@@ -17,7 +17,6 @@ class AIPredictionService:
     
     MODEL_VERSION = "v2.0.0"
     
-    # AI 서버 URL (Cloudflare Tunnel 고정 도메인)
     AI_SERVER_URL = "https://ai.blackcowsdairy.com"
     
     # HTTP 클라이언트 설정
@@ -27,11 +26,18 @@ class AIPredictionService:
     async def _make_ai_request(cls, endpoint: str, payload: dict) -> dict:
         """AI 서버로 HTTP 요청"""
         try:
+            # AI 서버 인증을 위한 헤더 설정
+            headers = {
+                "Content-Type": "application/json",
+                "User-Agent": "python-requests/2.31.0 (BlackCows-EC2-Server)",  # AI 서버 인증 통과용
+                "Host": "api.blackcowsdairy.com"  # 추가 인증 조건
+            }
+            
             async with httpx.AsyncClient(timeout=cls.timeout) as client:
                 response = await client.post(
                     f"{cls.AI_SERVER_URL}{endpoint}",
                     json=payload,
-                    headers={"Content-Type": "application/json"}
+                    headers=headers
                 )
                 
                 if response.status_code == 200:
@@ -411,8 +417,17 @@ class AIPredictionService:
     async def check_ai_server_health(cls) -> Dict[str, Any]:
         """AI 서버 상태 확인"""
         try:
+            # AI 서버 인증을 위한 헤더 설정
+            headers = {
+                "User-Agent": "python-requests/2.31.0 (BlackCows-EC2-Server)",  # AI 서버 인증 통과용
+                "Host": "api.blackcowsdairy.com"  # 추가 인증 조건
+            }
+            
             async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
-                response = await client.get(f"{cls.AI_SERVER_URL}/ai/model-health")
+                response = await client.get(
+                    f"{cls.AI_SERVER_URL}/ai/model-health",
+                    headers=headers
+                )
                 
                 if response.status_code == 200:
                     ai_health = response.json()
