@@ -17,7 +17,7 @@ class CowInfoState(TypedDict):
     current_question: str
     current_answer: str
     selected_cow_info: Optional[Dict[str, Any]]
-    awaiting_confirmation: Optional[bool]
+    awaiting_confirmation: bool  # Optional 제거하고 기본값 False로 설정
     cow_list: Optional[List[Dict[str, Any]]]
 
 

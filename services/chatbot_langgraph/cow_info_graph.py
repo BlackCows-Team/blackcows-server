@@ -3,7 +3,6 @@
 from langgraph.graph import StateGraph, END
 from langchain_core.runnables import RunnableLambda
 from .cow_info_nodes import (
-    classify_question_node,
     check_ear_tag_node,
     show_cow_list_node,
     select_cow_node,
@@ -22,9 +21,8 @@ def create_cow_info_graph():
     graph.add_node("ask_info_detail_node", RunnableLambda(ask_info_detail_node))
     graph.add_node("ask_info_detail_response_node", RunnableLambda(ask_info_detail_response_node))
 
-    # 흐름 정의
-    graph.set_entry_point("classify_question_node")
-    graph.add_edge("classify_question_node", "check_ear_tag_node")
+    # 흐름 정의 - check_ear_tag_node를 엔트리 포인트로 설정
+    graph.set_entry_point("check_ear_tag_node")
 
     graph.add_conditional_edges(
         "check_ear_tag_node",

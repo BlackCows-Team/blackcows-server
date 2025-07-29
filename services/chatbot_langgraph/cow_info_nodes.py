@@ -2,9 +2,8 @@ from langgraph.graph import StateGraph, END
 from langchain_core.runnables import RunnableLambda
 from typing import TypedDict, Optional, Dict, Any, List
 from .cow_info_service import extract_ear_tag_number, get_basic_info_by_ear_tag_number, get_cow_details_by_ear_tag_number, build_relevant_cow_info_by_category
-from .types import DairyChatState, get_chat_memory, append_chat_memory
+from .types import get_chat_memory, append_chat_memory, CowInfoState
 from services.cow_firebase_service import CowFirebaseService
-from .types import CowInfoState
 
 # 노드 1: check_ear_tag_node
 
@@ -36,6 +35,7 @@ def show_cow_list_node(state: CowInfoState) -> CowInfoState:
     question = state["current_question"]
     farm_id = state["farm_id"]
 
+    # 비동기 호출을 위해 수정 필요 (현재는 동기로 유지)
     cows = CowFirebaseService.get_cows_by_farm(farm_id)
     cow_dict_list = [cow.model_dump() for cow in cows]
 
