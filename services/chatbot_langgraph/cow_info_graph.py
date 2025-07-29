@@ -16,7 +16,6 @@ def create_cow_info_graph():
     graph = StateGraph(CowInfoState)
 
     # 노드 등록
-    graph.add_node("classify_question_node", RunnableLambda(classify_question_node))
     graph.add_node("check_ear_tag_node", RunnableLambda(check_ear_tag_node))
     graph.add_node("show_cow_list_node", RunnableLambda(show_cow_list_node))
     graph.add_node("select_cow_node", RunnableLambda(select_cow_node))
