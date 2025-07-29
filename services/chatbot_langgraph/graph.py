@@ -15,7 +15,8 @@ def create_chatbot_graph():
     """챗봇 그래프를 생성하는 함수"""
     builder = StateGraph(DairyChatState)
     
-    cow_info_subgraph = create_cow_info_graph().as_runnable()
+    # .as_runnable() 제거 - 이미 컴파일된 그래프입니다
+    cow_info_subgraph = create_cow_info_graph()
 
     # 노드 추가
     builder.add_node("classifier", classify_question_route)
