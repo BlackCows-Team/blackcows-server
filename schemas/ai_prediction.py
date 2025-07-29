@@ -100,3 +100,70 @@ class PredictionErrorResponse(BaseModel):
     error_message: str = Field(..., description="에러 메시지")
     error_details: Optional[Dict[str, Any]] = Field(None, description="에러 상세 정보")
     suggestion: Optional[str] = Field(None, description="해결 방법 제안")
+
+# AI 예측 응답 스키마들
+class MilkYieldPredictionResponse(BaseModel):
+    prediction_id: str = Field(..., description="예측 ID")
+    cow_id: Optional[str] = Field(None, description="젖소 ID")
+    predicted_milk_yield: float = Field(..., description="예측 착유량 (리터)")
+    confidence: float = Field(..., description="예측 신뢰도 (%)")
+    input_features: Dict[str, Any] = Field(..., description="입력 특성값들")
+    model_version: str = Field(..., description="모델 버전")
+    prediction_time: str = Field(..., description="예측 시간")
+    processing_time_ms: float = Field(..., description="AI 서버 처리 시간 (밀리초)")
+    # AWS EC2에서 추가하는 메타데이터
+    user_id: Optional[str] = Field(None, description="사용자 ID")
+    farm_id: Optional[str] = Field(None, description="농장 ID")
+    requested_at: Optional[str] = Field(None, description="요청 시간")
+    server_processing_time_ms: Optional[float] = Field(None, description="전체 서버 처리 시간")
+
+class MastitisPredictionResponse(BaseModel):
+    prediction_id: str = Field(..., description="예측 ID")
+    cow_id: Optional[str] = Field(None, description="젖소 ID")
+    prediction_class: int = Field(..., description="예측 클래스 (0: 정상, 1: 주의, 2: 염증 가능성)")
+    prediction_class_label: str = Field(..., description="예측 클래스 라벨")
+    confidence: float = Field(..., description="예측 신뢰도 (%)")
+    input_features: Dict[str, Any] = Field(..., description="입력 특성값들")
+    model_version: str = Field(..., description="모델 버전")
+    prediction_time: str = Field(..., description="예측 시간")
+    processing_time_ms: float = Field(..., description="AI 서버 처리 시간 (밀리초)")
+    # AWS EC2에서 추가하는 메타데이터
+    user_id: Optional[str] = Field(None, description="사용자 ID")
+    farm_id: Optional[str] = Field(None, description="농장 ID")
+    requested_at: Optional[str] = Field(None, description="요청 시간")
+    server_processing_time_ms: Optional[float] = Field(None, description="전체 서버 처리 시간")
+
+class SCCMastitisPredictionResponse(BaseModel):
+    prediction_id: str = Field(..., description="예측 ID")
+    cow_id: Optional[str] = Field(None, description="젖소 ID")
+    prediction_method: str = Field(..., description="예측 방법")
+    prediction_class: int = Field(..., description="예측 클래스")
+    prediction_class_label: str = Field(..., description="예측 클래스 라벨")
+    confidence: float = Field(..., description="예측 신뢰도 (%)")
+    description: str = Field(..., description="예측 결과 설명")
+    recommendation: str = Field(..., description="권장 조치사항")  # 추천 정보!
+    input_features: Dict[str, Any] = Field(..., description="입력 특성값들")
+    classification_criteria: Dict[str, str] = Field(..., description="분류 기준")
+    prediction_time: str = Field(..., description="예측 시간")
+    processing_time_ms: float = Field(..., description="AI 서버 처리 시간 (밀리초)")
+    # AWS EC2에서 추가하는 메타데이터
+    user_id: Optional[str] = Field(None, description="사용자 ID")
+    farm_id: Optional[str] = Field(None, description="농장 ID")
+    requested_at: Optional[str] = Field(None, description="요청 시간")
+    server_processing_time_ms: Optional[float] = Field(None, description="전체 서버 처리 시간")
+
+# 배치 예측 응답 스키마들
+class BatchPredictionResponse(BaseModel):
+    batch_id: str = Field(..., description="배치 ID")
+    total_predictions: int = Field(..., description="총 예측 요청 수")
+    successful_predictions: int = Field(..., description="성공한 예측 수")
+    failed_predictions: int = Field(..., description="실패한 예측 수")
+    predictions: List[Dict[str, Any]] = Field(..., description="개별 예측 결과들")
+    batch_created_at: str = Field(..., description="배치 생성 시간")
+    total_processing_time_ms: float = Field(..., description="총 처리 시간")
+    # AWS EC2에서 추가하는 메타데이터
+    aws_batch_id: Optional[str] = Field(None, description="AWS 배치 ID")
+    user_id: Optional[str] = Field(None, description="사용자 ID")
+    farm_id: Optional[str] = Field(None, description="농장 ID")
+    requested_at: Optional[str] = Field(None, description="요청 시간")
+    server_processing_time_ms: Optional[float] = Field(None, description="전체 서버 처리 시간")
