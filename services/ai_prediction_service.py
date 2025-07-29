@@ -17,7 +17,6 @@ class AIPredictionService:
     
     MODEL_VERSION = "v2.0.0"
     
-    # AI 서버 URL (Cloudflare Tunnel 고정 도메인)
     AI_SERVER_URL = "https://ai.blackcowsdairy.com"
     
     # HTTP 클라이언트 설정
@@ -27,12 +26,18 @@ class AIPredictionService:
     async def _make_ai_request(cls, endpoint: str, payload: dict) -> dict:
         """AI 서버로 HTTP 요청"""
         try:
+            full_url = f"{cls.AI_SERVER_URL}{endpoint}"
+            logger.info(f"🔗 AI 서버 요청 URL: {full_url}")
+            logger.info(f"📤 요청 페이로드 키들: {list(payload.keys())}")
+            
             async with httpx.AsyncClient(timeout=cls.timeout) as client:
                 response = await client.post(
-                    f"{cls.AI_SERVER_URL}{endpoint}",
+                    full_url,
                     json=payload,
                     headers={"Content-Type": "application/json"}
                 )
+                
+                logger.info(f"📡 AI 서버 응답 상태: {response.status_code}")
                 
                 if response.status_code == 200:
                     return response.json()
@@ -47,6 +52,8 @@ class AIPredictionService:
                         }
                     )
                 else:
+                    error_text = response.text
+                    logger.error(f"❌ AI 서버 에러 응답: {error_text}")
                     error_data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {"detail": "Unknown error"}
                     raise HTTPException(
                         status_code=response.status_code,
@@ -110,6 +117,13 @@ class AIPredictionService:
             # AI 서버로 예측 요청
             ai_response = await cls._make_ai_request("/ai/milk-yield/predict", payload)
             
+            # AI 서버 응답 로깅
+            logger.info(f"AI 서버 응답 키들: {list(ai_response.keys())}")
+            if 'predicted_milk_yield' in ai_response:
+                logger.info(f"예측 착유량: {ai_response['predicted_milk_yield']}L")
+            if 'confidence' in ai_response:
+                logger.info(f"예측 신뢰도: {ai_response['confidence']}%")
+            
             # AWS EC2 서버에서 추가 메타데이터 보강
             enhanced_response = {
                 **ai_response,
@@ -160,6 +174,13 @@ class AIPredictionService:
             # AI 서버로 예측 요청
             ai_response = await cls._make_ai_request("/ai/mastitis/predict", payload)
             
+            # AI 서버 응답 로깅
+            logger.info(f"AI 서버 응답 키들: {list(ai_response.keys())}")
+            if 'prediction_class_label' in ai_response:
+                logger.info(f"예측 결과: {ai_response['prediction_class_label']}")
+            if 'confidence' in ai_response:
+                logger.info(f"예측 신뢰도: {ai_response['confidence']}%")
+            
             # AWS EC2 서버에서 추가 메타데이터 보강
             enhanced_response = {
                 **ai_response,
@@ -169,7 +190,7 @@ class AIPredictionService:
                 "server_processing_time_ms": round((time.time() - start_time) * 1000, 2)
             }
             
-            logger.info(f"유방염 예측 완료 - 결과: {ai_response.get('prediction_class')}")
+            logger.info(f"유방염 예측 완료 - 결과: {ai_response.get('prediction_class_label')}")
             return enhanced_response
             
         except HTTPException:
@@ -206,6 +227,17 @@ class AIPredictionService:
             # AI 서버로 예측 요청 (정확한 엔드포인트로 수정)
             ai_response = await cls._make_ai_request("/ai/mastitis/predict-by-scc", payload)
             
+            # AI 서버 응답 로깅 (추천 정보 포함)
+            logger.info(f"AI 서버 응답 키들: {list(ai_response.keys())}")
+            if 'prediction_class_label' in ai_response:
+                logger.info(f"예측 결과: {ai_response['prediction_class_label']}")
+            if 'confidence' in ai_response:
+                logger.info(f"예측 신뢰도: {ai_response['confidence']}%")
+            if 'recommendation' in ai_response:
+                logger.info(f"추천 조치사항: {ai_response['recommendation']}")
+            if 'description' in ai_response:
+                logger.info(f"상세 설명: {ai_response['description']}")
+            
             # AWS EC2 서버에서 추가 메타데이터 보강
             enhanced_response = {
                 **ai_response,
@@ -215,7 +247,7 @@ class AIPredictionService:
                 "server_processing_time_ms": round((time.time() - start_time) * 1000, 2)
             }
             
-            logger.info(f"체세포수 기반 유방염 예측 완료 - 결과: {ai_response.get('prediction_class')}")
+            logger.info(f"체세포수 기반 유방염 예측 완료 - 결과: {ai_response.get('prediction_class_label')}")
             return enhanced_response
             
         except HTTPException:

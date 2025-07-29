@@ -8,7 +8,12 @@ from schemas.ai_prediction import (
     SCCMastitisPredictionRequest,
     PredictionBatchRequest,
     MastitisBatchRequest,
-    SCCMastitisBatchRequest
+    SCCMastitisBatchRequest,
+    # 응답 스키마 추가
+    MilkYieldPredictionResponse,
+    MastitisPredictionResponse,
+    SCCMastitisPredictionResponse,
+    BatchPredictionResponse
 )
 from services.ai_prediction_service import AIPredictionService
 from routers.auth_firebase import get_current_user
@@ -18,6 +23,7 @@ router = APIRouter(tags=["AI 예측"])
 # ===== 착유량 예측 API =====
 
 @router.post("/milk-yield/predict",
+             response_model=MilkYieldPredictionResponse,
              summary="착유량 예측",
              description="""
              젖소의 8개 특성(feature)을 바탕으로 착유량을 예측합니다.
@@ -28,6 +34,7 @@ router = APIRouter(tags=["AI 예측"])
              
              **결과:**
              - 예상 착유량 (리터)
+             - 예측 신뢰도 (%)
              """)
 async def predict_milk_yield(
     prediction_request: MilkYieldPredictionRequest,
@@ -37,6 +44,7 @@ async def predict_milk_yield(
     return await AIPredictionService.predict_milk_yield(prediction_request, current_user)
 
 @router.post("/milk-yield/batch-predict",
+             response_model=BatchPredictionResponse,
              summary="다중 젖소 착유량 예측",
              description="여러 젖소의 착유량을 한번에 예측합니다.")
 async def predict_milk_yield_batch(
@@ -50,6 +58,7 @@ async def predict_milk_yield_batch(
 # ===== 유방염 예측 API ===== #
 
 @router.post("/mastitis/predict",
+             response_model=MastitisPredictionResponse,
              summary="유방염 예측",
              description="""
              젖소의 5개 특성을 바탕으로 유방염 위험도를 분류합니다.
@@ -59,7 +68,7 @@ async def predict_milk_yield_batch(
              
              **결과:**
              - 예측 클래스: 정상, 주의, 염증 가능성
-             - 신뢰도 점수
+             - 신뢰도 점수 (%)
              """)
 async def predict_mastitis(
     prediction_request: MastitisPredictionRequest,
@@ -69,6 +78,7 @@ async def predict_mastitis(
     return await AIPredictionService.predict_mastitis(prediction_request, current_user)
 
 @router.post("/mastitis/batch-predict",
+             response_model=BatchPredictionResponse,
              summary="다중 젖소 유방염 예측",
              description="여러 젖소의 유방염 위험도를 한번에 예측합니다.")
 async def predict_mastitis_batch(
@@ -81,6 +91,7 @@ async def predict_mastitis_batch(
 # ===== 체세포수 기반 유방염 예측 API ===== #
 
 @router.post("/scc-mastitis/predict",
+             response_model=SCCMastitisPredictionResponse,
              summary="체세포수 기반 유방염 예측",
              description="""
              젖소의 체세포수를 바탕으로 유방염 위험도를 분류합니다.
@@ -90,7 +101,9 @@ async def predict_mastitis_batch(
              
              **결과:**
              - 예측 클래스: 정상, 주의, 위험
-             - 신뢰도 점수
+             - 신뢰도 점수 (%)
+             - **추천 조치사항** (recommendation)
+             - 상세 설명 (description)
              """)
 async def predict_scc_mastitis(
     prediction_request: SCCMastitisPredictionRequest,
@@ -100,6 +113,7 @@ async def predict_scc_mastitis(
     return await AIPredictionService.predict_scc_mastitis(prediction_request, current_user)
 
 @router.post("/scc-mastitis/batch-predict",
+             response_model=BatchPredictionResponse,
              summary="다중 젖소 체세포수 기반 유방염 예측",
              description="여러 젖소의 체세포수 기반 유방염 위험도를 한번에 예측합니다.")
 async def predict_scc_mastitis_batch(
@@ -129,6 +143,11 @@ async def test_sample_predict():
     sample_request = SampleRequest()
     return await AIPredictionService.predict_milk_yield(sample_request, current_user={})
 
+@router.post("/test/milk-yield-predict", summary="착유량 예측 테스트(비인증)", description="인증 없이 착유량 예측을 테스트할 수 있습니다.")
+async def test_milk_yield_predict(prediction_request: MilkYieldPredictionRequest):
+    """테스트용 착유량 예측 (인증 불필요)"""
+    return await AIPredictionService.predict_milk_yield(prediction_request, current_user={})
+
 @router.get("/test/sample-mastitis-predict", summary="샘플 유방염 예측 테스트(비인증)", description="AI 서버가 실제 유방염 예측 가능한지 샘플 데이터로 테스트합니다.")
 async def test_sample_mastitis_predict():
     """유방염 예측 샘플 테스트"""
@@ -146,6 +165,11 @@ async def test_sample_mastitis_predict():
     sample_request = SampleMastitisRequest()
     return await AIPredictionService.predict_mastitis(sample_request, current_user={})
 
+@router.post("/test/mastitis-predict", summary="유방염 예측 테스트(비인증)", description="인증 없이 유방염 예측을 테스트할 수 있습니다.")
+async def test_mastitis_predict(prediction_request: MastitisPredictionRequest):
+    """테스트용 유방염 예측 (인증 불필요)"""
+    return await AIPredictionService.predict_mastitis(prediction_request, current_user={})
+
 @router.get("/test/sample-scc-mastitis-predict", summary="샘플 체세포수 기반 유방염 예측 테스트(비인증)", description="AI 서버가 실제 체세포수 기반 유방염 예측 가능한지 샘플 데이터로 테스트합니다.")
 async def test_sample_scc_mastitis_predict():
     """체세포수 기반 유방염 예측 샘플 테스트"""
@@ -158,6 +182,11 @@ async def test_sample_scc_mastitis_predict():
     
     sample_request = SampleSCCMastitisRequest()
     return await AIPredictionService.predict_scc_mastitis(sample_request, current_user={})
+
+@router.post("/test/scc-mastitis-predict", summary="체세포수 기반 유방염 예측 ", description="인증 없이 체세포수 기반 유방염 예측을 테스트할 수 있습니다.")
+async def test_scc_mastitis_predict(prediction_request: SCCMastitisPredictionRequest):
+    """테스트용 체세포수 기반 유방염 예측 (인증 불필요)"""
+    return await AIPredictionService.predict_scc_mastitis(prediction_request, current_user={})
 
 @router.get("/health",
            summary="AI 서버 상태 확인",
