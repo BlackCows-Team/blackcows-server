@@ -8,6 +8,7 @@ from datetime import datetime
 class AskRequest(BaseModel):
     user_id: str
     chat_id: str
+    farm_id: str
     question: str
 
 # 질문 응답

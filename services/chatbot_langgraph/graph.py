@@ -2,36 +2,9 @@ from langgraph.graph import StateGraph, START, END
 from .classifier import classify_question_route
 from .general_response import generate_general_response
 from .rag_response import generate_rag_response
-from .cow_info_response import generate_cow_info_response
 from .irrelevant_response import handle_irrelevant_question
-from .router import route_by_answer_type
 from .types import DairyChatState
-from typing import TypedDict, Literal, Dict, List, Tuple
-import os
-
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-# === 상태 정의 ===
-class DairyChatState(TypedDict):
-    user_id: str
-    chat_id: str
-    current_question: str
-    current_answer: str
-    answer_route: Literal["rag", "cow_info", "general", "irrelevant"]
-
-# === 메모리 저장소 ===
-chat_memory_store: Dict[Tuple[str, str], List[str]] = {}
-
-def get_chat_memory(user_id: str, chat_id: str) -> List[str]:
-    return chat_memory_store.get((user_id, chat_id), [])
-
-def append_chat_memory(user_id: str, chat_id: str, question: str, answer: str):
-    key = (user_id, chat_id)
-    memory = chat_memory_store.get(key, [])
-    memory.append(f"사용자: {question}")
-    memory.append(f"소담이: {answer}")
-    chat_memory_store[key] = memory
+from .cow_info_graph import create_cow_info_graph
 
 # === 라우팅 조건 함수
 def route_by_answer_type(state: DairyChatState) -> str:
@@ -42,11 +15,14 @@ def create_chatbot_graph():
     """챗봇 그래프를 생성하는 함수"""
     builder = StateGraph(DairyChatState)
     
+    # .as_runnable() 제거 - 이미 컴파일된 그래프입니다
+    cow_info_subgraph = create_cow_info_graph()
+
     # 노드 추가
     builder.add_node("classifier", classify_question_route)
     builder.add_node("general_response", generate_general_response)
     builder.add_node("rag_response", generate_rag_response)
-    builder.add_node("cow_info_response", generate_cow_info_response)
+    builder.add_node("cow_info_graph", cow_info_subgraph)
     builder.add_node("irrelevant_response", handle_irrelevant_question)
 
     # 엣지 추가
@@ -54,12 +30,12 @@ def create_chatbot_graph():
     builder.add_conditional_edges("classifier", route_by_answer_type, {
         "general": "general_response",
         "rag": "rag_response",
-        "cow_info": "cow_info_response",
+        "cow_info": "cow_info_graph",
         "irrelevant": "irrelevant_response",
     })
     builder.add_edge("general_response", END)
     builder.add_edge("rag_response", END)
-    builder.add_edge("cow_info_response", END)
+    builder.add_edge("cow_info_graph", END)
     builder.add_edge("irrelevant_response", END)
 
     return builder.compile()
@@ -68,11 +44,12 @@ def create_chatbot_graph():
 sodamsodam_graph = create_chatbot_graph()
 
 # === 외부에서 호출되는 비동기 메인 함수 ===
-async def run_chatbot_graph(user_id: str, chat_id: str, question: str) -> str:
+async def run_chatbot_graph(user_id: str, chat_id: str, farm_id: str, question: str) -> str:
     """챗봇 그래프를 실행하는 메인 함수"""
     state = DairyChatState(
         user_id=user_id,
         chat_id=chat_id,
+        farm_id=farm_id,
         current_question=question,
         current_answer="",
         answer_route=""

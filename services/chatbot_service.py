@@ -21,6 +21,7 @@ async def handle_user_question(data: AskRequest, question_time: datetime) -> str
     answer = await run_chatbot_graph(
         user_id=data.user_id,
         chat_id=data.chat_id,
+        farm_id=data.farm_id,
         question=data.question
     )
     answer_time = datetime.now()
