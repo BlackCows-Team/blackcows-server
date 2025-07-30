@@ -181,17 +181,16 @@ class AIPredictionService:
             if 'confidence' in ai_response:
                 logger.info(f"예측 신뢰도: {ai_response['confidence']}%")
             
-            # AWS EC2 서버에서 추가 메타데이터 보강
-            enhanced_response = {
-                **ai_response,
-                "user_id": current_user.get("user_id"),
-                "farm_id": current_user.get("farm_id"),
-                "requested_at": datetime.utcnow().isoformat(),
-                "server_processing_time_ms": round((time.time() - start_time) * 1000, 2)
+            # 필요한 필드만 추출하여 응답 구성
+            filtered_response = {
+                "prediction_class": ai_response.get("prediction_class"),
+                "prediction_class_label": ai_response.get("prediction_class_label"),
+                "confidence": ai_response.get("confidence"),
+                "input_features": ai_response.get("input_features", {})
             }
             
             logger.info(f"유방염 예측 완료 - 결과: {ai_response.get('prediction_class_label')}")
-            return enhanced_response
+            return filtered_response
             
         except HTTPException:
             # AI 서버에서 발생한 HTTP 예외는 그대로 전달
@@ -233,22 +232,17 @@ class AIPredictionService:
                 logger.info(f"예측 결과: {ai_response['prediction_class_label']}")
             if 'confidence' in ai_response:
                 logger.info(f"예측 신뢰도: {ai_response['confidence']}%")
-            if 'recommendation' in ai_response:
-                logger.info(f"추천 조치사항: {ai_response['recommendation']}")
-            if 'description' in ai_response:
-                logger.info(f"상세 설명: {ai_response['description']}")
             
-            # AWS EC2 서버에서 추가 메타데이터 보강
-            enhanced_response = {
-                **ai_response,
-                "user_id": current_user.get("user_id"),
-                "farm_id": current_user.get("farm_id"),
-                "requested_at": datetime.utcnow().isoformat(),
-                "server_processing_time_ms": round((time.time() - start_time) * 1000, 2)
+            # 필요한 필드만 추출하여 응답 구성
+            filtered_response = {
+                "prediction_method": ai_response.get("prediction_method", "somatic_cell_count"),
+                "prediction_class": ai_response.get("prediction_class"),
+                "prediction_class_label": ai_response.get("prediction_class_label"),
+                "confidence": ai_response.get("confidence")
             }
             
             logger.info(f"체세포수 기반 유방염 예측 완료 - 결과: {ai_response.get('prediction_class_label')}")
-            return enhanced_response
+            return filtered_response
             
         except HTTPException:
             # AI 서버에서 발생한 HTTP 예외는 그대로 전달
@@ -356,18 +350,32 @@ class AIPredictionService:
             # AI 서버로 배치 예측 요청
             ai_response = await cls._make_ai_request("/ai/mastitis/batch-predict", payload)
             
-            # AWS EC2 서버에서 추가 메타데이터 보강
-            enhanced_response = {
-                **ai_response,
-                "aws_batch_id": batch_id,
-                "user_id": current_user.get("user_id"),
-                "farm_id": current_user.get("farm_id"),
-                "requested_at": datetime.utcnow().isoformat(),
-                "server_processing_time_ms": round((time.time() - start_time) * 1000, 2)
+            # 개별 예측 결과들을 필터링
+            filtered_predictions = []
+            if 'predictions' in ai_response:
+                for pred in ai_response['predictions']:
+                    filtered_pred = {
+                        "prediction_class": pred.get("prediction_class"),
+                        "prediction_class_label": pred.get("prediction_class_label"),
+                        "confidence": pred.get("confidence"),
+                        "input_features": pred.get("input_features", {})
+                    }
+                    # cow_id가 있으면 포함
+                    if 'cow_id' in pred:
+                        filtered_pred["cow_id"] = pred.get("cow_id")
+                    filtered_predictions.append(filtered_pred)
+            
+            # 필터링된 배치 응답 구성
+            filtered_response = {
+                "batch_id": ai_response.get("batch_id"),
+                "total_predictions": ai_response.get("total_predictions"),
+                "successful_predictions": ai_response.get("successful_predictions"),
+                "failed_predictions": ai_response.get("failed_predictions"),
+                "predictions": filtered_predictions
             }
             
             logger.info(f"배치 유방염 예측 완료 - 성공: {ai_response.get('successful_predictions')}")
-            return enhanced_response
+            return filtered_response
                 
         except HTTPException:
             # AI 서버에서 발생한 HTTP 예외는 그대로 전달
@@ -411,18 +419,32 @@ class AIPredictionService:
             # AI 서버로 배치 예측 요청 (정확한 엔드포인트로 수정)
             ai_response = await cls._make_ai_request("/ai/mastitis/batch-predict-by-scc", payload)
             
-            # AWS EC2 서버에서 추가 메타데이터 보강
-            enhanced_response = {
-                **ai_response,
-                "aws_batch_id": batch_id,
-                "user_id": current_user.get("user_id"),
-                "farm_id": current_user.get("farm_id"),
-                "requested_at": datetime.utcnow().isoformat(),
-                "server_processing_time_ms": round((time.time() - start_time) * 1000, 2)
+            # 개별 예측 결과들을 필터링
+            filtered_predictions = []
+            if 'predictions' in ai_response:
+                for pred in ai_response['predictions']:
+                    filtered_pred = {
+                        "prediction_method": pred.get("prediction_method", "somatic_cell_count"),
+                        "prediction_class": pred.get("prediction_class"),
+                        "prediction_class_label": pred.get("prediction_class_label"),
+                        "confidence": pred.get("confidence")
+                    }
+                    # cow_id가 있으면 포함
+                    if 'cow_id' in pred:
+                        filtered_pred["cow_id"] = pred.get("cow_id")
+                    filtered_predictions.append(filtered_pred)
+            
+            # 필터링된 배치 응답 구성
+            filtered_response = {
+                "batch_id": ai_response.get("batch_id"),
+                "total_predictions": ai_response.get("total_predictions"),
+                "successful_predictions": ai_response.get("successful_predictions"),
+                "failed_predictions": ai_response.get("failed_predictions"),
+                "predictions": filtered_predictions
             }
             
             logger.info(f"배치 체세포수 기반 유방염 예측 완료 - 성공: {ai_response.get('successful_predictions')}")
-            return enhanced_response
+            return filtered_response
                 
         except HTTPException:
             # AI 서버에서 발생한 HTTP 예외는 그대로 전달
