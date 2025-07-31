@@ -141,6 +141,7 @@ def generate_rag_response(state: DairyChatState) -> DairyChatState:
 {question}
 
 [답변 규칙]
+- 모든 답변에서 *, -, • 등의 특수 기호 없이 일반 문장 형태로만 작성하세요.
 - 답변 아래 줄에 출처를 반드시 포함합니다.
   → 질문이 한글인 경우: [출처: 파일명1, 파일명2]
   → 질문이 영어인 경우: [Source: filename1, filename2]
