@@ -130,7 +130,6 @@ def generate_rag_response(state: DairyChatState) -> DairyChatState:
 
 만약 참고 자료가 비어있거나 참고자료에서 답을 찾을 수 없다면,
 당신이 알고 있는 지식이나 상식, 경험을 바탕으로 대신 답해도 괜찮습니다.
-단, 정확한 답변이어야 하며, 너무 길게 설명하지 마세요.
 
 [사용자와의 대화 기록]
 {memory}
@@ -142,7 +141,6 @@ def generate_rag_response(state: DairyChatState) -> DairyChatState:
 {question}
 
 [답변 규칙]
-- 짧고 쉬운 단어를 사용하여, 한 문단 이내로 답변하세요.
 - 답변 아래 줄에 출처를 반드시 포함합니다.
   → 질문이 한글인 경우: [출처: 파일명1, 파일명2]
   → 질문이 영어인 경우: [Source: filename1, filename2]
